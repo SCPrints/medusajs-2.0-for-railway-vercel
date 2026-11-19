@@ -18,6 +18,7 @@ import {
 import { parseNotificationEmailList } from "../lib/notification-recipients"
 import { findOpenQuotes, openQuoteSubjectTag } from "../lib/open-quotes"
 import { orderInboxAddress } from "../lib/order-inbox-alias"
+import { resolveOrderPoNumber } from "../lib/po-number"
 import { getPostHog } from "../lib/posthog"
 import { ORGANISATION_MODULE } from "../modules/organisation"
 import type OrganisationModuleService from "../modules/organisation/service"
@@ -90,6 +91,8 @@ export default async function orderPlacedHandler({
 
   const meta = ((order as any).metadata ?? {}) as Record<string, unknown>
   const isFulfillmentOrder = meta.fulfillment_order === true
+  // May not be stamped yet (sibling order.placed subscriber) — reads the cart.
+  const poNumber = await resolveOrderPoNumber(container, data.id, meta)
 
   // ────────────────────────────────────────────────────────────────────
   // FULFILLMENT ORDER BRANCH (Phase 2 customer portal restocks)
@@ -282,6 +285,7 @@ export default async function orderPlacedHandler({
           order,
           shippingAddress,
           audience: "customer",
+          poNumber,
           preview: "Thank you for your order!",
         },
       })
@@ -373,6 +377,7 @@ export default async function orderPlacedHandler({
           order,
           shippingAddress,
           audience: "merchant",
+          poNumber,
           openQuotes,
           adminQuotesUrl,
           preview: `${quoteTag}New order #${displayId}`,

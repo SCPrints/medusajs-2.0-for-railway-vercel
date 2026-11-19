@@ -3,6 +3,16 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import { convertMinorToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 import { TIER_GROUP_NAME_PREFIX, type Tier } from "@lib/customer-tiers"
+import type { SavedDesign } from "@lib/data/designs"
+import OrderAgainButton from "@modules/order/components/order-again-button"
+import { isStudioLine } from "@modules/order/lib/design-groups"
+import {
+  CUSTOMER_MILESTONES,
+  CUSTOMER_MILESTONE_LABEL,
+  customerMilestoneForStage,
+  milestoneIndex,
+  readProductionStageMetadata,
+} from "@modules/order/lib/production-stage"
 
 const TradePricingBadge = ({ tier }: { tier: Tier }) => {
   const label = tier.name.slice(TIER_GROUP_NAME_PREFIX.length)
@@ -41,13 +51,136 @@ const ArrowRightIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+    {children}
+  </p>
+)
+
+/** Active jobs, recent designs and one-click re-order. Renders nothing for brand-new customers. */
+const PickUpWhereYouLeftOff = ({
+  orders,
+  designs,
+}: {
+  orders: HttpTypes.StoreOrder[]
+  designs: SavedDesign[]
+}) => {
+  const activeJobs = orders
+    .map((order) => {
+      const { stage } = readProductionStageMetadata(
+        (order.metadata ?? null) as Record<string, unknown> | null
+      )
+      if (!stage || (order as { status?: string }).status === "canceled") return null
+      const milestone = customerMilestoneForStage(stage)
+      return milestone === "delivered" ? null : { order, milestone }
+    })
+    .filter((j): j is NonNullable<typeof j> => j !== null)
+    .slice(0, 3)
+  const lastStudioOrder = orders.find((o) => (o.items ?? []).some(isStudioLine))
+
+  if (!activeJobs.length && !designs.length && !lastStudioOrder) return null
+
+  return (
+    <section className="mt-8 px-5 small:px-0" data-testid="pick-up-section">
+      <h2 className="mb-4 text-xl font-semibold text-ui-fg-base">Pick up where you left off</h2>
+      <div className="grid grid-cols-1 gap-4 small:grid-cols-2">
+        {activeJobs.length ? (
+          <div className="rounded-2xl border border-ui-border-base bg-white p-5">
+            <SectionLabel>Jobs in progress</SectionLabel>
+            <ul className="m-0 mt-3 flex list-none flex-col gap-3 p-0">
+              {activeJobs.map(({ order, milestone }) => {
+                const idx = milestoneIndex(milestone)
+                return (
+                  <li key={order.id}>
+                    <LocalizedClientLink
+                      href={`/account/orders/details/${order.id}`}
+                      className="group block rounded-lg p-2 -m-2 hover:bg-ui-bg-subtle"
+                    >
+                      <div className="flex items-baseline justify-between gap-2 text-sm">
+                        <span className="font-semibold text-ui-fg-base">#{order.display_id}</span>
+                        <span className="text-ui-fg-subtle">{CUSTOMER_MILESTONE_LABEL[milestone]}</span>
+                      </div>
+                      <div className="mt-2 flex gap-1" aria-hidden>
+                        {CUSTOMER_MILESTONES.map((m, i) => (
+                          <span
+                            key={m}
+                            className={`h-1.5 flex-1 rounded-full ${i <= idx ? "bg-brand" : "bg-ui-bg-subtle"}`}
+                          />
+                        ))}
+                      </div>
+                    </LocalizedClientLink>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ) : null}
+
+        {lastStudioOrder ? (
+          <div className="rounded-2xl border border-ui-border-base bg-white p-5">
+            <SectionLabel>Same again?</SectionLabel>
+            <p className="mt-2 text-sm text-ui-fg-subtle">
+              Re-order #{lastStudioOrder.display_id} from{" "}
+              {new Date(lastStudioOrder.created_at).toLocaleDateString("en-AU", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}{" "}
+              at today&apos;s prices.
+            </p>
+            <OrderAgainButton orderId={lastStudioOrder.id} className="mt-4" />
+          </div>
+        ) : null}
+
+        {designs.length ? (
+          <div className="rounded-2xl border border-ui-border-base bg-white p-5 small:col-span-2">
+            <div className="flex items-end justify-between gap-3">
+              <SectionLabel>Recent designs</SectionLabel>
+              <LocalizedClientLink
+                href="/account/designs"
+                className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 hover:text-brand"
+              >
+                All designs
+                <ArrowRightIcon />
+              </LocalizedClientLink>
+            </div>
+            <ul className="m-0 mt-2 grid list-none grid-cols-2 gap-3 p-0 tablet:grid-cols-4">
+              {designs.slice(0, 4).map((d) => (
+                <li key={d.id}>
+                  <LocalizedClientLink
+                    href={
+                      d.base_product_handle
+                        ? `/products/${d.base_product_handle}?design=${encodeURIComponent(d.id)}`
+                        : `/customizer?design=${encodeURIComponent(d.id)}`
+                    }
+                    className="group block"
+                  >
+                    <span className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-ui-bg-subtle">
+                      {d.thumbnail_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={d.thumbnail_url} alt="" loading="lazy" className="max-h-full max-w-full object-contain transition group-hover:scale-[1.03]" />
+                      ) : null}
+                    </span>
+                    <span className="mt-1 block truncate text-xs font-medium text-ui-fg-base">{d.name}</span>
+                  </LocalizedClientLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
 type OverviewProps = {
   customer: HttpTypes.StoreCustomer | null
   orders: HttpTypes.StoreOrder[] | null
   tier?: Tier | null
+  designs?: SavedDesign[]
 }
 
-const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
+const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps) => {
   const profileCompletion = getProfileCompletion(customer)
   const addressCount = customer?.addresses?.length || 0
   const recentOrders = orders ?? []
@@ -302,6 +435,7 @@ const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
           </ul>
         </section>
       </div>
+      <PickUpWhereYouLeftOff orders={recentOrders} designs={designs} />
     </div>
   )
 }

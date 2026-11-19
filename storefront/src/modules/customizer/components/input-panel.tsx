@@ -3,6 +3,9 @@
 import { ChangeEvent, memo, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 
+/** dataTransfer type for dragging an artwork tile onto the garment canvas. */
+export const ARTWORK_DRAG_TYPE = "application/x-scp-artwork"
+
 // Free Google Fonts curated for apparel/print work. Each entry pairs the
 // CSS family name (used by Fabric IText) with a Google Fonts URL family
 // id. "Arial" is the safe fallback that needs no remote load.
@@ -324,15 +327,20 @@ function InputPanel({
       {enabled && uploads.length > 0 ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <label className="text-xs font-medium text-ui-fg-subtle">My uploads</label>
-            <span className="text-[11px] text-ui-fg-subtle">Reusable across views</span>
+            <label className="text-xs font-medium text-ui-fg-subtle">Your artwork</label>
+            <span className="text-[11px] text-ui-fg-subtle">Tap, or drag onto the garment</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
             {uploads.map((upload) => {
               return (
                 <div
                   key={upload.id}
-                  className="group relative rounded-md border border-ui-border-base bg-ui-bg-subtle hover:border-ui-fg-subtle"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(ARTWORK_DRAG_TYPE, upload.id)
+                    e.dataTransfer.effectAllowed = "copy"
+                  }}
+                  className="group relative cursor-grab rounded-md border border-ui-border-base bg-ui-bg-subtle hover:border-ui-fg-subtle active:cursor-grabbing"
                 >
                   <button
                     type="button"

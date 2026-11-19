@@ -11,6 +11,7 @@ import {
 } from "../../../../../../../lib/constants"
 import { loadReceiptOrder } from "../../../../../../../services/order-receipt-pdf/service"
 import { requireCustomer } from "../../../../../../../lib/require-customer"
+import { poNumberFromMetadata } from "../../../../../../../lib/po-number"
 
 const INVOICE_BRAND = {
   siteName: "SC PRINTS",
@@ -79,6 +80,7 @@ export async function GET(
     typeof meta.tax_exempt_reason === "string" ? meta.tax_exempt_reason : null
   const taxExemptAbn =
     typeof meta.tax_exempt_abn === "string" ? meta.tax_exempt_abn : null
+  const poNumber = poNumberFromMetadata(meta)
 
   const placed = order.created_at ? new Date(order.created_at) : new Date()
   const dateStr = placed.toLocaleDateString("en-AU", {
@@ -175,6 +177,7 @@ export async function GET(
       <div>${escape(String(billing.city ?? ""))} ${escape(String(billing.province ?? ""))} ${escape(String(billing.postal_code ?? ""))}</div>
       <div class="muted">${escape(String(order.email ?? ""))}</div>
       ${taxExemptAbn ? `<div class="muted" style="margin-top:6px;">ABN ${escape(taxExemptAbn)}</div>` : ""}
+      ${poNumber ? `<div style="margin-top:6px;"><strong>PO number:</strong> ${escape(poNumber)}</div>` : ""}
     </div>
     <div>
       <div class="label">Ship to</div>

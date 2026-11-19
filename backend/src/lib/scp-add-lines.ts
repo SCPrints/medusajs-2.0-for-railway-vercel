@@ -40,7 +40,15 @@ export type ScpAddLinesResult = {
 export async function addScpLinesToCart(
   scope: { resolve: (key: string) => unknown },
   cartId: string,
-  items: ScpAddLineInput[]
+  items: ScpAddLineInput[],
+  opts: {
+    /**
+     * Check embroidery digitizing against the customer's prior orders, as the
+     * single-line route does (lib/digitizing-waiver.ts). One SQL query per
+     * embroidered line, so off for the 300-line bulk grid; order-again sets it.
+     */
+    digitizingWaivers?: boolean
+  } = {}
 ): Promise<ScpAddLinesResult> {
   const query = scope.resolve(ContainerRegistrationKeys.QUERY) as RemoteJoinerGraphLike
 
@@ -95,6 +103,7 @@ export async function addScpLinesToCart(
           cart: cartForDescriptor,
           query,
           tier,
+          ...(opts.digitizingWaivers ? { container: scope as never } : {}),
         })
       } catch (error) {
         if (error instanceof MedusaError) {

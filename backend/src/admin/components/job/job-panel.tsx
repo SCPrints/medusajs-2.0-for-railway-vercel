@@ -249,6 +249,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
               ) : null}
               {job.quote ? <span>{job.quote.public_id}</span> : null}
               {job.order ? <span>Order #{job.order.display_id ?? ""}</span> : null}
+              {job.order?.po_number ? <span>PO {job.order.po_number}</span> : null}
               <NeededBy job={job} onChanged={onChanged} />
             </div>
           </div>

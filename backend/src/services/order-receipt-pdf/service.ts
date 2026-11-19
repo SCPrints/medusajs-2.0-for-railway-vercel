@@ -14,6 +14,7 @@ import {
   SCP_BANK_BSB,
   SCP_COMPANY_ABN,
 } from "../../lib/constants"
+import { poNumberFromMetadata, resolveOrderPoNumber } from "../../lib/po-number"
 
 const ASSETS_DIR = path.join(__dirname, "../../assets")
 const FONTS_DIR = path.join(ASSETS_DIR, "fonts")
@@ -246,6 +247,11 @@ export async function loadReceiptOrder(
     // unknown payment state → PDF omits the paid/balance block
   }
 
+  // The invoice PDF for the order.placed email can render before the PO
+  // stamp lands — read it through to the cart.
+  const poNumber = await resolveOrderPoNumber(container, orderId, raw?.metadata)
+  if (poNumber) raw = { ...raw, metadata: { ...(raw?.metadata ?? {}), po_number: poNumber } }
+
   return computeReceiptTotals(raw, paidTotal)
 }
 
@@ -366,6 +372,7 @@ function buildPdf(params: {
       typeof meta.tax_exempt_reason === "string" ? meta.tax_exempt_reason : null
     const taxExemptAbn =
       typeof meta.tax_exempt_abn === "string" ? meta.tax_exempt_abn : null
+    const poNumber = poNumberFromMetadata(meta)
 
     const shipping = (order.shipping_address ?? {}) as Address
     const billing = (order.billing_address ?? shipping) as Address
@@ -478,6 +485,7 @@ function buildPdf(params: {
       [
         order.email ?? null,
         taxExemptAbn ? `ABN ${taxExemptAbn}` : null,
+        poNumber ? `PO number: ${poNumber}` : null,
       ]
     )
     renderAddressColumn(

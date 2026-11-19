@@ -2,6 +2,7 @@
 
 import { addToCartSafe, deleteLineItem, getScpCartAggregate, retrieveCart, updateScpDesignInCart } from "@lib/data/cart"
 import { createMyDesign, getMyDesign, updateMyDesign } from "@lib/data/designs"
+import { createArtwork, listMyArtwork } from "@lib/data/artwork"
 import { getOrderLineCustomizerMetadata } from "@lib/data/orders"
 import { getQuoteGroupDesign } from "@lib/data/quote-design"
 import CustomizerProductPicker, {
@@ -21,12 +22,13 @@ import {
 import { resolvePdpFlyImageSrc } from "@modules/common/components/fly-to-cart-add-button"
 import CanvasStage from "@modules/customizer/components/canvas-stage"
 import DesignPreviewPopover from "@modules/customizer/components/design-preview-popover"
-import InputPanel from "@modules/customizer/components/input-panel"
+import InputPanel, { ARTWORK_DRAG_TYPE } from "@modules/customizer/components/input-panel"
 import BulkOrderGrid, {
   type BulkCellEntry,
   type BulkPricingEstimate,
 } from "@modules/customizer/components/bulk-order-grid"
 import PricingPanel from "@modules/customizer/components/pricing-panel"
+import GarmentPicker from "@modules/account/components/garment-picker"
 import { convertToLocale } from "@lib/util/money"
 import { getTierUnitMajorForVariant } from "@lib/util/tier-price"
 import SideSelector from "@modules/customizer/components/side-selector"
@@ -194,6 +196,8 @@ const MAX_UPLOAD_SIZE = 8 * 1024 * 1024
 // Backend body cap is 32MB of base64 (~24MB file); leave headroom.
 const STAFF_MAX_UPLOAD_SIZE = 20 * 1024 * 1024
 const SESSION_UPLOADS_KEY = "customizer_uploads_v1"
+/** "Try it on another garment" hands the design to the next product page. */
+const CARRY_DESIGN_KEY = "scp:carry-design"
 /** Ignore sub-pixel drift from Fabric so small moves inside the box don’t show a “clipped” alert. */
 const PRINT_AREA_EPS = 1.5
 /** Skip clamp until the canvas has a real size (avoids pinning art to a corner when printArea is ~0). */
@@ -805,6 +809,10 @@ export default function CustomizerTemplate({
   // resolve to a CustomizerMetadata that we replay onto the canvas + state.
   const designIdFromUrl = initialVariantSearchParams?.get("design") ?? null
   const reorderRefFromUrl = initialVariantSearchParams?.get("reorder") ?? null
+  // `?carry=1`: "Try it on another garment" stashed the design in
+  // sessionStorage. `?artwork=<id>`: start with a logo from the library.
+  const carryFromUrl = initialVariantSearchParams?.get("carry") === "1"
+  const artworkIdFromUrl = initialVariantSearchParams?.get("artwork") ?? null
 
   // POS and quote sessions are popups opened from admin; the finished design
   // goes back to the till / quote instead of a cart (lib/destinations/staff.ts).
@@ -843,6 +851,16 @@ export default function CustomizerTemplate({
   const [pendingHydration, setPendingHydration] = useState<CustomizerMetadata | null>(null)
   const [hydrationApplied, setHydrationApplied] = useState(false)
   const [editingHydrated, setEditingHydrated] = useState(false)
+  // A saved design / past job / carried design can open on a DIFFERENT garment
+  // than it was made on. Save then makes a new design instead of overwriting
+  // the original, and a notice tells the customer what to check.
+  const [savedDesignEditable, setSavedDesignEditable] = useState(true)
+  const [savedDesignIdThisSession, setSavedDesignIdThisSession] = useState<string | null>(null)
+  const [movedToGarmentNotice, setMovedToGarmentNotice] = useState<string | null>(null)
+  const [hydratedFromProductId, setHydratedFromProductId] = useState<string | null>(null)
+  const [garmentPickerOpen, setGarmentPickerOpen] = useState(false)
+  const [carryingDesign, setCarryingDesign] = useState(false)
+  const [artworkDropActive, setArtworkDropActive] = useState(false)
 
   // URL → state sync for `?edit=<lineItemId>`. Same SSR-prerender root cause
   // as the edit-group sync above (`useSearchParams` returns null during static
@@ -2307,6 +2325,7 @@ export default function CustomizerTemplate({
     if (
       !designIdFromUrl &&
       !reorderRefFromUrl &&
+      !carryFromUrl &&
       !hasQuoteGroupToHydrate &&
       !isAdminProofMode
     )
@@ -2315,9 +2334,21 @@ export default function CustomizerTemplate({
     ;(async () => {
       try {
         let meta: CustomizerMetadata | null = null
-        if (designIdFromUrl) {
+        if (carryFromUrl) {
+          try {
+            const raw = window.sessionStorage.getItem(CARRY_DESIGN_KEY)
+            window.sessionStorage.removeItem(CARRY_DESIGN_KEY)
+            meta = raw ? (JSON.parse(raw) as CustomizerMetadata) : null
+          } catch {
+            meta = null
+          }
+        } else if (designIdFromUrl) {
           const design = await getMyDesign(designIdFromUrl)
           meta = (design?.customizer_metadata as CustomizerMetadata | undefined) ?? null
+          // Designs shared by an organisation can be used, not overwritten.
+          if (design && (design as { can_edit?: boolean }).can_edit === false) {
+            setSavedDesignEditable(false)
+          }
         } else if (reorderRefFromUrl) {
           const [orderId, lineItemId] = reorderRefFromUrl.split(":")
           if (orderId && lineItemId) {
@@ -2367,6 +2398,7 @@ export default function CustomizerTemplate({
   }, [
     designIdFromUrl,
     reorderRefFromUrl,
+    carryFromUrl,
     hasQuoteGroupToHydrate,
     quoteIdFromUrl,
     quoteSigFromUrl,
@@ -2481,13 +2513,48 @@ export default function CustomizerTemplate({
         setHydrationPlaceholderSides(placeholders)
       }
     }
-    if (Array.isArray(pendingHydration.sizes) && pendingHydration.sizes.length > 0) {
-      setSizeMatrix(pendingHydration.sizes)
+    // Opened on a different garment than it was made on: keep the artwork,
+    // drop print spots this garment can't take, keep sizes it also has, and
+    // let the customer pick a colour (the old variant doesn't exist here).
+    const movedGarment =
+      destination.kind === "shop" &&
+      typeof pendingHydration.productId === "string" &&
+      pendingHydration.productId.length > 0 &&
+      pendingHydration.productId !== product.id
+    let hydrationSizes = pendingHydration.sizes
+    if (movedGarment) {
+      setHydratedFromProductId(pendingHydration.productId)
+      const dropped = DESIGN_SIDES.filter(
+        (side) =>
+          !allowedPrintSides.includes(side) && (sideLayoutsRef.current[side] ?? []).length > 0
+      )
+      for (const side of dropped) sideLayoutsRef.current[side] = []
+      const sizeValues = new Set(
+        (product.variants ?? []).flatMap((v) =>
+          ((v.options ?? []) as Array<{ value?: string }>).map((o) => String(o?.value ?? "").toLowerCase())
+        )
+      )
+      hydrationSizes = (pendingHydration.sizes ?? []).filter((s) =>
+        sizeValues.has(String(s?.size ?? "").toLowerCase())
+      )
+      setMovedToGarmentNotice(
+        `Your artwork is on this garment now. Check where it sits, then pick a colour and sizes.${
+          dropped.length
+            ? ` This garment can't be printed on the ${dropped
+                .map((s) => s.replace(/_/g, " "))
+                .join(" or ")}, so that artwork was left off.`
+            : ""
+        }`
+      )
+    }
+    if (Array.isArray(hydrationSizes) && hydrationSizes.length > 0) {
+      const pendingSizes = hydrationSizes
+      setSizeMatrix(pendingSizes)
       // In the embedded / v2 Studio the size matrix is derived from the product-
       // options context (sizeQuantities), so the size-matrix effect would zero
       // the rehydrated quantities. Mirror them into the context so they survive.
       if (embedded && productOptionsFromPdp) {
-        for (const sq of pendingHydration.sizes) {
+        for (const sq of pendingSizes) {
           if (
             sq &&
             typeof sq.size === "string" &&
@@ -2805,6 +2872,62 @@ export default function CustomizerTemplate({
       // Ignore persistence errors; tray still works in-memory.
     }
   }, [sessionUploads, isAdminProofMode])
+
+  // Signed-in shoppers: their account artwork library (uploads + every file
+  // from past orders) joins the tray, so a logo uploaded once is always one
+  // tap / drag away. Guests get an empty list back. Staff popups never load it.
+  useEffect(() => {
+    if (destination.kind !== "shop") return
+    let cancelled = false
+    void listMyArtwork()
+      .then((items) => {
+        if (cancelled) return
+        if (artworkIdFromUrl) {
+          setPendingArtworkUrl(items.find((a) => a.id === artworkIdFromUrl)?.url ?? null)
+        }
+        setSessionUploads((current) => {
+          const known = new Set(current.map((u) => u.originalStorageUrl).filter(Boolean))
+          const fromLibrary = items
+            .filter((a) => a.url && !known.has(a.url))
+            .map((a) => ({
+              id: `lib_${a.id}`,
+              name: a.name,
+              type: a.mime_type,
+              dataUrl: "",
+              originalStorageUrl: a.url,
+            }))
+          return fromLibrary.length ? [...current, ...fromLibrary] : current
+        })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+    // destination is URL-derived and constant for the component's life.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // `?artwork=<id>` ("Use on a garment" from My artwork): once the canvas is
+  // up and the library has joined the tray, put that logo on the garment.
+  const [pendingArtworkUrl, setPendingArtworkUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!pendingArtworkUrl || canvasSize.width <= 0) return
+    const entry = sessionUploads.find((u) => u.originalStorageUrl === pendingArtworkUrl)
+    if (!entry) return
+    setPendingArtworkUrl(null)
+    void handleReuseUpload(entry.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingArtworkUrl, canvasSize.width, sessionUploads])
+
+  /** New Studio uploads are kept in the account library (signed-in only). */
+  const rememberInLibrary = (asset: { name: string; type: string; originalStorageUrl?: string }) => {
+    if (destination.kind !== "shop" || !asset.originalStorageUrl) return
+    void createArtwork({
+      url: asset.originalStorageUrl,
+      name: asset.name,
+      mime_type: asset.type,
+    }).catch(() => {})
+  }
 
   const saveCurrentSide = () => {
     if (suppressFabricPersistenceRef.current) {
@@ -3464,6 +3587,7 @@ export default function CustomizerTemplate({
           ...(originalStorageUrl ? { originalStorageUrl } : {}),
         }
         setSessionUploads((current) => [nextAsset, ...current.filter((entry) => entry.dataUrl !== dataUrl)])
+        rememberInLibrary(nextAsset)
         await addUploadedAssetToCanvas({
           name: nextAsset.name,
           type: nextAsset.type,
@@ -3506,6 +3630,9 @@ export default function CustomizerTemplate({
         ...(originalStorageUrl ? { originalStorageUrl } : {}),
       }
       setSessionUploads((current) => [nextAsset, ...current.filter((entry) => entry.dataUrl !== dataUrl)])
+      // The library keeps the customer's ORIGINAL file type; the tray entry's
+      // type is the canvas copy's (PNG after normalising).
+      rememberInLibrary({ ...nextAsset, type: file.type })
       await addUploadedAssetToCanvas({
         name: nextAsset.name,
         type: nextAsset.type,
@@ -3999,7 +4126,25 @@ export default function CustomizerTemplate({
         mockupGarmentUrl,
         defaultGarmentImage
       )
-      const pa = getPrintArea(canvasDims.width, canvasDims.height, resolveScpPrintSizeForSide(side, scpPrintSizeBySide[side] ?? DEFAULT_SCP_PRINT_SIZE_ID) as ScpPrintSizeId)
+      const proofSizeId = resolveScpPrintSizeForSide(side, scpPrintSizeBySide[side] ?? DEFAULT_SCP_PRINT_SIZE_ID) as ScpPrintSizeId
+      const pa = getPrintArea(canvasDims.width, canvasDims.height, proofSizeId)
+
+      // The approved artwork travels with the proof so a re-order reprints it
+      // (not the customer's first upload). Inline uploads swap to their hosted
+      // copy; if one has none, skip the design (the mockup still saves).
+      const hostedByDataUrl = new Map(
+        sessionUploads
+          .filter((u) => u.dataUrl && u.originalStorageUrl)
+          .map((u) => [u.dataUrl, u.originalStorageUrl as string])
+      )
+      const designObjects = sideObjects.map((obj: any) =>
+        obj && typeof obj.src === "string" && obj.src.startsWith("data:") && hostedByDataUrl.has(obj.src)
+          ? { ...obj, src: hostedByDataUrl.get(obj.src) }
+          : obj
+      )
+      const designIsHosted = !designObjects.some(
+        (obj: any) => typeof obj?.src === "string" && obj.src.startsWith("data:")
+      )
 
       // Proof destination (lib/destinations/staff.ts).
       await sendProof({
@@ -4022,6 +4167,9 @@ export default function CustomizerTemplate({
         artworkUrl:
           proofArtworkUrl(sideObjects, sessionUploads) ??
           (proofArtworkParam ? decodeURIComponent(proofArtworkParam) : null),
+        design: designIsHosted
+          ? { objects: designObjects, canvas: canvasDims, print_size_id: proofSizeId }
+          : null,
         target: window.parent,
       })
     } catch (err) {
@@ -4186,6 +4334,72 @@ export default function CustomizerTemplate({
    * those run later when the user actually adds the design to cart. The
    * thumbnail is a small inline JPEG generated client-side from Fabric.
    */
+  /** The design as saved to "My designs" (and carried to another garment). */
+  const buildDesignSnapshot = (): CustomizerMetadata => ({
+    ...buildCustomizerMetadataBase({
+      canvas: liveCanvasSize(),
+      productId: selectedProduct!.id,
+      sideLayoutsBySide: sideLayoutsRef.current,
+      printArea,
+      sizes: sizeMatrix,
+      pricing,
+      artifacts: [],
+      scpPrintSizeId,
+      printNotes,
+      // Only attach the uploads referenced on this design's canvas —
+      // the "My uploads" tray persists across sessions, so attaching
+      // every entry would dump unrelated artwork into the saved
+      // design's metadata.
+      customerOriginalFiles: (() => {
+        const referencedSides = collectReferencedUploadSides()
+        return sessionUploads
+          .filter((u) => u.originalStorageUrl && referencedSides.has(u.id))
+          .map((u) => ({
+            url: u.originalStorageUrl!,
+            fileName: u.name,
+            mimeType: u.type,
+            sides: referencedSides.get(u.id)!,
+          }))
+      })(),
+      activeSide: currentSideRef.current,
+      prints: printSpecs,
+      sideDecorationMethods,
+      sideEmbroideryConfigs,
+      sideScreenConfigs,
+    }),
+    variantId: selectedVariant!.id,
+  })
+
+  /**
+   * "Try it on another garment": snapshot the design (uploads swapped for
+   * their hosted copies so it fits in sessionStorage), then open the picked
+   * garment's Studio with `?carry=1` — stage-1 hydration picks it up there.
+   */
+  const carryDesignToGarment = async (handle: string) => {
+    if (!selectedProduct || !selectedVariant) return
+    saveCurrentSide()
+    setCarryingDesign(true)
+    setUploadError(null)
+    try {
+      const snapshot = buildDesignSnapshot()
+      const hosted: Record<string, string> = {}
+      for (const u of sessionUploads) {
+        if (u.dataUrl && u.originalStorageUrl) hosted[u.dataUrl] = u.originalStorageUrl
+      }
+      await hostUnmappedDataUrls(snapshot, hosted)
+      const portable = sanitizeCustomizerDesignForCart(snapshot, hosted)
+      window.sessionStorage.setItem(CARRY_DESIGN_KEY, JSON.stringify(portable))
+      phCapture("customizer_design_carried", {
+        from_product_id: selectedProduct.id,
+        to_handle: handle,
+      })
+      window.location.assign(`/${countryCode}/products/${encodeURIComponent(handle)}?carry=1`)
+    } catch {
+      setUploadError("Couldn't move your design to that garment. Save it to your designs and open it from there.")
+      setCarryingDesign(false)
+    }
+  }
+
   const saveCurrentDesign = async () => {
     if (!selectedProduct || !selectedVariant) {
       setUploadError("Select a product and variant before saving.")
@@ -4204,8 +4418,17 @@ export default function CustomizerTemplate({
     // "Save" should update the existing Design row (with a version
     // snapshot — handled by the backend POST endpoint) rather than
     // create a duplicate "Logo v1 · 5/23/2026" alongside the original.
-    // Create path: ask for a name and call createMyDesign.
-    const isUpdatingExisting = !!designIdFromUrl
+    // Create path: ask for a name and call createMyDesign. A design moved
+    // onto another garment, or shared by an organisation, saves as a new one
+    // (and later saves this session update that new one).
+    const existingDesignId =
+      savedDesignIdThisSession ??
+      (designIdFromUrl &&
+      savedDesignEditable &&
+      (!hydratedFromProductId || hydratedFromProductId === selectedProduct.id)
+        ? designIdFromUrl
+        : null)
+    const isUpdatingExisting = !!existingDesignId
     let resolvedName: string | null = null
     if (!isUpdatingExisting) {
       const defaultName = `${
@@ -4239,43 +4462,18 @@ export default function CustomizerTemplate({
         // Thumbnail is best-effort.
       }
 
-      const partialMetadata: CustomizerMetadata = {
-        ...buildCustomizerMetadataBase({
-          canvas: liveCanvasSize(),
-          productId: selectedProduct.id,
-          sideLayoutsBySide: sideLayoutsRef.current,
-          printArea,
-          sizes: sizeMatrix,
-          pricing,
-          artifacts: [],
-          scpPrintSizeId,
-          printNotes,
-          // Only attach the uploads referenced on this design's canvas —
-          // the "My uploads" tray persists across sessions, so attaching
-          // every entry would dump unrelated artwork into the saved
-          // design's metadata.
-          customerOriginalFiles: (() => {
-            const referencedSides = collectReferencedUploadSides()
-            return sessionUploads
-              .filter((u) => u.originalStorageUrl && referencedSides.has(u.id))
-              .map((u) => ({
-                url: u.originalStorageUrl!,
-                fileName: u.name,
-                mimeType: u.type,
-                sides: referencedSides.get(u.id)!,
-              }))
-          })(),
-          activeSide: currentSideRef.current,
-          prints: printSpecs,
-          sideDecorationMethods,
-          sideEmbroideryConfigs,
-          sideScreenConfigs,
-        }),
-        variantId: selectedVariant.id,
+      // Swap inline uploads for their hosted copies so the saved design is
+      // small and reopens on any device (data URLs are multi-MB each).
+      const hostedForSave: Record<string, string> = {}
+      for (const u of sessionUploads) {
+        if (u.dataUrl && u.originalStorageUrl) hostedForSave[u.dataUrl] = u.originalStorageUrl
       }
+      const rawSnapshot = buildDesignSnapshot()
+      await hostUnmappedDataUrls(rawSnapshot, hostedForSave)
+      const partialMetadata = sanitizeCustomizerDesignForCart(rawSnapshot, hostedForSave)
 
-      const result = isUpdatingExisting && designIdFromUrl
-        ? await updateMyDesign(designIdFromUrl, {
+      const result = isUpdatingExisting && existingDesignId
+        ? await updateMyDesign(existingDesignId, {
             thumbnail_url: thumbnailDataUrl ?? null,
             customizer_metadata: partialMetadata,
           })
@@ -4288,9 +4486,14 @@ export default function CustomizerTemplate({
           })
 
       if (!result.ok) {
-        setUploadError(result.error)
+        setUploadError(
+          /sign in/i.test(result.error)
+            ? "Sign in to your account to save designs. They'll be waiting for you under My designs."
+            : result.error
+        )
         return
       }
+      if (!isUpdatingExisting) setSavedDesignIdThisSession(result.design.id)
 
       setStatusMessage(
         isUpdatingExisting
@@ -5490,6 +5693,15 @@ export default function CustomizerTemplate({
     })
   }, [onQuantityStep, destination.kind, selectedProduct?.id, decoratedSides.length])
 
+  const saveCurrentDesignRef = useRef(saveCurrentDesign)
+  saveCurrentDesignRef.current = saveCurrentDesign
+  const stableOnSaveDesign = useCallback(() => saveCurrentDesignRef.current(), [])
+  // Saving + "try on another garment" are shopper actions: not for staff
+  // popups, nor while editing a line that's already in the cart.
+  const canSaveDesign = destination.kind === "shop" && !editGroupId && !editLineItemId
+  // Same gate as the "Add to design" panel (colour picked first on the PDP).
+  const canDropArtwork = isStaffStudio || !embedded || !pdpHasVariantOptions || pdpStep1Done
+
   const stableOnRequestQuote = useCallback(() => {
     phCapture("customizer_quote_link_clicked", {})
     poaPendingCellsRef.current = null
@@ -5747,7 +5959,36 @@ export default function CustomizerTemplate({
                   <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">
                     Editing: {sideLabel}
                   </p>
-                  <div className={assemblyLayout ? "relative isolate z-[1] flex flex-1 min-h-0 items-center justify-center" : "z-[1]"}>
+                  <div
+                    className={[
+                      assemblyLayout ? "relative isolate z-[1] flex flex-1 min-h-0 items-center justify-center" : "z-[1]",
+                      artworkDropActive ? "rounded-xl outline-dashed outline-2 outline-offset-4 outline-[var(--brand-primary)]" : "",
+                    ].join(" ")}
+                    // Drop a "Your artwork" tile, or a file from the desktop,
+                    // straight onto the garment.
+                    onDragOver={(e) => {
+                      if (!canDropArtwork) return
+                      const types = Array.from(e.dataTransfer.types ?? [])
+                      if (!types.includes(ARTWORK_DRAG_TYPE) && !types.includes("Files")) return
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = "copy"
+                      if (!artworkDropActive) setArtworkDropActive(true)
+                    }}
+                    onDragLeave={(e) => {
+                      if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
+                      setArtworkDropActive(false)
+                    }}
+                    onDrop={(e) => {
+                      setArtworkDropActive(false)
+                      if (!canDropArtwork) return
+                      const uploadId = e.dataTransfer.getData(ARTWORK_DRAG_TYPE)
+                      const file = e.dataTransfer.files?.[0]
+                      if (!uploadId && !file) return
+                      e.preventDefault()
+                      if (uploadId) void handleReuseUpload(uploadId)
+                      else if (file) void handleUploadFile(file)
+                    }}
+                  >
                     {/* SC Prints watermark — overlaid ON TOP of the studio area
                         (page background + garment photo together), slightly
                         oversize so it spans past the photo edges uncut. Faint;
@@ -5853,6 +6094,23 @@ export default function CustomizerTemplate({
                   re-upload it via <span className="font-semibold">Add to design</span>{" "}
                   before checking out, so the print isn't lost.
                 </p>
+              </div>
+            )}
+            {movedToGarmentNotice && (
+              <div
+                className="flex items-start gap-2 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-2 text-xs text-sky-900"
+                role="status"
+                data-testid="moved-to-garment-notice"
+              >
+                <p className="flex-1">{movedToGarmentNotice}</p>
+                <button
+                  type="button"
+                  onClick={() => setMovedToGarmentNotice(null)}
+                  className="min-h-8 min-w-8 rounded text-sky-700 hover:bg-sky-100"
+                  aria-label="Dismiss"
+                >
+                  ×
+                </button>
               </div>
             )}
           </div>
@@ -7599,7 +7857,31 @@ export default function CustomizerTemplate({
                 stockBySize={stockBySize}
                 tier={tier}
                 variantTintHex={variantTintHex}
+                onSaveDesign={canSaveDesign ? stableOnSaveDesign : undefined}
+                isSavingDesign={isSavingDesign}
               />
+              {canSaveDesign && decoratedSides.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setGarmentPickerOpen(true)}
+                  disabled={carryingDesign || isSubmitting}
+                  className="min-h-11 w-full rounded-xl border border-dashed border-ui-border-strong px-4 py-2.5 text-sm font-medium text-ui-fg-base transition hover:bg-ui-bg-subtle disabled:opacity-50"
+                  data-testid="studio-try-another-garment"
+                >
+                  {carryingDesign ? "Moving your design…" : "Try this design on another garment"}
+                </button>
+              ) : null}
+              {canSaveDesign ? (
+                <GarmentPicker
+                  open={garmentPickerOpen}
+                  onClose={() => setGarmentPickerOpen(false)}
+                  onPick={(picked) => {
+                    setGarmentPickerOpen(false)
+                    void carryDesignToGarment(picked.handle)
+                  }}
+                  title="Try your design on…"
+                />
+              ) : null}
               <div className="space-y-2 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
                 <label
                   htmlFor="customizer-print-notes"

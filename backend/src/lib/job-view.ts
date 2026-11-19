@@ -104,6 +104,8 @@ export type JobView = {
     rush_tier: "priority" | "express" | null
     /** The customer's own date (YYYY-MM-DD), copied from the quote at conversion. */
     needed_by: string | null
+    /** Customer's purchase-order number from checkout (metadata.po_number). */
+    po_number?: string | null
   } | null
   customer: {
     id: string | null

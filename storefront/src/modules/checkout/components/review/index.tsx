@@ -3,6 +3,7 @@
 import { Heading, Text, clx } from "@medusajs/ui"
 
 import PaymentButton from "../payment-button"
+import PoNumber from "../po-number"
 import { useSearchParams } from "next/navigation"
 
 const Review = ({ cart }: { cart: any }) => {
@@ -45,6 +46,11 @@ const Review = ({ cart }: { cart: any }) => {
               </Text>
             </div>
           </div>
+          <PoNumber
+            initial={
+              typeof cart?.metadata?.po_number === "string" ? cart.metadata.po_number : ""
+            }
+          />
           <PaymentButton cart={cart} data-testid="submit-order-button" />
         </>
       )}

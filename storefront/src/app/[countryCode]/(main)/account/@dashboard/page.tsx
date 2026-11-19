@@ -4,21 +4,23 @@ import { notFound } from "next/navigation"
 import { getCustomer } from "@lib/data/customer"
 import { listOrders } from "@lib/data/orders"
 import { getCustomerTier } from "@lib/data/customer-tier"
+import { listMyDesigns } from "@lib/data/designs"
 
 export const metadata: Metadata = {
   title: "Account",
   description: "Overview of your account activity.",
 }
 
-export default async function OverviewTemplate(){const [customer, orders, tier] = await Promise.all([
+export default async function OverviewTemplate(){const [customer, orders, tier, designs] = await Promise.all([
     getCustomer().catch(() => null),
     listOrders().catch(() => null),
     getCustomerTier().catch(() => null),
+    listMyDesigns({ limit: 4 }),
   ])
 
   if (!customer) {
     notFound()
   }
 
-  return <Overview customer={customer} orders={orders ?? null} tier={tier} />
+  return <Overview customer={customer} orders={orders ?? null} tier={tier} designs={designs.designs} />
 }

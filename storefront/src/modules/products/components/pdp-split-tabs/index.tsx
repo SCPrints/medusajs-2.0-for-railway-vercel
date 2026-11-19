@@ -48,6 +48,8 @@ export default function PdpSplitTabs({
     !!searchParams?.get("edit") ||
     !!searchParams?.get("design") ||
     !!searchParams?.get("reorder") ||
+    !!searchParams?.get("carry") ||
+    !!searchParams?.get("artwork") ||
     !!searchParams?.get("adminProof")
   const [active, setActive] = useState<0 | 1>(startsOnDesign ? 1 : 0)
   const [designMounted, setDesignMounted] = useState(startsOnDesign)

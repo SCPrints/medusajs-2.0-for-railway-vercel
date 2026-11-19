@@ -5,7 +5,15 @@ import {
 import { z } from "zod"
 
 import { getPostHog } from "../../../../../../lib/posthog"
-import { loadOwnedDesign } from "../../../../../../lib/owned-design"
+import {
+  decorateDesigns,
+  loadOwnedDesign,
+  loadVisibleDesign,
+} from "../../../../../../lib/owned-design"
+import {
+  assertCanShareTo,
+  listCustomerOrgs,
+} from "../../../../../../lib/customer-org-sharing"
 import { requireCustomer } from "../../../../../../lib/require-customer"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
@@ -15,12 +23,15 @@ const updateBodySchema = z
     name: z.string().trim().min(1).max(120).optional(),
     thumbnail_url: z.string().url().nullable().optional(),
     customizer_metadata: z.record(z.string(), z.unknown()).optional(),
+    /** Share with one of my organisations, or null to make private. Owner only. */
+    organisation_id: z.string().min(1).nullable().optional(),
   })
   .refine(
     (v) =>
       v.name !== undefined ||
       v.thumbnail_url !== undefined ||
-      v.customizer_metadata !== undefined,
+      v.customizer_metadata !== undefined ||
+      v.organisation_id !== undefined,
     { message: "Provide at least one field to update." }
   )
 
@@ -30,8 +41,10 @@ export async function GET(
 ) {
   const customerId = requireCustomer(req)
   const params = paramsSchema.parse(req.params ?? {})
-  const { design } = await loadOwnedDesign(req.scope, params.id, customerId)
-  res.json({ design })
+  // Readable when own or shared to one of my organisations.
+  const { design, orgs } = await loadVisibleDesign(req.scope, params.id, customerId)
+  const [decorated] = await decorateDesigns(req.scope, [design], customerId, orgs)
+  res.json({ design: decorated })
 }
 
 export async function POST(
@@ -43,6 +56,12 @@ export async function POST(
   const body = updateBodySchema.parse(req.body ?? {})
 
   const { design, designsService } = await loadOwnedDesign(req.scope, params.id, customerId)
+
+  // Sharing: only into an organisation where I'm owner or purchaser.
+  // (The owner's own design needs no org list for its response fields.)
+  const orgs =
+    typeof body.organisation_id === "string" ? await listCustomerOrgs(req.scope, customerId) : []
+  if (typeof body.organisation_id === "string") assertCanShareTo(orgs, body.organisation_id)
 
   // If the customizer payload is changing, snapshot the OLD state into
   // a design_version row before mutating the live design. Rename- and
@@ -79,6 +98,7 @@ export async function POST(
       ...(body.customizer_metadata !== undefined
         ? { customizer_metadata: body.customizer_metadata }
         : {}),
+      ...(body.organisation_id !== undefined ? { organisation_id: body.organisation_id } : {}),
     },
   ])
 
@@ -90,11 +110,13 @@ export async function POST(
       updated_name: body.name !== undefined,
       updated_thumbnail: body.thumbnail_url !== undefined,
       updated_metadata: body.customizer_metadata !== undefined,
+      updated_sharing: body.organisation_id !== undefined,
       snapshotted_version: snapshottedVersion,
     },
   })
 
-  res.json({ design: updated, snapshotted_version: snapshottedVersion })
+  const [decorated] = await decorateDesigns(req.scope, [updated], customerId, orgs)
+  res.json({ design: decorated, snapshotted_version: snapshottedVersion })
 }
 
 export async function DELETE(

@@ -1325,3 +1325,29 @@ export async function replaceCartWithSavedItems({
     restored_items: sanitizedItems.length,
   }
 }
+
+/**
+ * Saves the customer's PO number / order reference on the cart
+ * (`cart.metadata.po_number`, max 60 chars; empty clears it). Medusa's cart
+ * update REPLACES metadata, so merge with what's there (`shipping_decision`
+ * and friends live on the same object).
+ */
+export async function setCartPoNumber(
+  poNumber: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const cart = await retrieveCart()
+  if (!cart?.id) return { ok: false, error: "Your cart has expired." }
+  const value = poNumber.trim().slice(0, 60)
+  const current = ((cart.metadata ?? {}) as Record<string, unknown>)
+  if ((current.po_number ?? "") === value) return { ok: true }
+  try {
+    // "" (not omitting the key) so a clear works whether Medusa merges or replaces.
+    await updateCart({ metadata: { ...current, po_number: value } })
+    return { ok: true }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not save the PO number.",
+    }
+  }
+}

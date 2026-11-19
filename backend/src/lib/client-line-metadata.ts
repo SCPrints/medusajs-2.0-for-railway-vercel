@@ -61,6 +61,8 @@ export const CLIENT_LINE_METADATA_KEYS = [
   // Group orders — lib/group-order-lines.ts
   "group_order_id",
   "group_order_participants",
+  // Order again — { order_id, display_id, line_item_id } of the source line
+  "reorder_of",
 ] as const
 
 const isObject = (v: unknown): v is Record<string, unknown> =>

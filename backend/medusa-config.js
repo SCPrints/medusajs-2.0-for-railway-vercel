@@ -324,6 +324,10 @@ const medusaConfig = {
     },
 
     {
+      resolve: "./src/modules/customer-artwork",
+    },
+
+    {
       resolve: "./src/modules/wishlist",
     },
 

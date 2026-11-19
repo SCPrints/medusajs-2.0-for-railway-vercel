@@ -4,6 +4,7 @@ import { smartVariantSearchMiddleware } from "./middlewares/smart-variant-search
 import { checkoutPriceInvariantMiddleware } from "./middlewares/checkout-price-invariant"
 import { stripVariantCostMetadataMiddleware } from "./middlewares/strip-variant-cost-metadata"
 import { stripLineItemTrustMetadataMiddleware } from "./middlewares/strip-line-item-trust-metadata"
+import { cleanCartPoNumberMiddleware } from "./middlewares/clean-cart-po-number"
 
 /**
  * Default Express JSON limit is ~100kb; customizer render payloads include
@@ -62,6 +63,12 @@ export default defineMiddlewares({
       matcher: "/store/carts/:id/line-items/:line_id",
       methods: ["POST"],
       middlewares: [stripLineItemTrustMetadataMiddleware],
+    },
+    {
+      // Checkout's PO number field: trim + cap at 60 (lib/po-number.ts).
+      matcher: "/store/carts/:id",
+      methods: ["POST"],
+      middlewares: [cleanCartPoNumberMiddleware],
     },
     {
       // Pricing invariant — last gate before a cart becomes an order.

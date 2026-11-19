@@ -1122,28 +1122,38 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
     if (!orderId) return
     const handler = async (event: MessageEvent) => {
       if (!event.data || event.data.type !== "ADMIN_PROOF_SAVED") return
-      const { mockupUrl, artworkUrl, lineItemId, side } = event.data as {
+      const { mockupUrl, artworkUrl, lineItemId, side, design } = event.data as {
         mockupUrl: string
         artworkUrl?: string | null
         lineItemId: string
         side: string
+        /** Studio canvas of the proof ({ objects, canvas, print_size_id }), for re-orders. */
+        design?: { objects: unknown[]; canvas: { width: number; height: number }; print_size_id?: string | null } | null
       }
       if (!mockupUrl || !lineItemId || !side) return
 
       // Save the proof via URL-only path
       try {
-        const res = await fetch(adminProofPath(orderId), {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify({
-            line_item_id: lineItemId,
-            side,
-            mockup_url: mockupUrl,
-            artwork_url: artworkUrl ?? undefined,
-          }),
-        })
-        const body = await res.json().catch(() => ({}))
+        const post = (withDesign: boolean) =>
+          fetch(adminProofPath(orderId), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              line_item_id: lineItemId,
+              side,
+              mockup_url: mockupUrl,
+              artwork_url: artworkUrl ?? undefined,
+              ...(withDesign && design ? { design } : {}),
+            }),
+          })
+        let res = await post(true)
+        let body = await res.json().catch(() => ({}))
+        // A design too heavy to keep must not lose the proof itself.
+        if (!res.ok && design && (body?.code === "proof_design_too_large" || res.status === 413)) {
+          res = await post(false)
+          body = await res.json().catch(() => ({}))
+        }
         if (res.ok) {
           setAllProofs(body.proofs ?? [])
         }

@@ -14,7 +14,7 @@ import NoMinimumBadge from "@modules/common/components/no-minimum-badge"
  * the auto-open the customer is stranded on the photo landing with nothing to
  * hydrate.
  */
-const DEEP_LINK_PARAMS = ["edit_group", "edit", "design", "reorder", "adminProof", "quote_id", "pos_session"] as const
+const DEEP_LINK_PARAMS = ["edit_group", "edit", "design", "reorder", "carry", "artwork", "adminProof", "quote_id", "pos_session"] as const
 
 type Props = {
   /** Garment title, shown beside the photos and in the studio top bar. */

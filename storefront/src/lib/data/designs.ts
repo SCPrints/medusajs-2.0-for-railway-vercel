@@ -17,6 +17,13 @@ export type SavedDesign = {
   customizer_metadata: CustomizerMetadata
   created_at: string
   updated_at: string
+  /** Org the design is shared with (null = private). */
+  organisation_id?: string | null
+  /** False for designs shared to me by another org member. */
+  can_edit?: boolean
+  shared_from?: { organisation_id: string; organisation_name: string } | null
+  /** Resolved from base_product_id; null when the product is gone. */
+  base_product_handle?: string | null
 }
 
 const DESIGNS_TAG = "customer-designs"
@@ -182,6 +189,30 @@ export async function deleteMyDesign(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Failed to delete design.",
+    }
+  }
+}
+
+/** Share a design with one of my organisations, or pass null to make it private. Owner only. */
+export async function shareMyDesign(
+  id: string,
+  organisationId: string | null
+): Promise<{ ok: true; design: SavedDesign } | { ok: false; error: string }> {
+  const headers = await getAuthHeaders()
+  if (!("authorization" in headers)) {
+    return { ok: false, error: "Sign in to share designs." }
+  }
+  try {
+    const res = (await sdk.client.fetch(
+      `/store/customers/me/designs/${encodeURIComponent(id)}`,
+      { method: "POST", headers, body: { organisation_id: organisationId } }
+    )) as { design: SavedDesign }
+    revalidateTag(DESIGNS_TAG, "max")
+    return { ok: true, design: res.design }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to share design.",
     }
   }
 }

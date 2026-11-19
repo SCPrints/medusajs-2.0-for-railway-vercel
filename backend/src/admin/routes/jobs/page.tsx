@@ -42,6 +42,7 @@ const SOURCE_LABEL: Record<string, string> = {
   cart: "From their cart",
   customizer_poa: "Studio price request",
   byo: "BYO form",
+  reorder: "Re-order request",
 }
 
 const EMPTY: Partial<Record<Folder, string>> = {

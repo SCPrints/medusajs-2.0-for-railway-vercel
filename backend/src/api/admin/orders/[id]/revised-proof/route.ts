@@ -15,12 +15,30 @@ const uploadSchema = z.object({
   mockup_url: z.string().url().max(2048).optional(),
   artwork_url: z.string().url().max(2048).optional(),
   note: z.string().max(500).optional(),
+  // The Studio canvas the proof was made on, so re-orders reuse the approved
+  // artwork (lib/approved-proof-design.ts). Optional; null = not sent.
+  design: z
+    .object({
+      objects: z.array(z.unknown()),
+      canvas: z.object({ width: z.number().positive(), height: z.number().positive() }),
+      print_size_id: z.string().max(40).optional().nullable(),
+    })
+    .nullable()
+    .optional(),
 }).refine(
   (d) => !!d.data_base64 || !!d.mockup_url,
   { message: "Either data_base64 (file upload) or mockup_url (URL-only) is required" }
 )
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8 MB
+/** Cap on the stored proof design JSON — it lives in order.metadata. */
+export const MAX_PROOF_DESIGN_BYTES = 1.5 * 1024 * 1024
+
+export type RevisedProofDesign = {
+  objects: unknown[]
+  canvas: { width: number; height: number }
+  print_size_id?: string | null
+}
 
 export type RevisedProof = {
   id: string
@@ -36,6 +54,8 @@ export type RevisedProof = {
   note?: string | null
   uploaded_at: string
   uploaded_by?: string | null
+  /** Studio canvas objects of the proof (URL-only path from the Studio). */
+  design?: RevisedProofDesign | null
 }
 
 /**
@@ -43,8 +63,10 @@ export type RevisedProof = {
  *   Accepts two modes:
  *   1. File upload: { line_item_id, side, filename, mime_type, data_base64, note? }
  *      → uploads to MinIO, stores URL as `proof.url` (and `proof.artwork_url`)
- *   2. URL-only:   { line_item_id, side, mockup_url, artwork_url?, note? }
- *      → no upload, stores provided URLs directly
+ *   2. URL-only:   { line_item_id, side, mockup_url, artwork_url?, note?, design? }
+ *      → no upload, stores provided URLs directly. `design` = the Studio
+ *        canvas ({ objects, canvas, print_size_id? }, ≤ 1.5 MB else 400
+ *        `proof_design_too_large`), stored on the proof for re-orders.
  *   Both return → { proof: RevisedProof, proofs: RevisedProof[] }
  *
  * GET  → { proofs: RevisedProof[] }
@@ -59,6 +81,22 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     parsed = uploadSchema.parse(req.body ?? {})
   } catch (err: any) {
     return res.status(400).json({ error: err?.message ?? "Invalid request" })
+  }
+
+  let design: RevisedProofDesign | null = null
+  if (parsed.design) {
+    const bytes = Buffer.byteLength(JSON.stringify(parsed.design), "utf8")
+    if (bytes > MAX_PROOF_DESIGN_BYTES) {
+      return res.status(400).json({
+        error: `Proof design is too large to store (${(bytes / 1024 / 1024).toFixed(1)} MB, max 1.5 MB). Save the proof without it.`,
+        code: "proof_design_too_large",
+      })
+    }
+    design = {
+      objects: parsed.design.objects,
+      canvas: parsed.design.canvas,
+      ...(parsed.design.print_size_id ? { print_size_id: parsed.design.print_size_id } : {}),
+    }
   }
 
   const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER)
@@ -89,6 +127,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       note: parsed.note ?? null,
       uploaded_at: new Date().toISOString(),
       uploaded_by: (req as any).auth_context?.actor_id ?? null,
+      ...(design ? { design } : {}),
     }
   } else {
     // File upload path

@@ -16,6 +16,8 @@ const Design = model
   .define("design", {
     id: model.id({ prefix: "des" }).primaryKey(),
     customer_id: model.text(),
+    /** Shared with this organisation (members see it read-only). Owner-set. */
+    organisation_id: model.text().nullable(),
     name: model.text(),
     thumbnail_url: model.text().nullable(),
     base_product_id: model.text().nullable(),
@@ -26,6 +28,7 @@ const Design = model
     {
       on: ["customer_id"],
     },
+    { on: ["organisation_id"] },
   ])
 
 export default Design

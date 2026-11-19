@@ -7,6 +7,11 @@ import { z } from "zod"
 import { DESIGNS_MODULE } from "../../../../../modules/designs"
 import type DesignsModuleService from "../../../../../modules/designs/service"
 import { getPostHog } from "../../../../../lib/posthog"
+import { decorateDesigns } from "../../../../../lib/owned-design"
+import {
+  listCustomerOrgs,
+  visibleToCustomerFilter,
+} from "../../../../../lib/customer-org-sharing"
 import { requireCustomer } from "../../../../../lib/require-customer"
 
 const listQuerySchema = z.object({
@@ -29,9 +34,11 @@ export async function GET(
   const customerId = requireCustomer(req)
   const query = listQuerySchema.parse(req.query ?? {})
   const designsService = req.scope.resolve<DesignsModuleService>(DESIGNS_MODULE)
+  const orgs = await listCustomerOrgs(req.scope, customerId)
 
+  // Own designs + designs shared to any of my organisations.
   const [designs, count] = await designsService.listAndCountDesigns(
-    { customer_id: customerId },
+    visibleToCustomerFilter(customerId, orgs) as any,
     {
       take: query.limit ?? 50,
       skip: query.offset ?? 0,
@@ -40,7 +47,7 @@ export async function GET(
   )
 
   res.json({
-    designs,
+    designs: await decorateDesigns(req.scope, designs, customerId, orgs),
     count,
     limit: query.limit ?? 50,
     offset: query.offset ?? 0,

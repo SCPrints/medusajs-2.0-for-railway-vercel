@@ -2,10 +2,8 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
 
-import { DESIGNS_MODULE } from "../../../../../../../modules/designs"
-import type DesignsModuleService from "../../../../../../../modules/designs/service"
+import { loadVisibleDesign } from "../../../../../../../lib/owned-design"
 import { requireCustomer } from "../../../../../../../lib/require-customer"
 
 /**
@@ -21,17 +19,8 @@ export async function GET(
 ) {
   const customerId = requireCustomer(req)
   const designId = req.params.id
-  const designsService = req.scope.resolve<DesignsModuleService>(DESIGNS_MODULE)
-
-  let design: any
-  try {
-    design = await designsService.retrieveDesign(designId)
-  } catch {
-    throw new MedusaError(MedusaError.Types.NOT_FOUND, "Design not found.")
-  }
-  if (design.customer_id !== customerId) {
-    throw new MedusaError(MedusaError.Types.NOT_FOUND, "Design not found.")
-  }
+  // Read-only: shared designs' history is visible to org members too.
+  const { designsService } = await loadVisibleDesign(req.scope, designId, customerId)
 
   const versions = await designsService.listDesignVersions(
     { design_id: designId },

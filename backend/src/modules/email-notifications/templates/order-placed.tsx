@@ -29,6 +29,8 @@ export interface OrderPlacedTemplateProps {
   openQuotes?: OpenQuoteSummary[] | null
   /** Merchant only: where the quotes link goes. */
   adminQuotesUrl?: string | null
+  /** Customer's purchase-order number (order.metadata.po_number); shown when set. */
+  poNumber?: string | null
 }
 
 export const isOrderPlacedTemplateData = (data: any): data is OrderPlacedTemplateProps =>
@@ -43,6 +45,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
   audience = 'customer',
   openQuotes,
   adminQuotesUrl,
+  poNumber,
 }) => {
   const isMerchant = audience === 'merchant'
   const effectivePreview =
@@ -131,6 +134,11 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
         <Text style={{ margin: 0, fontSize: '14px', color: SLATE }}>
           <strong style={{ color: NAVY }}>Order:</strong> #{order.display_id}
         </Text>
+        {poNumber ? (
+          <Text style={{ margin: '4px 0 0', fontSize: '14px', color: SLATE }}>
+            <strong style={{ color: NAVY }}>PO number:</strong> {poNumber}
+          </Text>
+        ) : null}
         <Text style={{ margin: '4px 0 0', fontSize: '14px', color: SLATE }}>
           <strong style={{ color: NAVY }}>Placed:</strong>{' '}
           {new Date(order.created_at).toLocaleDateString('en-AU', {

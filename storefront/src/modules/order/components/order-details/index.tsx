@@ -22,6 +22,7 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
 )
 
 const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
+  const poNumber = (order.metadata as Record<string, unknown> | null | undefined)?.po_number
   return (
     <div className="bg-ui-bg-subtle rounded-xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
       <Row label="Order date">
@@ -42,6 +43,14 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
           {order.email}
         </span>
       </Row>
+
+      {typeof poNumber === "string" && poNumber ? (
+        <Row label="PO number">
+          <span data-testid="order-po-number" className="break-all">
+            {poNumber}
+          </span>
+        </Row>
+      ) : null}
 
       {showStatus && (
         <>

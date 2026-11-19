@@ -146,6 +146,8 @@ export async function sendProof(input: {
   /** Body for /api/customizer/render-mockup (side, artworkSvg, garmentImageUrl, placement, canvas, tintColor). */
   render: Record<string, unknown>
   artworkUrl: string | null
+  /** The side's Fabric objects, so a re-order reprints the approved artwork. */
+  design?: { objects: unknown[]; canvas: { width: number; height: number }; print_size_id?: string } | null
   target: Pick<Window, "postMessage">
 }): Promise<{ mockupUrl: string }> {
   const body = await assertOk(await postJson("/api/customizer/render-mockup", input.render), "Render failed")
@@ -159,6 +161,7 @@ export async function sendProof(input: {
       side: input.side,
       mockupUrl,
       artworkUrl: input.artworkUrl,
+      ...(input.design ? { design: input.design } : {}),
     },
     "*"
   )

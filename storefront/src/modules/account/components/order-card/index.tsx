@@ -1,4 +1,3 @@
-import { Button } from "@medusajs/ui"
 import { useMemo } from "react"
 
 import Thumbnail from "@modules/products/components/thumbnail"
@@ -10,6 +9,8 @@ import {
   getCustomizerMockupUrls,
 } from "@modules/customizer/lib/metadata"
 import { convertMinorToLocale } from "@lib/util/money"
+import OrderAgainButton from "@modules/order/components/order-again-button"
+import { isStudioLine } from "@modules/order/lib/design-groups"
 import { HttpTypes } from "@medusajs/types"
 
 type OrderCardProps = {
@@ -28,6 +29,12 @@ const OrderCard = ({ order }: OrderCardProps) => {
   const numberOfProducts = useMemo(() => {
     return order.items?.length ?? 0
   }, [order])
+
+  const hasStudioLines = useMemo(
+    () => (order.items ?? []).some(isStudioLine),
+    [order]
+  )
+  const poNumber = (order.metadata as Record<string, unknown> | null)?.po_number
 
   return (
     <div className="bg-white flex flex-col" data-testid="order-card">
@@ -48,6 +55,11 @@ const OrderCard = ({ order }: OrderCardProps) => {
           numberOfLines > 1 ? "items" : "item"
         }`}</span>
       </div>
+      {typeof poNumber === "string" && poNumber ? (
+        <p className="mt-1 text-small-regular text-ui-fg-subtle" data-testid="order-po-number">
+          PO {poNumber}
+        </p>
+      ) : null}
       <div className="grid grid-cols-2 small:grid-cols-4 gap-4 my-4">
         {order.items?.slice(0, 3).map((i) => {
           // Customizer lines stored their rendered mockup at cart-add time.
@@ -100,12 +112,15 @@ const OrderCard = ({ order }: OrderCardProps) => {
           </div>
         )}
       </div>
-      <div className="flex justify-end">
-        <LocalizedClientLink href={`/account/orders/details/${order.id}`}>
-          <Button data-testid="order-details-link" variant="secondary">
-            See details
-          </Button>
+      <div className="flex flex-col-reverse gap-2 tablet:flex-row tablet:items-start tablet:justify-end">
+        <LocalizedClientLink
+          href={`/account/orders/details/${order.id}`}
+          className="inline-flex min-h-11 items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2.5 text-sm font-semibold text-ui-fg-base hover:bg-ui-bg-subtle"
+          data-testid="order-details-link"
+        >
+          See details
         </LocalizedClientLink>
+        {hasStudioLines ? <OrderAgainButton orderId={order.id} /> : null}
       </div>
     </div>
   )
