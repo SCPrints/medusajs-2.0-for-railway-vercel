@@ -180,6 +180,12 @@ export async function findOpenCarts(container: any, { q, limit = 25 }: OpenCartQ
   })
 }
 
+/** What makes two sets of cart-quote lines "the same cart": variant, title, quantity, price, in order. */
+export const cartQuoteLinesKey = (items: unknown): string =>
+  (Array.isArray(items) ? items : [])
+    .map((i: any) => [i?.variant_id ?? "", i?.title ?? "", Number(i?.quantity) || 0, Number(i?.unit_price) || 0].join("|"))
+    .join("\n")
+
 /**
  * Copy an open cart into a `new` quote so staff can proof it and send the
  * existing accept / payment link. Each customiser line becomes its own design
@@ -190,8 +196,23 @@ export async function findOpenCarts(container: any, { q, limit = 25 }: OpenCartQ
 export async function createQuoteFromCart(
   container: any,
   cartId: string,
-  opts: { source: "admin" | "cart"; actor: string; note?: string | null; contactName?: string | null; contactPhone?: string | null }
-): Promise<{ quote_id: string; public_id: string; created: boolean }> {
+  opts: {
+    source: "admin" | "cart"
+    actor: string
+    note?: string | null
+    contactName?: string | null
+    contactPhone?: string | null
+    /**
+     * The cart may have changed since its quote was made (the cart's quote PDF
+     * must match the cart). A quote only `actor` has touched is brought up to
+     * date in place; one staff have worked on is left alone and the changed
+     * cart gets a new quote.
+     */
+    refresh?: boolean
+    /** Don't tell staff about this one (the cart's quote PDF). The first caller without it gets `notify`. */
+    quiet?: boolean
+  }
+): Promise<{ quote_id: string; public_id: string; created: boolean; /** email staff about it now */ notify: boolean }> {
   const knex = container.resolve(ContainerRegistrationKeys.PG_CONNECTION)
   const quoteService = container.resolve(QUOTE_MODULE) as QuoteModuleService
 
@@ -215,14 +236,23 @@ export async function createQuoteFromCart(
   if (cart.completed_at) throw Object.assign(new Error("Cart has already been checked out"), { status: 409 })
 
   const existingId = cart.metadata?.requested_quote_id
+  let existing: any = null
   if (existingId) {
     try {
-      const q: any = await quoteService.retrieveQuote(existingId)
-      return { quote_id: q.id, public_id: q.public_id, created: false }
+      existing = await quoteService.retrieveQuote(existingId)
     } catch {
       /* quote deleted — make a fresh one */
     }
   }
+  // A quote made quietly hasn't been announced; the first non-quiet caller announces it, once.
+  const reuse = async () => {
+    const notify = !opts.quiet && opts.source === "cart" && existing.metadata?.staff_notified === false
+    if (notify) {
+      await quoteService.updateQuotes({ id: existing.id, metadata: { ...(existing.metadata ?? {}), staff_notified: true } } as any)
+    }
+    return { quote_id: existing.id as string, public_id: existing.public_id as string, created: false, notify }
+  }
+  if (existing && !opts.refresh) return reuse()
 
   const email = (cart.email || cart.customer_email || "").toLowerCase()
   if (!email) throw Object.assign(new Error("Cart has no email address yet"), { status: 422 })
@@ -257,11 +287,31 @@ export async function createQuoteFromCart(
     )
   })
 
+  const total = items.reduce((s, i) => s + (i.total ?? 0), 0)
+
+  if (existing) {
+    const same = cartQuoteLinesKey(existing.line_items?.items) === cartQuoteLinesKey(items)
+    const events: any[] = same ? [] : await quoteService.listQuoteEvents({ quote_id: existing.id }, { take: 100 })
+    const untouched = existing.status === "new" && !existing.assigned_to && events.every((e) => e.actor === opts.actor)
+    if (!same && untouched) {
+      await archiveLineDesigns(container, items, `cart-${existing.public_id}`)
+      await quoteService.updateQuotes({
+        id: existing.id,
+        subject: `Website cart — ${lines.length} line${lines.length === 1 ? "" : "s"}`,
+        total_estimate: Math.round(total * 100) / 100,
+        line_items: { items },
+      } as any)
+      await quoteService.createQuoteEvents([
+        { quote_id: existing.id, type: "line_items_updated", actor: opts.actor, body: { source: "cart", cart_id: cartId, line_count: items.length } },
+      ])
+    }
+    if (same || untouched) return reuse()
+  }
+
   const publicId = `Q-${ulid().slice(-10).toUpperCase()}`
   // Heavy vector sideLayouts → R2 so the quote row doesn't carry MBs per line.
   await archiveLineDesigns(container, items, `cart-${publicId}`)
 
-  const total = items.reduce((s, i) => s + (i.total ?? 0), 0)
   const contactName =
     opts.contactName?.trim() || [cart.first_name, cart.last_name].filter(Boolean).join(" ") || null
   const message = [
@@ -284,7 +334,7 @@ export async function createQuoteFromCart(
       currency_code: cart.currency_code ?? "aud",
       total_estimate: Math.round(total * 100) / 100,
       line_items: { items },
-      metadata: { source_cart_id: cartId },
+      metadata: { source_cart_id: cartId, ...(opts.quiet ? { staff_notified: false } : {}) },
     } as any,
   ])
 
@@ -297,5 +347,5 @@ export async function createQuoteFromCart(
     .where("id", cartId)
     .update({ metadata: { ...(cart.metadata ?? {}), requested_quote_id: quote.id } })
 
-  return { quote_id: quote.id, public_id: publicId, created: true }
+  return { quote_id: quote.id, public_id: publicId, created: true, notify: !opts.quiet }
 }

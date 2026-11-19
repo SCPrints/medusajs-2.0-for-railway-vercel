@@ -12,6 +12,50 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import { HttpTypes } from "@medusajs/types"
 import { signout } from "@lib/data/customer"
 
+type NavLink = { href: string; label: string; testId: string; icon?: "user" | "pin" }
+
+/**
+ * One list for both layouts. Grouped under short headings so thirteen links
+ * read as four small lists. "Overview" is desktop only (on a phone the
+ * account page itself is this menu).
+ */
+const NAV_GROUPS: Array<{ title: string; links: NavLink[] }> = [
+  {
+    title: "Account",
+    links: [
+      { href: "/account/profile", label: "Profile", testId: "profile-link", icon: "user" },
+      { href: "/account/addresses", label: "Addresses", testId: "addresses-link", icon: "pin" },
+    ],
+  },
+  {
+    title: "Orders",
+    links: [
+      { href: "/account/orders", label: "Orders", testId: "orders-link" },
+      { href: "/account/quotes", label: "Quotes", testId: "quotes-link" },
+      { href: "/account/group-orders", label: "Group orders", testId: "group-orders-link" },
+    ],
+  },
+  {
+    title: "Designs",
+    links: [
+      { href: "/account/designs", label: "My designs", testId: "designs-link" },
+      { href: "/account/artwork", label: "My artwork", testId: "artwork-link" },
+      { href: "/account/wishlist", label: "Wishlist", testId: "wishlist-link" },
+    ],
+  },
+  {
+    title: "Business",
+    links: [
+      { href: "/account/organisations", label: "Organisations", testId: "organisations-link" },
+      { href: "/account/prices", label: "Prices", testId: "prices-link" },
+      { href: "/account/spend", label: "Spend", testId: "spend-link" },
+      { href: "/account/documents", label: "Documents", testId: "documents-link" },
+    ],
+  },
+]
+
+const groupHeading = "text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-muted"
+
 const AccountNav = ({
   customer,
 }: {
@@ -44,228 +88,71 @@ const AccountNav = ({
               Hello {customer?.first_name}
             </div>
             <div className="text-base-regular">
-              <ul>
-                <li>
-                  <LocalizedClientLink
-                    href="/account/profile"
-                    className="flex min-h-14 items-center justify-between border-b border-gray-200 px-5 py-4"
-                    data-testid="profile-link"
-                  >
-                    <div className="flex items-center gap-x-3">
-                      <User size={20} />
-                      <span>Profile</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </LocalizedClientLink>
-                </li>
-                <li>
-                  <LocalizedClientLink
-                    href="/account/addresses"
-                    className="flex min-h-14 items-center justify-between border-b border-gray-200 px-5 py-4"
-                    data-testid="addresses-link"
-                  >
-                    <div className="flex items-center gap-x-3">
-                      <MapPin size={20} />
-                      <span>Addresses</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </LocalizedClientLink>
-                </li>
-                <li>
-                  <LocalizedClientLink
-                    href="/account/orders"
-                    className="flex min-h-14 items-center justify-between border-b border-gray-200 px-5 py-4"
-                    data-testid="orders-link"
-                  >
-                    <div className="flex items-center gap-x-3">
-                      <Package size={20} />
-                      <span>Orders</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </LocalizedClientLink>
-                </li>
-                <li>
-                  <LocalizedClientLink
-                    href="/account/designs"
-                    className="flex min-h-14 items-center justify-between border-b border-gray-200 px-5 py-4"
-                    data-testid="designs-link"
-                  >
-                    <div className="flex items-center gap-x-3">
-                      <Package size={20} />
-                      <span>My designs</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </LocalizedClientLink>
-                </li>
-                <li>
-                  <LocalizedClientLink
-                    href="/account/artwork"
-                    className="flex min-h-14 items-center justify-between border-b border-gray-200 px-5 py-4"
-                    data-testid="artwork-link"
-                  >
-                    <div className="flex items-center gap-x-3">
-                      <Package size={20} />
-                      <span>My artwork</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </LocalizedClientLink>
-                </li>
-                <li>
-                  <LocalizedClientLink
-                    href="/account/wishlist"
-                    className="flex min-h-14 items-center justify-between border-b border-gray-200 px-5 py-4"
-                    data-testid="wishlist-link"
-                  >
-                    <div className="flex items-center gap-x-3">
-                      <Package size={20} />
-                      <span>Wishlist</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </LocalizedClientLink>
-                </li>
-                <li>
-                  <LocalizedClientLink
-                    href="/account/group-orders"
-                    className="flex min-h-14 items-center justify-between border-b border-gray-200 px-5 py-4"
-                    data-testid="group-orders-link"
-                  >
-                    <div className="flex items-center gap-x-3">
-                      <Package size={20} />
-                      <span>Group orders</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </LocalizedClientLink>
-                </li>
-                <li>
-                  <LocalizedClientLink
-                    href="/account/organisations"
-                    className="flex min-h-14 items-center justify-between border-b border-gray-200 px-5 py-4"
-                    data-testid="organisations-link"
-                  >
-                    <div className="flex items-center gap-x-3">
-                      <Package size={20} />
-                      <span>Organisations</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </LocalizedClientLink>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    className="flex min-h-14 w-full items-center justify-between border-b border-gray-200 px-5 py-4"
-                    onClick={handleLogout}
-                    data-testid="logout-button"
-                  >
-                    <div className="flex items-center gap-x-3">
-                      <ArrowRightOnRectangle />
-                      <span>Log out</span>
-                    </div>
-                    <ChevronDown className="transform -rotate-90" />
-                  </button>
-                </li>
-              </ul>
+              {NAV_GROUPS.map((group) => (
+                <div key={group.title}>
+                  <p className={clx(groupHeading, "bg-ui-bg-subtle px-5 py-2")}>{group.title}</p>
+                  <ul>
+                    {group.links.map((link) => (
+                      <li key={link.href}>
+                        <LocalizedClientLink
+                          href={link.href}
+                          className="flex min-h-14 items-center justify-between border-b border-gray-200 px-5 py-4"
+                          data-testid={link.testId}
+                        >
+                          <div className="flex items-center gap-x-3">
+                            {link.icon === "user" ? <User size={20} /> : link.icon === "pin" ? <MapPin size={20} /> : <Package size={20} />}
+                            <span>{link.label}</span>
+                          </div>
+                          <ChevronDown className="transform -rotate-90" />
+                        </LocalizedClientLink>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="flex min-h-14 w-full items-center justify-between border-b border-gray-200 px-5 py-4"
+                onClick={handleLogout}
+                data-testid="logout-button"
+              >
+                <div className="flex items-center gap-x-3">
+                  <ArrowRightOnRectangle />
+                  <span>Log out</span>
+                </div>
+                <ChevronDown className="transform -rotate-90" />
+              </button>
             </div>
           </>
         )}
       </div>
       <div className="hidden small:block" data-testid="account-nav">
-        <div>
-          <div className="pb-4">
-            <h3 className="text-base-semi">Account</h3>
-          </div>
-          <div className="text-base-regular">
-            <ul className="flex mb-0 justify-start items-start flex-col gap-y-4">
-              <li>
-                <AccountNavLink
-                  href="/account"
-                  route={route!}
-                  data-testid="overview-link"
-                >
-                  Overview
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/profile"
-                  route={route!}
-                  data-testid="profile-link"
-                >
-                  Profile
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/addresses"
-                  route={route!}
-                  data-testid="addresses-link"
-                >
-                  Addresses
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/orders"
-                  route={route!}
-                  data-testid="orders-link"
-                >
-                  Orders
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/designs"
-                  route={route!}
-                  data-testid="designs-link"
-                >
-                  My designs
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/artwork"
-                  route={route!}
-                  data-testid="artwork-link"
-                >
-                  My artwork
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/wishlist"
-                  route={route!}
-                  data-testid="wishlist-link"
-                >
-                  Wishlist
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/group-orders"
-                  route={route!}
-                  data-testid="group-orders-link"
-                >
-                  Group orders
-                </AccountNavLink>
-              </li>
-              <li>
-                <AccountNavLink
-                  href="/account/organisations"
-                  route={route!}
-                  data-testid="organisations-link"
-                >
-                  Organisations
-                </AccountNavLink>
-              </li>
-              <li className="text-grey-700">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  data-testid="logout-button"
-                >
-                  Log out
-                </button>
-              </li>
-            </ul>
+        <div className="text-base-regular flex flex-col gap-y-5">
+          {NAV_GROUPS.map((group, i) => (
+            <div key={group.title}>
+              <h3 className={clx(groupHeading, "pb-2")}>{group.title}</h3>
+              <ul className="flex mb-0 justify-start items-start flex-col gap-y-2">
+                {i === 0 ? (
+                  <li>
+                    <AccountNavLink href="/account" route={route!} data-testid="overview-link">
+                      Overview
+                    </AccountNavLink>
+                  </li>
+                ) : null}
+                {group.links.map((link) => (
+                  <li key={link.href}>
+                    <AccountNavLink href={link.href} route={route!} data-testid={link.testId}>
+                      {link.label}
+                    </AccountNavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          <div className="text-grey-700">
+            <button type="button" onClick={handleLogout} data-testid="logout-button">
+              Log out
+            </button>
           </div>
         </div>
       </div>
@@ -288,7 +175,9 @@ const AccountNavLink = ({
 }: AccountNavLinkProps) => {
   const { countryCode }: { countryCode: string } = useParams()
 
-  const active = route.split(countryCode)[1] === href
+  // A section stays lit on its sub-pages (a quote, an order's details).
+  const current = route.split(countryCode)[1] ?? ""
+  const active = current === href || (href !== "/account" && current.startsWith(`${href}/`))
   return (
     <LocalizedClientLink
       href={href}

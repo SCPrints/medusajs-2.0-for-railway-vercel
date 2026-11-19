@@ -20,6 +20,11 @@ const updateSchema = z.object({
     .max(80)
     .nullable()
     .optional(),
+  // Buying on account — staff-controlled (credit_limit: AUD inc GST, null = none).
+  account_terms_enabled: z.boolean().optional(),
+  account_terms_days: z.coerce.number().int().min(1).max(120).optional(),
+  credit_limit: z.coerce.number().positive().max(10_000_000).nullable().optional(),
+  ap_email: z.string().trim().email().max(200).nullable().optional(),
 })
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {

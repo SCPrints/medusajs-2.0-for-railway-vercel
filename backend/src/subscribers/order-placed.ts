@@ -313,30 +313,45 @@ export default async function orderPlacedHandler({
         "en-AU",
         { day: "numeric", month: "short", year: "numeric" }
       )
-      try {
-        await notificationModuleService.createNotifications({
-          to: order.email,
-          channel: "email",
-          template: EmailTemplates.TAX_INVOICE,
-          attachments: invoiceAttachments,
-          data: {
-            emailOptions: {
-              replyTo: replyToSupport,
-              subject: `Tax invoice for order #${displayId}`,
+      // An organisation's accounts-payable inbox gets the invoice too.
+      let apEmail: string | null = null
+      if (typeof meta.organisation_id === "string" && meta.organisation_id) {
+        try {
+          const org = (await container
+            .resolve<OrganisationModuleService>(ORGANISATION_MODULE)
+            .retrieveOrganisation(meta.organisation_id)) as any
+          const ap = typeof org?.ap_email === "string" ? org.ap_email.trim() : ""
+          if (ap && ap.toLowerCase() !== order.email.toLowerCase()) apEmail = ap
+        } catch {
+          /* no AP copy; the customer's own invoice still goes */
+        }
+      }
+      for (const to of [order.email, ...(apEmail ? [apEmail] : [])]) {
+        try {
+          await notificationModuleService.createNotifications({
+            to,
+            channel: "email",
+            template: EmailTemplates.TAX_INVOICE,
+            attachments: invoiceAttachments,
+            data: {
+              emailOptions: {
+                replyTo: replyToSupport,
+                subject: `Tax invoice for order #${displayId}`,
+              },
+              customerFirstName: to === order.email ? (shippingAddress.first_name ?? null) : null,
+              orderDisplayId: displayId,
+              orderDateFormatted,
+              orderTotalFormatted,
+              preview: `Your tax invoice for order #${displayId} (PDF attached).`,
             },
-            customerFirstName: shippingAddress.first_name ?? null,
-            orderDisplayId: displayId,
-            orderDateFormatted,
-            orderTotalFormatted,
-            preview: `Your tax invoice for order #${displayId} (PDF attached).`,
-          },
-        })
-      } catch (error) {
-        logger.error(
-          `order.placed: tax-invoice email failed for order ${data.id}: ${
-            (error as Error).message
-          }`
-        )
+          })
+        } catch (error) {
+          logger.error(
+            `order.placed: tax-invoice email to ${to} failed for order ${data.id}: ${
+              (error as Error).message
+            }`
+          )
+        }
       }
     }
   } else {

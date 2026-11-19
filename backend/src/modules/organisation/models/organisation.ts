@@ -34,6 +34,13 @@ const Organisation = model
     // Required (form-level guard) for any org that has inventory rows.
     // See Docs/FULFILLMENT_PHASE_1_SPEC.md → "Resolved decisions Q1".
     primary_contact_customer_id: model.text().nullable(),
+    // Buying on account (staff-controlled; Docs/CUSTOMER_PORTAL_EXTRAS_2026_11.md § A).
+    // credit_limit is AUD inc GST; null = no limit.
+    account_terms_enabled: model.boolean().default(false),
+    account_terms_days: model.number().default(30),
+    credit_limit: model.bigNumber().nullable(),
+    // Accounts-payable inbox: tax invoices for this org's orders are also sent here.
+    ap_email: model.text().nullable(),
     metadata: model.json().default({}),
   })
   .indexes([{ on: ["handle"], unique: true }])

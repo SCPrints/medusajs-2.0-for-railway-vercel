@@ -14,6 +14,7 @@ import {
   SCP_BANK_BSB,
   SCP_COMPANY_ABN,
 } from "../../lib/constants"
+import { isSystemPaymentProvider } from "../../lib/org-account"
 import { poNumberFromMetadata, resolveOrderPoNumber } from "../../lib/po-number"
 
 const ASSETS_DIR = path.join(__dirname, "../../assets")
@@ -231,14 +232,24 @@ export async function loadReceiptOrder(
     const { data } = await query.graph({
       entity: "order",
       filters: { id: orderId },
-      fields: ["id", "payment_collections.payments.amount"],
+      fields: [
+        "id",
+        "payment_collections.payments.amount",
+        "payment_collections.payments.provider_id",
+        "payment_collections.payments.captured_at",
+      ],
     })
     const collections = (data?.[0]?.payment_collections ?? []) as any[]
     paidTotal = collections.reduce(
       (sum: number, c: any) =>
         sum +
         ((c?.payments ?? []) as any[]).reduce(
-          (s: number, p: any) => s + toNumber(p?.amount),
+          // A pay-on-account order carries an authorised, uncaptured
+          // manual-provider payment: no money has arrived, so it isn't paid.
+          (s: number, p: any) =>
+            isSystemPaymentProvider(p?.provider_id) && !p?.captured_at
+              ? s
+              : s + toNumber(p?.amount),
           0
         ),
       0
@@ -294,7 +305,7 @@ function getCustomizerPricing(item: OrderItem): LineItemPricing | null {
   return raw?.pricing ?? null
 }
 
-async function tintLogo(logoBuf: Buffer, size: number, hex: string): Promise<Buffer> {
+export async function tintLogo(logoBuf: Buffer, size: number, hex: string): Promise<Buffer> {
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)

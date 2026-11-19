@@ -10,6 +10,7 @@ import { TaskQuickAdd } from "../task-quick-add"
 import { AddressFields, ConvertAddressForm, addressComplete, addressPayload, blankAddress, toAddressDraft, type AddressDraft } from "./convert-address-form"
 import { DspPackPanel } from "./dsp-pack"
 import { EnterSizes } from "./enter-sizes"
+import { TeamOrder } from "./team-order"
 import { QuoteTools } from "../quote/quote-detail"
 import * as W from "./widgets"
 import { AppLink, pricerHref, useGo } from "../../lib/nav"
@@ -250,6 +251,8 @@ export function JobPanel({ job, order, onChanged }: Props) {
               {job.quote ? <span>{job.quote.public_id}</span> : null}
               {job.order ? <span>Order #{job.order.display_id ?? ""}</span> : null}
               {job.order?.po_number ? <span>PO {job.order.po_number}</span> : null}
+              {job.order?.on_account ? <span>On account{job.order.on_account.due_at ? ` · due ${fmtDate(job.order.on_account.due_at)}` : ""}</span> : null}
+              {job.order?.cost_centre ? <span>Cost centre {job.order.cost_centre}</span> : null}
               <NeededBy job={job} onChanged={onChanged} />
             </div>
           </div>
@@ -500,6 +503,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
             {open.delivery ? (
               <>
                 <DeliveryAddress job={job} onChanged={onChanged} />
+                {order ? <TeamOrder order={order} /> : null}
                 {order ? (
                   <Flat>
                     <Mount W={W.OrderShippingDecision} order={order} />

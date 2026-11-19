@@ -43,6 +43,7 @@ const TITLE: Record<JobAttentionKind, (label: string) => string> = {
   customer_reply: (l) => `Reply to the customer — ${l}`,
   accepted_no_order: (l) => `Convert accepted quote ${l} to an order`,
   changes_requested: (l) => `Revise the proof — ${l}`,
+  names_numbers_requested: (l) => `Price names / numbers — ${l}`,
 }
 
 const BODY: Record<JobAttentionKind, string> = {
@@ -52,6 +53,8 @@ const BODY: Record<JobAttentionKind, string> = {
     "The customer accepted this quote but no order exists. Convert it (ask for the delivery address if there isn't one), then send the payment link.",
   changes_requested:
     "The customer asked for changes on the proof. Revise the artwork, then re-send the proof.",
+  names_numbers_requested:
+    "The customer asked for names / numbers printed on the garments. Nothing was charged for them at checkout. Price it from the roster (job → Delivery), confirm the price with the customer, then go ahead.",
 }
 
 const jobUrl = (input: AttentionInput): string | null => {
@@ -185,6 +188,7 @@ export async function raiseAttention(
         customer_reply: `Customer replied — ${input.label}`,
         accepted_no_order: `Accepted, no order — ${input.label}`,
         changes_requested: `Changes requested — ${input.label}`,
+        names_numbers_requested: `Names / numbers to price — ${input.label}`,
       }
       // orders@ has no mailbox: replying to this alert must reach the customer
       // and land on the job (same two-address reply-to as the contact-form alert).

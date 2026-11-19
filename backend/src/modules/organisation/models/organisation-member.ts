@@ -16,6 +16,10 @@ const OrganisationMember = model
     role: model.enum(["owner", "purchaser", "viewer"]).default("purchaser"),
     invited_by: model.text().nullable(),
     accepted_at: model.dateTime().nullable(),
+    // Spending limits, AUD inc GST; null = no limit. An order over either
+    // needs an owner's approval (organisation_cart).
+    order_limit: model.bigNumber().nullable(),
+    monthly_limit: model.bigNumber().nullable(),
   })
   .indexes([
     { on: ["organisation_id"] },

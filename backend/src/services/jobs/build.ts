@@ -464,6 +464,10 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
             rush_tier: rushTierOf(ometa),
             needed_by: ymd(ometa.needed_by),
             po_number: poNumberFromMetadata(ometa),
+            on_account: ometa.account_terms
+              ? { due_at: iso((ometa.account_terms as any)?.due_at ?? ometa.balance_due_at) }
+              : null,
+            cost_centre: typeof ometa.cost_centre === "string" && ometa.cost_centre ? ometa.cost_centre : null,
           }
         : null,
     customer: {

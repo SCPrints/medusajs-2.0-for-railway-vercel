@@ -8,6 +8,7 @@ import DiscountCode from "@modules/checkout/components/discount-code"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import CartEngagement from "@modules/cart/components/cart-engagement"
 import RequestQuote from "@modules/cart/components/request-quote"
+import DownloadQuote from "@modules/cart/components/download-quote"
 import { HttpTypes } from "@medusajs/types"
 
 type SummaryProps = {
@@ -44,6 +45,7 @@ const Summary = ({ cart }: SummaryProps) => {
         <Button className="h-11 w-full">Go to checkout</Button>
       </LocalizedClientLink>
       <RequestQuote email={cart.email} />
+      <DownloadQuote email={cart.email} />
       <CartEngagement cart={cart} />
     </div>
   )

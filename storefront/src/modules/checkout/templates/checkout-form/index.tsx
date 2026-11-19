@@ -1,5 +1,6 @@
 import { listCartShippingOptions } from "@lib/data/fulfillment"
 import { listCartPaymentMethods } from "@lib/data/payment"
+import { getOrgCheckoutOptions } from "@lib/data/org-account"
 import { HttpTypes } from "@medusajs/types"
 import Addresses from "@modules/checkout/components/addresses"
 import Payment from "@modules/checkout/components/payment"
@@ -19,6 +20,8 @@ export default async function CheckoutForm({
 
   const shippingResponse = await listCartShippingOptions(cart.id)
   const paymentMethods = await listCartPaymentMethods(cart.region?.id ?? "")
+  // Only customers who buy for an organisation get the "who is this for?" block.
+  const orgOptions = customer ? await getOrgCheckoutOptions(cart.id) : []
 
   if (!paymentMethods) {
     return null
@@ -42,7 +45,7 @@ export default async function CheckoutForm({
         </div>
 
         <div className="py-10">
-          <Payment cart={cart} availablePaymentMethods={paymentMethods} />
+          <Payment cart={cart} availablePaymentMethods={paymentMethods} orgOptions={orgOptions} />
         </div>
 
         <div className="pb-0 pt-10">

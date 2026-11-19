@@ -12,6 +12,7 @@ import {
 import { loadReceiptOrder } from "../../../../../../../services/order-receipt-pdf/service"
 import { requireCustomer } from "../../../../../../../lib/require-customer"
 import { poNumberFromMetadata } from "../../../../../../../lib/po-number"
+import { ORGANISATION_MODULE } from "../../../../../../../modules/organisation"
 
 const INVOICE_BRAND = {
   siteName: "SC PRINTS",
@@ -69,7 +70,18 @@ export async function GET(
   }
 
   const order = (await loadReceiptOrder(req.scope, orderId)) as any
-  if (!order || order.customer_id !== customerId) {
+  // Your own order, or one placed for an organisation you belong to (the
+  // organisation's Invoices list opens these). Anything else is "not found".
+  let allowed = !!order && order.customer_id === customerId
+  const orgId = order?.metadata?.organisation_id
+  if (order && !allowed && typeof orgId === "string" && orgId) {
+    const members = await (req.scope.resolve(ORGANISATION_MODULE) as any).listOrganisationMembers(
+      { organisation_id: orgId, customer_id: customerId },
+      { take: 1 }
+    )
+    allowed = members.length > 0
+  }
+  if (!allowed) {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, "Order not found.")
   }
 
@@ -122,6 +134,14 @@ export async function GET(
     <tr class="grand"><td>Total ${currency}</td><td class="amount">${formatMoney(Number(order.total ?? 0) - Number(order.tax_total ?? 0), currency)}</td></tr>`
     : `<tr><td>GST</td><td class="amount">${gstAmount}</td></tr>
     <tr class="grand"><td>Total ${currency}${gstIncluded ? " (inc. GST)" : ""}</td><td class="amount">${formatMoney(order.total, currency)}</td></tr>`
+
+  // On-account / terms orders: what is still owing and when.
+  const dueRow =
+    Number(order.balance_due ?? 0) > 0.005 && order.due_at
+      ? `<tr><td><strong>Payment due ${escape(
+          new Date(order.due_at).toLocaleDateString("en-AU", { year: "numeric", month: "long", day: "numeric" })
+        )}</strong></td><td class="amount"><strong>${formatMoney(order.balance_due, currency)}</strong></td></tr>`
+      : ""
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -204,6 +224,7 @@ export async function GET(
     <tr><td>Subtotal${exLabel}</td><td class="amount">${subtotal}</td></tr>
     ${Number(shippingSubtotalValue ?? 0) > 0 ? `<tr><td>Shipping${exLabel}</td><td class="amount">${shippingTotal}</td></tr>` : ""}
     ${taxAndTotalRows}
+    ${dueRow}
   </table>
 
   ${taxExempt

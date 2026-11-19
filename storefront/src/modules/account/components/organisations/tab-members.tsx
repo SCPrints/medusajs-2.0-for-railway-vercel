@@ -10,6 +10,8 @@ import {
   type OrgRole,
 } from "@lib/data/organisations"
 
+import MemberLimits from "./member-limits"
+
 type Props = {
   orgId: string
   members: OrgMember[]
@@ -217,6 +219,8 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
           })}
         </ul>
       </section>
+
+      <MemberLimits orgId={orgId} />
     </div>
   )
 }

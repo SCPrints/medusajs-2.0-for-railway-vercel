@@ -38,6 +38,10 @@ async function jobIds(container: MedusaContainer): Promise<string[]> {
   )
   const quoteIds = quoteRows
     .filter((q) => !(typeof q.metadata?.order_id === "string" && q.metadata.order_id))
+    // A customer only downloaded a quote PDF from their cart: nobody asked us
+    // for anything, so it isn't a job yet. It joins the list the moment they
+    // follow up (createQuoteFromCart flips staff_notified).
+    .filter((q) => !(q.metadata?.cart_pdf && q.metadata?.staff_notified === false))
     .filter((q) => OPEN_QUOTE_STATUSES.includes(q.status) || recent(q.updated_at))
     .map((q) => q.id as string)
 

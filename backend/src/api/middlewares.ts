@@ -5,6 +5,7 @@ import { checkoutPriceInvariantMiddleware } from "./middlewares/checkout-price-i
 import { stripVariantCostMetadataMiddleware } from "./middlewares/strip-variant-cost-metadata"
 import { stripLineItemTrustMetadataMiddleware } from "./middlewares/strip-line-item-trust-metadata"
 import { cleanCartPoNumberMiddleware } from "./middlewares/clean-cart-po-number"
+import { orgCheckoutCompleteGuard, orgPaymentSessionGuard } from "./middlewares/org-checkout-guard"
 
 /**
  * Default Express JSON limit is ~100kb; customizer render payloads include
@@ -75,7 +76,15 @@ export default defineMiddlewares({
       // Default mode "alert" only observes; see PRICING_INVARIANT_MODE.
       matcher: "/store/carts/:id/complete",
       methods: ["POST"],
-      middlewares: [checkoutPriceInvariantMiddleware],
+      // Org guard first: it refuses the no-card payment path for anyone but an
+      // approved organisation's buyer (./middlewares/org-checkout-guard.ts).
+      middlewares: [orgCheckoutCompleteGuard, checkoutPriceInvariantMiddleware],
+    },
+    {
+      // Same guard where the payment provider is chosen.
+      matcher: "/store/payment-collections/:id/payment-sessions",
+      methods: ["POST"],
+      middlewares: [orgPaymentSessionGuard],
     },
     {
       matcher: "/store/customizer/render-print",
@@ -184,6 +193,13 @@ export default defineMiddlewares({
       matcher: "/admin/gildan/import",
       methods: ["POST"],
       bodyParser: { sizeLimit: "32mb" },
+    },
+    {
+      // Organisation roster: a pasted / uploaded size list of up to 1,000
+      // people is ~150kb of JSON, over the default 100kb.
+      matcher: "/store/customers/me/organisations/:id/roster",
+      methods: ["POST", "PUT"],
+      bodyParser: { sizeLimit: "1mb" },
     },
     {
       // Stripe webhook for admin-created Payment Links. Stripe signs the raw

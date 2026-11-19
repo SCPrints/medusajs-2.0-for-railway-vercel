@@ -10,6 +10,8 @@ import {
   getOrganisationMembers,
   getOrganisationOrders,
 } from "@lib/data/organisations"
+import { getOrganisationRange, getOrganisationRoster } from "@lib/data/org-team"
+import { knownSizesByGroup } from "@lib/util/size-list"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 import OrgTabs from "@modules/account/components/organisations/org-tabs"
@@ -19,6 +21,11 @@ import InventoryTab from "@modules/account/components/organisations/tab-inventor
 import DestinationsTab from "@modules/account/components/organisations/tab-destinations"
 import OrdersTab from "@modules/account/components/organisations/tab-orders"
 import MembersTab from "@modules/account/components/organisations/tab-members"
+import AccountTab from "@modules/account/components/organisations/tab-account"
+import ApprovalsTab from "@modules/account/components/organisations/tab-approvals"
+import InvoicesTab from "@modules/account/components/organisations/tab-invoices"
+import PeopleTab from "@modules/account/components/organisations/tab-people"
+import RangeTab from "@modules/account/components/organisations/tab-range"
 
 export const metadata: Metadata = {
   title: "Organisation",
@@ -43,6 +50,9 @@ export default async function OrgDetailPage({ params }: PageProps) {
 
   const { organisation, role } = detail
 
+  // Our range + People: started now, awaited after the other tab data.
+  const teamData = Promise.all([getOrganisationRange(id), getOrganisationRoster(id)])
+
   // Fetch tab data in parallel
   const [designs, destinations, inventory, ordersResult, members] =
     await Promise.all([
@@ -56,6 +66,7 @@ export default async function OrgDetailPage({ params }: PageProps) {
     ])
 
   const canManageMembers = role === "owner"
+  const [range, roster] = await teamData
 
   return (
     <div className="w-full">
@@ -94,6 +105,8 @@ export default async function OrgDetailPage({ params }: PageProps) {
       <OrgTabs
         tabs={[
           { key: "overview", label: "Overview" },
+          { key: "range", label: "Our range", badge: range.items.length },
+          { key: "people", label: "People", badge: roster.members.length },
           { key: "designs", label: "Designs", badge: designs.length },
           { key: "inventory", label: "Inventory", badge: inventory.length },
           {
@@ -102,6 +115,10 @@ export default async function OrgDetailPage({ params }: PageProps) {
             badge: destinations.length,
           },
           { key: "orders", label: "Orders", badge: ordersResult.count },
+          // Buying on account. These tabs load their own (live) figures.
+          { key: "approvals", label: "Drafts & approvals", gated: role === "viewer" },
+          { key: "invoices", label: "Invoices" },
+          { key: "account", label: "Account" },
           {
             key: "members",
             label: "Members",
@@ -120,6 +137,8 @@ export default async function OrgDetailPage({ params }: PageProps) {
               role={role}
             />
           ),
+          range: <RangeTab orgId={id} orgName={organisation.name} range={range} roster={roster} />,
+          people: <PeopleTab orgId={id} roster={roster} knownSizes={knownSizesByGroup(range.items)} />,
           designs: <DesignsTab designs={designs} inventory={inventory} />,
           inventory: (
             <InventoryTab inventory={inventory} designs={designs} />
@@ -135,6 +154,9 @@ export default async function OrgDetailPage({ params }: PageProps) {
               count={ordersResult.count}
             />
           ),
+          approvals: <ApprovalsTab orgId={id} />,
+          invoices: <InvoicesTab orgId={id} />,
+          account: <AccountTab orgId={id} role={role} />,
           members: canManageMembers ? (
             <MembersTab
               orgId={id}

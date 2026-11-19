@@ -18,7 +18,8 @@ import { EmailTemplates } from "../../../modules/email-notifications/templates"
  * quote (artwork intact) and alerts staff, for customers who want a proof or a
  * payment link instead of checking out. The cart id is the capability (same as
  * every other cart endpoint). Idempotent per cart, so repeat clicks can't
- * flood the inbox — staff are only emailed when the quote is first created.
+ * flood the inbox — staff are only emailed when the quote is first created
+ * (or first asked for, when the cart's quote PDF had already made it quietly).
  */
 const schema = z.object({
   cart_id: z.string().startsWith("cart_").max(80),
@@ -50,7 +51,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   if (cart?.email && contact_phone) await fillCustomerBlanks(req.scope, cart.email, { phone: contact_phone })
 
   const recipient = CONTACT_NOTIFICATION_EMAIL?.trim()
-  if (result.created && recipient) {
+  if (result.notify && recipient) {
     try {
       const notifications: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION)
       await notifications.createNotifications({

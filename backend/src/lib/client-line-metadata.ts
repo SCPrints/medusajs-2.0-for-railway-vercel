@@ -63,6 +63,8 @@ export const CLIENT_LINE_METADATA_KEYS = [
   "group_order_participants",
   // Order again — { order_id, display_id, line_item_id } of the source line
   "reorder_of",
+  // Our range — the organisation the line was ordered for (services/org-range)
+  "organisation_id",
 ] as const
 
 const isObject = (v: unknown): v is Record<string, unknown> =>

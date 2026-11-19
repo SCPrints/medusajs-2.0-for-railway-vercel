@@ -18,7 +18,13 @@ import {
   StripeAcceptedCardMarks,
   StripePaymentTrustFootnote,
 } from "@modules/checkout/components/stripe-payment-trust"
-import { isStripe as isStripeFunc, paymentInfoMap } from "@lib/constants"
+import { isManual, isStripe as isStripeFunc, paymentInfoMap } from "@lib/constants"
+import OrgOrder, { activeCostCentres } from "@modules/checkout/components/org-order"
+import {
+  setCartOrgOrder,
+  type OrgAccount,
+  type OrgOrderSelection,
+} from "@lib/data/org-account"
 import {
   StripeContext,
   isPaidIntentStatus,
@@ -26,12 +32,18 @@ import {
 } from "@modules/checkout/components/payment-wrapper"
 import { initiatePaymentSession, placeOrder } from "@lib/data/cart"
 
+/** Medusa's manual provider: only ever offered as "Pay on account" to an approved organisation's buyer. */
+const ON_ACCOUNT_PROVIDER = "pp_system_default"
+
 const Payment = ({
   cart,
   availablePaymentMethods,
+  orgOptions = [],
 }: {
   cart: any
   availablePaymentMethods: any[]
+  /** Organisations this customer can order for; empty for everyone else. */
+  orgOptions?: OrgAccount[]
 }) => {
   const activeSession = cart.payment_collection?.payment_sessions?.find(
     (paymentSession: any) => paymentSession.status === "pending"
@@ -44,6 +56,29 @@ const Payment = ({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(
     activeSession?.provider_id ?? ""
   )
+
+  // Ordering for an organisation: who, cost centre, blanket PO.
+  const cartMeta = (cart?.metadata ?? {}) as Record<string, unknown>
+  const [orgSel, setOrgSel] = useState<OrgOrderSelection>(() => {
+    const id = typeof cartMeta.organisation_id === "string" ? cartMeta.organisation_id : ""
+    const known = orgOptions.some((o) => o.organisation.id === id)
+    return {
+      organisation_id: known ? id : null,
+      cost_centre: known && typeof cartMeta.cost_centre === "string" ? cartMeta.cost_centre || null : null,
+      organisation_po_id:
+        known && typeof cartMeta.organisation_po_id === "string" ? cartMeta.organisation_po_id || null : null,
+    }
+  })
+  const org = orgOptions.find((o) => o.organisation.id === orgSel.organisation_id) ?? null
+  const accountOption = org?.checkout?.pay_on_account ?? null
+  const needsApproval = org?.checkout?.needs_approval ?? null
+  const onAccountSelected = isManual(selectedPaymentMethod)
+  const accountTitle = `Pay on account · invoice due in ${org?.account.terms_days ?? 30} days`
+
+  // "Pay on account" only stays selected while the chosen organisation allows it.
+  useEffect(() => {
+    if (onAccountSelected && accountOption?.ok !== true) setSelectedPaymentMethod("")
+  }, [onAccountSelected, accountOption])
 
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -83,6 +118,20 @@ const Payment = ({
   const handleSubmit = async () => {
     setIsLoading(true)
     try {
+      if (orgOptions.length) {
+        if (org && activeCostCentres(org).length && !orgSel.cost_centre) {
+          setError("Choose a cost centre for this order.")
+          return
+        }
+        // Saved before the payment session: the backend checks the
+        // organisation on the cart when "Pay on account" is chosen.
+        const saved = await setCartOrgOrder(orgSel)
+        if (!saved.ok) {
+          setError(saved.error)
+          return
+        }
+      }
+
       const needsPaymentInit =
         !activeSession ||
         activeSession.provider_id !== selectedPaymentMethod
@@ -166,6 +215,9 @@ const Payment = ({
       </div>
       <div>
         <div className={isOpen ? "block" : "hidden"}>
+          {orgOptions.length ? (
+            <OrgOrder options={orgOptions} value={orgSel} onChange={setOrgSel} />
+          ) : null}
           {!paidByGiftcard && availablePaymentMethods?.length && (
             <>
               <RadioGroup
@@ -186,7 +238,27 @@ const Payment = ({
                       />
                     )
                   })}
+                {accountOption ? (
+                  <PaymentContainer
+                    paymentInfoMap={{
+                      ...paymentInfoMap,
+                      [ON_ACCOUNT_PROVIDER]: { ...paymentInfoMap[ON_ACCOUNT_PROVIDER], title: accountTitle },
+                    }}
+                    paymentProviderId={ON_ACCOUNT_PROVIDER}
+                    selectedPaymentOptionId={selectedPaymentMethod}
+                    disabled={accountOption.ok !== true}
+                  />
+                ) : null}
               </RadioGroup>
+              {accountOption && accountOption.ok === false ? (
+                <p className="mb-2 text-sm text-ui-fg-subtle">{accountOption.message}</p>
+              ) : null}
+              {onAccountSelected && org ? (
+                <p className="mb-2 text-sm text-ui-fg-subtle">
+                  No card needed. We&apos;ll send {org.organisation.name} a tax invoice
+                  {org.account.ap_email ? ` (and a copy to ${org.account.ap_email})` : ""}.
+                </p>
+              ) : null}
               {stripeSelected && stripeReady && (
                 <div className="mt-5 space-y-3 transition-all duration-150 ease-in-out">
                   <StripeAcceptedCardMarks />
@@ -248,7 +320,8 @@ const Payment = ({
             isLoading={isLoading}
             disabled={
               (stripeSelected && stripeSessionReady && !paymentElementComplete) ||
-              (!selectedPaymentMethod && !paidByGiftcard)
+              (!selectedPaymentMethod && !paidByGiftcard) ||
+              !!needsApproval
             }
             data-testid="submit-payment-button"
           >
@@ -267,8 +340,9 @@ const Payment = ({
                   className="txt-medium text-ui-fg-subtle"
                   data-testid="payment-method-summary"
                 >
-                  {paymentInfoMap[selectedPaymentMethod]?.title ||
-                    selectedPaymentMethod}
+                  {onAccountSelected
+                    ? "Pay on account"
+                    : paymentInfoMap[selectedPaymentMethod]?.title || selectedPaymentMethod}
                 </Text>
               </div>
               <div className="flex flex-col w-1/3">
@@ -285,7 +359,9 @@ const Payment = ({
                     )}
                   </Container>
                   <Text>
-                    {isStripeFunc(selectedPaymentMethod) && paymentMethodType
+                    {onAccountSelected
+                      ? `Invoice due in ${org?.account.terms_days ?? 30} days`
+                      : isStripeFunc(selectedPaymentMethod) && paymentMethodType
                       ? paymentMethodType === "afterpay_clearpay"
                         ? "Afterpay"
                         : paymentMethodType.charAt(0).toUpperCase() +

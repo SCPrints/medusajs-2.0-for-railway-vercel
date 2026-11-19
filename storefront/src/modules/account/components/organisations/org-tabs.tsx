@@ -4,11 +4,16 @@ import { useEffect, useMemo, useState } from "react"
 
 export type OrgTabKey =
   | "overview"
+  | "range"
+  | "people"
   | "designs"
   | "inventory"
   | "destinations"
   | "orders"
   | "members"
+  | "account"
+  | "approvals"
+  | "invoices"
 
 export type OrgTabDef = {
   key: OrgTabKey

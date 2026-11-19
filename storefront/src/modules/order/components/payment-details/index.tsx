@@ -16,6 +16,32 @@ const ColLabel = ({ children }: { children: React.ReactNode }) => (
 
 const PaymentDetails = ({ order }: PaymentDetailsProps) => {
   const payment = order.payment_collections?.[0].payments?.[0]
+  // Placed on account: nothing was charged; the tax invoice carries the due date.
+  const terms = (order.metadata as Record<string, unknown> | null | undefined)?.account_terms as
+    | { days?: number; due_at?: string }
+    | undefined
+  if (terms) {
+    return (
+      <div>
+        <h2 className="text-2xl font-semibold text-ink border-l-4 border-brand pl-4 mb-5">
+          Payment
+        </h2>
+        <Text className="text-sm text-ink font-medium" data-testid="payment-method">
+          On account
+          {terms.due_at
+            ? ` · payment due ${new Date(terms.due_at).toLocaleDateString("en-AU", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}`
+            : ""}
+        </Text>
+        <Text className="mt-1 text-sm text-ui-fg-subtle">
+          No card was charged. We&apos;ve emailed the tax invoice.
+        </Text>
+      </div>
+    )
+  }
 
   return (
     <div>

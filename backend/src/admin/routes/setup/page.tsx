@@ -13,6 +13,7 @@ const SetupHub = () => (
     <ul className="list-disc pl-5 text-sm">
       <li><AppLink className="text-ui-fg-interactive hover:underline" href="/app/setup/automation-rules">Automation rules</AppLink> — when X happens, do Y.</li>
       <li><AppLink className="text-ui-fg-interactive hover:underline" href="/app/setup/help">Help &amp; guide</AppLink> — the staff guide.</li>
+      <li><AppLink className="text-ui-fg-interactive hover:underline" href="/app/setup/supplier-documents">Supplier documents</AppLink> — our ABN, insurance and other certificates customers can download.</li>
       <li><AppLink className="text-ui-fg-interactive hover:underline" href="/app/customers">Owner rotation and email suppressions</AppLink> sit under Customers.</li>
     </ul>
   </Container>

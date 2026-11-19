@@ -325,7 +325,7 @@ const ManualTestPaymentButton = ({ notReady }: { notReady: boolean }) => {
         className="checkout-primary-action w-full small:w-auto"
         data-testid="submit-order-button"
       >
-        Place order
+        Place order on account
       </Button>
       <ErrorMessage
         error={errorMessage}

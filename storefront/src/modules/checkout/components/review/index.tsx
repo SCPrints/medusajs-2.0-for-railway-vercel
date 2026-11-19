@@ -6,6 +6,34 @@ import PaymentButton from "../payment-button"
 import PoNumber from "../po-number"
 import { useSearchParams } from "next/navigation"
 
+const PACKING_LABEL: Record<string, string> = {
+  bulk: "Packed in bulk",
+  by_size: "Sorted by size",
+  by_unit: "Sorted by unit",
+  individual: "Bagged and labelled for each person",
+}
+
+/** What the team order form attached to this cart (roster, packing, names). */
+const TeamOrderSummary = ({ metadata }: { metadata: Record<string, unknown> | null | undefined }) => {
+  const roster = metadata?.roster as { total?: number } | undefined
+  const packing = typeof metadata?.packing === "string" ? PACKING_LABEL[metadata.packing] : null
+  const names = metadata?.personalisation_requested === true
+  if (!roster?.total && !packing && !names) return null
+  return (
+    <div
+      className="mb-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-sm text-ui-fg-base"
+      data-testid="team-order-summary"
+    >
+      <p className="font-semibold">Team order</p>
+      <ul className="m-0 mt-1 list-none p-0 text-ui-fg-subtle">
+        {roster?.total ? <li>For {roster.total} {roster.total === 1 ? "person" : "people"} on your list</li> : null}
+        {packing ? <li>{packing}</li> : null}
+        {names ? <li>We&apos;ll confirm the price for names and numbers before we print.</li> : null}
+      </ul>
+    </div>
+  )
+}
+
 const Review = ({ cart }: { cart: any }) => {
   const searchParams = useSearchParams()
 
@@ -41,11 +69,12 @@ const Review = ({ cart }: { cart: any }) => {
               <Text className="txt-medium-plus text-ui-fg-base mb-1">
                 By clicking the Place Order button, you confirm that you have
                 read, understand and accept our Terms of Use, Terms of Sale and
-                Returns Policy and acknowledge that you have read Medusa
-                Store&apos;s Privacy Policy.
+                Returns Policy and acknowledge that you have read SC
+                Prints&apos; Privacy Policy.
               </Text>
             </div>
           </div>
+          <TeamOrderSummary metadata={cart?.metadata as Record<string, unknown> | null} />
           <PoNumber
             initial={
               typeof cart?.metadata?.po_number === "string" ? cart.metadata.po_number : ""

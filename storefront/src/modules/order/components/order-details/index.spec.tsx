@@ -18,6 +18,12 @@ describe("OrderDetails status rows", () => {
     expect(html).toContain('data-testid="order-payment-status"')
   })
 
+  it("offers the download pack in the account view only", () => {
+    const order = { ...base, id: "order_1", metadata: {} }
+    expect(renderToString(<OrderDetails order={order} showStatus />)).toContain('href="/api/orders/order_1/download-pack"')
+    expect(renderToString(<OrderDetails order={order} />)).not.toContain("download-pack")
+  })
+
   it("keeps fulfilment status for orders with no stage", () => {
     const html = renderToString(<OrderDetails order={{ ...base, metadata: {} }} showStatus />)
     expect(html).toContain("Not fulfilled")

@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useState } from "react"
 
 import { HelpTooltip } from "../../components/reports/help-tooltip"
+import AccountTab from "./components/account-tab"
 import DesignsTab from "./components/designs-tab"
 import DestinationsTab from "./components/destinations-tab"
 import InventoryTab from "./components/inventory-tab"
@@ -48,6 +49,7 @@ type DetailTab =
   | "inventory"
   | "destinations"
   | "members"
+  | "account"
 
 const TAB_LABELS: Record<DetailTab, string> = {
   overview: "Overview",
@@ -55,6 +57,7 @@ const TAB_LABELS: Record<DetailTab, string> = {
   inventory: "Inventory",
   destinations: "Destinations",
   members: "Members",
+  account: "Account",
 }
 
 const OrganisationsPage = () => {
@@ -389,6 +392,9 @@ const OrganisationsPage = () => {
         return renderOverview()
       case "members":
         return renderMembers()
+      case "account":
+        // key: reload the tab's own state when staff pick another organisation.
+        return <AccountTab key={selected.id} organisationId={selected.id} />
       case "designs":
         return (
           <DesignsTab
@@ -555,6 +561,7 @@ const OrganisationsPage = () => {
                     "inventory",
                     "destinations",
                     "members",
+                    "account",
                   ] as const
                 ).map((tab) => {
                   const active = activeTab === tab

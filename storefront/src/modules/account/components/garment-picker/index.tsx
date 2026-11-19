@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 
+import { getUsualGarments } from "@lib/data/org-team"
 import { getProductIndexName } from "@lib/search-client"
 
 type PickedGarment = { handle: string; title: string; thumbnail: string | null }
@@ -18,13 +19,26 @@ const SEARCH_ENDPOINT = (process.env.NEXT_PUBLIC_SEARCH_ENDPOINT ?? "").replace(
 const SEARCH_API_KEY = process.env.NEXT_PUBLIC_SEARCH_API_KEY ?? ""
 const LIMIT = 24
 
+// Garments this customer has ordered before: asked once per page load, and
+// never allowed to break the picker (guests and failures get an empty list).
+let usualGarments: Promise<PickedGarment[]> | null = null
+const loadUsualGarments = () =>
+  (usualGarments ??= getUsualGarments()
+    .catch(() => [] as PickedGarment[])
+    .then((g) => {
+      // Empty (guest, or nothing ordered yet): ask again next time, they may sign in.
+      if (g.length === 0) usualGarments = null
+      return g
+    }))
+
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
 
 /**
  * Pick any garment from the catalogue. An empty search box is a Meilisearch
  * placeholder search, which the index ranks by popularity, so the default
- * grid is our best sellers with no extra call.
+ * grid is our best sellers with no extra call. Signed-in customers see the
+ * garments they have ordered before first ("You've ordered these").
  *
  * Also used inside the Studio overlay (z-[200]): portals to body at z-[300],
  * tags itself `data-studio-sublayer`, traps focus and stops Escape in the
@@ -35,6 +49,7 @@ const GarmentPicker = ({ open, onClose, onPick, title = "Choose a garment" }: Pr
   const [hits, setHits] = useState<PickedGarment[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [usual, setUsual] = useState<PickedGarment[]>([])
   const dialogRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const onCloseRef = useRef(onClose)
@@ -76,6 +91,17 @@ const GarmentPicker = ({ open, onClose, onPick, title = "Choose a garment" }: Pr
       document.body.style.overflow = prevOverflow
       window.clearTimeout(t)
       previous?.focus?.()
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    let live = true
+    void loadUsualGarments().then((g) => {
+      if (live) setUsual(g)
+    })
+    return () => {
+      live = false
     }
   }, [open])
 
@@ -128,6 +154,38 @@ const GarmentPicker = ({ open, onClose, onPick, title = "Choose a garment" }: Pr
 
   if (!open || typeof document === "undefined") return null
 
+  // Empty search: their usual garments lead, then the popular ones (no repeats).
+  const showUsual = !query.trim() && usual.length > 0
+  const usualHandles = new Set(usual.map((g) => g.handle))
+  const rest = showUsual ? hits.filter((h) => !usualHandles.has(h.handle)) : hits
+  const tile = (hit: PickedGarment) => (
+    <li key={hit.handle}>
+      <button
+        type="button"
+        onClick={() => onPick(hit)}
+        className="group flex h-full w-full flex-col overflow-hidden rounded-xl border border-ui-border-base bg-white text-left transition hover:border-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+      >
+        <span className="flex aspect-square w-full items-center justify-center bg-ui-bg-subtle">
+          {hit.thumbnail ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={hit.thumbnail}
+              alt=""
+              loading="lazy"
+              className="max-h-full max-w-full object-contain transition group-hover:scale-[1.03]"
+            />
+          ) : (
+            <span className="text-xs text-ui-fg-subtle">No photo</span>
+          )}
+        </span>
+        <span className="line-clamp-2 px-2 py-2 text-xs font-medium text-ui-fg-base">
+          {hit.title}
+        </span>
+      </button>
+    </li>
+  )
+  const grid = "m-0 grid list-none grid-cols-2 gap-3 p-0 phone:grid-cols-3 tablet:grid-cols-4"
+
   return createPortal(
     <div
       className="fixed inset-0 z-[300] flex items-end justify-center bg-black/50 tablet:items-center tablet:p-6"
@@ -176,44 +234,32 @@ const GarmentPicker = ({ open, onClose, onPick, title = "Choose a garment" }: Pr
               ? "Searching…"
               : query.trim()
               ? `${hits.length} result${hits.length === 1 ? "" : "s"}`
+              : showUsual
+              ? "Your usual garments first"
               : "Popular garments"}
           </p>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2">
-          {!loading && !error && hits.length === 0 ? (
+          {showUsual ? (
+            <>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-subtle">
+                You&apos;ve ordered these
+              </h3>
+              <ul className={grid}>{usual.map(tile)}</ul>
+              {rest.length > 0 ? (
+                <h3 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-subtle">
+                  Popular garments
+                </h3>
+              ) : null}
+            </>
+          ) : null}
+          {!loading && !error && hits.length === 0 && !showUsual ? (
             <p className="py-10 text-center text-sm text-ui-fg-subtle">
               Nothing found. Try another word.
             </p>
           ) : (
-            <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 phone:grid-cols-3 tablet:grid-cols-4">
-              {hits.map((hit) => (
-                <li key={hit.handle}>
-                  <button
-                    type="button"
-                    onClick={() => onPick(hit)}
-                    className="group flex h-full w-full flex-col overflow-hidden rounded-xl border border-ui-border-base bg-white text-left transition hover:border-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
-                  >
-                    <span className="flex aspect-square w-full items-center justify-center bg-ui-bg-subtle">
-                      {hit.thumbnail ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={hit.thumbnail}
-                          alt=""
-                          loading="lazy"
-                          className="max-h-full max-w-full object-contain transition group-hover:scale-[1.03]"
-                        />
-                      ) : (
-                        <span className="text-xs text-ui-fg-subtle">No photo</span>
-                      )}
-                    </span>
-                    <span className="line-clamp-2 px-2 py-2 text-xs font-medium text-ui-fg-base">
-                      {hit.title}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <ul className={grid}>{rest.map(tile)}</ul>
           )}
         </div>
       </div>
