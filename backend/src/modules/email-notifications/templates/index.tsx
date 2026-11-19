@@ -110,6 +110,11 @@ import {
 import { DSP_JOB, DspJobEmail, isDspJobData } from './dsp-job'
 import { STAFF_JOBS_TODAY, StaffJobsTodayEmail, isStaffJobsTodayData } from './staff-jobs-today'
 import { STAFF_SUGGESTION, StaffSuggestionEmail, isStaffSuggestionData } from './staff-suggestion'
+import {
+  SUPPLIER_CATALOG_SYNC,
+  SupplierCatalogSyncEmail,
+  isSupplierCatalogSyncData,
+} from './supplier-catalog-sync'
 
 export const EmailTemplates = {
   INVITE_USER,
@@ -138,6 +143,7 @@ export const EmailTemplates = {
   DSP_JOB,
   STAFF_JOBS_TODAY,
   STAFF_SUGGESTION,
+  SUPPLIER_CATALOG_SYNC,
 } as const
 
 export type EmailTemplateType = keyof typeof EmailTemplates
@@ -341,6 +347,15 @@ export function generateEmailTemplate(templateKey: string, data: unknown): React
         )
       }
       return <StaffJobsTodayEmail {...data} />
+
+    case EmailTemplates.SUPPLIER_CATALOG_SYNC:
+      if (!isSupplierCatalogSyncData(data)) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          `Invalid data for template "${EmailTemplates.SUPPLIER_CATALOG_SYNC}"`
+        )
+      }
+      return <SupplierCatalogSyncEmail {...data} />
 
     case EmailTemplates.STAFF_SUGGESTION:
       if (!isStaffSuggestionData(data)) {

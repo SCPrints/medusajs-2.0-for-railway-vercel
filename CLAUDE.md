@@ -1028,6 +1028,15 @@ Product images are load-bearing customer-facing data. A 2026-06-02 incident wipe
 
 ## Catalog importers
 
+### Nightly supplier catalog sync (new styles in, discontinued out) — added 2026-11-19
+
+Until 2026-11-19 nothing added new supplier styles or removed discontinued ones — importers only ran by hand, so AS Colour 4034 (and ~170 other styles) never reached the site. [sync-supplier-catalogs.ts](backend/src/jobs/sync-supplier-catalogs.ts) (`0 7 * * *`) now, for AS Colour, FashionBiz (biz-collection, biz-care, biz-corporates, syzmik) and Aussie Pacific:
+- **Adds** every listed, non-discontinued style we don't have (matched on the supplier code in metadata first, then handle — a renamed style is never imported twice; a style we set to draft is never re-added). Uses the same import functions as the admin Import buttons ([services/supplier-catalog-sync/](backend/src/services/supplier-catalog-sync/)`*-import.ts`) but creates them as **drafts** — Sean's rule: nothing new goes live until he reviews the report and publishes it (the admin Import buttons still publish). Capped at `SUPPLIER_CATALOG_SYNC_MAX_ADDS` (default 100) per supplier per night.
+- **Hides** (status → draft, never deletes; stamps `metadata.supplier_sync = { hidden_at, reason }`) live products the supplier marks discontinued (AS Colour `S` suffix, FashionBiz `clearance`, AP `run_out`) or no longer lists. **Safety stop**: if more than max(10, 10% of that supplier's live products) would be hidden, none are — treated as a bad feed and listed in the report.
+- **Emails the report** (added / hidden / waiting / problems, with admin + website links) to `SUPPLIER_CATALOG_SYNC_EMAIL` (falls back to `CONTACT_NOTIFICATION_EMAIL`) so staff review each change.
+
+Pure diff + tests: [plan.ts](backend/src/services/supplier-catalog-sync/plan.ts). **Env** `SUPPLIER_CATALOG_SYNC`: `off` (default) | `report` (email what would change, write nothing) | `apply`. Run by hand: `cd /app/.medusa/server && MODE=report npx medusa exec src/scripts/sync-supplier-catalogs.js` (`ONLY=ascolour` to limit).
+
 ### AS Colour API importer + hourly inventory sync
 
 Pulls every AS Colour style + variant from their authenticated catalog API, creates Medusa products with bulk-pricing metadata, links each to the AS Colour `Brand`, and refreshes stock at the "AS Colour Warehouse" stock location daily at 03:00 UTC via a delta query.
@@ -1348,6 +1357,7 @@ All schedules in UTC. Hours shown also as AEST (+10) since the studio is in NSW.
 | `0 5 * * *` | 15:00 | [refresh-seo-analytics.ts](backend/src/jobs/refresh-seo-analytics.ts) | Pull 28-day GSC + GA4 metrics into cache |
 | `0 6 * * *` | 16:00 | [regenerate-tier-prices.ts](backend/src/jobs/regenerate-tier-prices.ts) | Rebuild B2B tier price-list overrides |
 | `30 6 * * *` | 16:30 | [backfill-ascolour-variants.ts](backend/src/jobs/backfill-ascolour-variants.ts) | Reconcile new AS Colour colours/sizes added since last import (no-ops without API token) |
+| `0 7 * * *` | 17:00 | [sync-supplier-catalogs.ts](backend/src/jobs/sync-supplier-catalogs.ts) | Add new AS Colour / FashionBiz / AP styles, hide discontinued ones, email the report (gated by `SUPPLIER_CATALOG_SYNC`) |
 | `0 8 * * *` | 18:00 | [scan-stale-orders.ts](backend/src/jobs/scan-stale-orders.ts) | Flag orders not progressed in N days |
 | `0 9 * * *` | 19:00 | [notify-overdue-tasks.ts](backend/src/jobs/notify-overdue-tasks.ts) | Surface overdue tasks via audit + PostHog (gated by `TASKS_OVERDUE_CRON_ENABLED`) |
 | `0 22 * * *` | 08:00 next day | [send-nps-requests.ts](backend/src/jobs/send-nps-requests.ts) | Daily NPS prompt batch |
