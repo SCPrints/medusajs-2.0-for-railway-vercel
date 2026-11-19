@@ -28,12 +28,10 @@ type NotificationEmailOptions = Omit<
  * Service to handle email notifications using the Resend API.
  */
 /**
- * Progress and marketing mail about a walk-in sale has no reader, so it stops
- * here, whichever job or subscriber sent it. The order confirmation and tax
- * invoice still reach the walk-in inbox as the sale's record.
+ * The walk-in address is a placeholder Medusa needs on the order, not an inbox:
+ * nothing is ever sent to it, whichever job or subscriber tries.
  */
-export const blockedForWalkIn = (to: string, template: string): boolean =>
-  isWalkInEmail(to) && template !== EmailTemplates.ORDER_PLACED && template !== EmailTemplates.TAX_INVOICE
+export const blockedForWalkIn = (to: string): boolean => isWalkInEmail(to)
 
 export class ResendNotificationService extends AbstractNotificationProviderService {
   static identifier = "RESEND_NOTIFICATION_SERVICE"
@@ -61,7 +59,7 @@ export class ResendNotificationService extends AbstractNotificationProviderServi
       throw new MedusaError(MedusaError.Types.INVALID_DATA, `SMS notification not supported`)
     }
 
-    if (blockedForWalkIn(notification.to, notification.template)) {
+    if (blockedForWalkIn(notification.to)) {
       this.logger_.info(`Skipped "${notification.template}" email: ${notification.to} is the POS walk-in inbox`)
       return {}
     }

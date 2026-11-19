@@ -5,7 +5,7 @@ import { z } from "zod"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
 import { findCustomerIdByEmail } from "../../../lib/customer-fill"
-import { walkInEmail } from "../../../lib/walk-in"
+import { isWalkInEmail, walkInEmail } from "../../../lib/walk-in"
 import { isValidEmail } from "../../../lib/email-validation"
 import { getPostHog } from "../../../lib/posthog"
 import { slimQuoteForAdmin } from "../../../lib/quote-admin-slim"
@@ -199,6 +199,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         })
         customerId = created.id
       }
+    }
+    // Picked or phone-matched customer who has a real email: the job uses it.
+    if (customerId) {
+      const existing = await req.scope
+        .resolve(Modules.CUSTOMER)
+        .retrieveCustomer(customerId, { select: ["email"] })
+        .catch(() => null)
+      if (existing?.email && !isWalkInEmail(existing.email)) email = existing.email.toLowerCase()
     }
   }
 

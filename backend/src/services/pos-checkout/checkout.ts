@@ -98,11 +98,19 @@ export const buildStudioAddress = () => ({
  * email. So such drafts are created with the email alone (`relinkTo` set) and
  * pointed back at the real customer by `relinkDraftCustomer` before they're
  * converted, so order.placed already sees the right customer.
+ *
+ * A job can sit on the walk-in placeholder while its linked customer has a
+ * real email (matched by phone, or the email added to the customer later):
+ * the customer's email wins, so the order never lands on the placeholder.
  */
 export function draftCustomer(
   customerId: string | null | undefined,
-  email: string | null | undefined
+  email: string | null | undefined,
+  customerEmail?: string | null
 ): { customer_id?: string; email?: string; relinkTo: string | null } {
+  if (customerId && isWalkInEmail(email) && customerEmail?.trim() && !isWalkInEmail(customerEmail)) {
+    email = customerEmail.trim().toLowerCase()
+  }
   const relinkTo = customerId && isWalkInEmail(email) ? customerId : null
   return {
     customer_id: relinkTo ? undefined : customerId ?? undefined,

@@ -276,6 +276,7 @@ export const convertQuoteToOrder = async (
   // quote-on-order-placed links the job to the order's customer afterwards.
   const customerId: string | null =
     quote.customer_id ?? (await findCustomerIdByEmail(container, quote.email))
+  let customerEmail: string | null = null
   if (customerId) {
     try {
       const { data: customers } = await query.graph({
@@ -283,6 +284,7 @@ export const convertQuoteToOrder = async (
         filters: { id: customerId },
         fields: [
           "id",
+          "email",
           "metadata",
           "addresses.first_name",
           "addresses.last_name",
@@ -299,6 +301,7 @@ export const convertQuoteToOrder = async (
         ],
       })
       const customer = (customers as any[])?.[0]
+      customerEmail = customer?.email ?? null
       const addresses = (customer?.addresses ?? []) as any[]
       const pick = (flag: string) =>
         addresses.find((a) => a?.[flag]) ?? addresses[0] ?? null
@@ -357,9 +360,10 @@ export const convertQuoteToOrder = async (
     : null
 
   // ── Create draft → convert (POS recipe) ──────────────────────────────────
-  // A job with no email sits on the walk-in inbox; draftCustomer keeps the
-  // order on the job's (email-less) customer.
-  const who = draftCustomer(customerId, quote.email)
+  // A job with no email sits on the walk-in placeholder; draftCustomer swaps in
+  // the linked customer's real email if they have one, else keeps the order on
+  // the job's (email-less) customer.
+  const who = draftCustomer(customerId, quote.email, customerEmail)
   const draftResult = await createOrderWorkflow(container).run({
     input: {
       region_id: region.id,
@@ -409,6 +413,8 @@ export const convertQuoteToOrder = async (
   await service.updateQuotes([
     {
       id: quote.id,
+      // Placeholder swapped for the customer's real email: keep the job in step.
+      ...(who.email && who.email !== quote.email ? { email: who.email } : {}),
       status: "accepted",
       accepted_at: quote.accepted_at ?? new Date(),
       metadata: {

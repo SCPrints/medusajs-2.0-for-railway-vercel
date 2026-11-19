@@ -1,5 +1,5 @@
-import { EmailTemplates } from "../../modules/email-notifications/templates"
 import { blockedForWalkIn } from "../../modules/email-notifications/services/resend"
+import { draftCustomer } from "../../services/pos-checkout/checkout"
 import { isWalkInEmail } from "../walk-in"
 
 describe("isWalkInEmail", () => {
@@ -11,17 +11,25 @@ describe("isWalkInEmail", () => {
 })
 
 describe("blockedForWalkIn", () => {
-  const walkIn = "walkin@scprints.com.au"
+  it("never sends anything to the walk-in placeholder", () => {
+    expect(blockedForWalkIn("walkin@scprints.com.au")).toBe(true)
+    expect(blockedForWalkIn("pat@club.org")).toBe(false)
+  })
+})
 
-  it("stops progress and marketing mail to the walk-in inbox", () => {
-    expect(blockedForWalkIn(walkIn, EmailTemplates.ORDER_PRODUCTION_STAGE)).toBe(true)
-    expect(blockedForWalkIn(walkIn, EmailTemplates.ARTWORK_APPROVAL)).toBe(true)
-    expect(blockedForWalkIn(walkIn, EmailTemplates.NPS_REQUEST)).toBe(true)
+describe("draftCustomer", () => {
+  it("uses the linked customer's real email over the walk-in placeholder", () => {
+    expect(draftCustomer("cus_1", "walkin@scprints.com.au", "christine@lifegrain.com.au")).toEqual({
+      customer_id: "cus_1",
+      email: "christine@lifegrain.com.au",
+      relinkTo: null,
+    })
   })
 
-  it("keeps the sale's record, and everyone else's mail", () => {
-    expect(blockedForWalkIn(walkIn, EmailTemplates.ORDER_PLACED)).toBe(false)
-    expect(blockedForWalkIn(walkIn, EmailTemplates.TAX_INVOICE)).toBe(false)
-    expect(blockedForWalkIn("pat@club.org", EmailTemplates.NPS_REQUEST)).toBe(false)
+  it("keeps an email-less customer on the walk-in placeholder and relinks after", () => {
+    expect(draftCustomer("cus_1", "walkin@scprints.com.au", null)).toEqual({
+      email: "walkin@scprints.com.au",
+      relinkTo: "cus_1",
+    })
   })
 })
