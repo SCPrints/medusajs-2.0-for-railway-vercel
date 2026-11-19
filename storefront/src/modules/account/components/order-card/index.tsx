@@ -30,8 +30,15 @@ const OrderCard = ({ order }: OrderCardProps) => {
     return order.items?.length ?? 0
   }, [order])
 
+  // Re-orderable in one click: jobs designed in the Studio, and jobs our team
+  // set up from a quote (those come to us to check before they're a job).
   const hasStudioLines = useMemo(
-    () => (order.items ?? []).some(isStudioLine),
+    () =>
+      (order.items ?? []).some(
+        (i) =>
+          isStudioLine(i) ||
+          (i.metadata as Record<string, unknown> | null)?.quote_locked_price === true
+      ),
     [order]
   )
   const poNumber = (order.metadata as Record<string, unknown> | null)?.po_number

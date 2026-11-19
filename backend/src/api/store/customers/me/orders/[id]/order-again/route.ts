@@ -10,11 +10,13 @@ import {
   classifyReorderLines,
   linePrintSizeId,
   lineTitle,
+  reorderNeedsApproval,
   setupFeesByGroup,
   type NeedsStaff,
 } from "../../../../../../../lib/reorder-lines"
 import { requireCustomer } from "../../../../../../../lib/require-customer"
 import { addScpLinesToCart, type ScpAddLineInput } from "../../../../../../../lib/scp-add-lines"
+import { resolveTierForCartCustomer } from "../../../../../../../lib/scp-resolve-garment-unit-price"
 import { approvedDesignFor, loadOwnOrder } from "../../../../../../../services/reorder/load"
 
 // The hidden setup-fee service products (scripts/seed-*-setup-product.ts);
@@ -29,13 +31,17 @@ const bodySchema = z.object({
 
 /**
  * POST /store/customers/me/orders/:id/order-again  { cart_id, line_ids? }
- *   → { added_lines, needs_staff: [{ line_item_id, title, reason }], used_approved_artwork }
+ *   → { added_lines, needs_staff: [{ line_item_id, title, reason }], used_approved_artwork,
+ *       requires_approval?, approval_reason?: "needs_setup" | "quoted_price" }
  *
  * Copies the order's Studio lines into the customer's cart at today's
  * prices, through the same SCP pricing as a Studio add (addScpLinesToCart):
  * approved proof artwork swapped in, fresh group ids, `reorder_of` on each
  * line, and the screen / Supacolour setup-fee lines a fresh add creates.
- * Other lines come back in `needs_staff` (→ reorder-request).
+ * All or nothing: when any chosen line needs setting up by hand, or carries
+ * a quoted price and the customer has no pricing tier, NOTHING is added and
+ * `requires_approval` comes back — the storefront sends the whole selection to
+ * staff as one job (reorder-request).
  */
 export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const customerId = requireCustomer(req)
@@ -105,8 +111,19 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     })
   }
 
-  if (items.length === 0) {
-    return res.json({ added_lines: 0, needs_staff, used_approved_artwork: false })
+  // A job that needs our check goes to staff whole (the storefront follows up
+  // with reorder-request) — nothing is put in the cart, so the customer never
+  // ends up with half a job to pay for now and half on a quote.
+  const tier = await resolveTierForCartCustomer(query as any, customerId)
+  const approval = reorderNeedsApproval({ design: designLines, needs_staff, hasTier: !!tier })
+  if (approval.required || items.length === 0) {
+    return res.json({
+      added_lines: 0,
+      needs_staff,
+      used_approved_artwork: false,
+      requires_approval: true,
+      approval_reason: approval.reason ?? "needs_setup",
+    })
   }
 
   let result: Awaited<ReturnType<typeof addScpLinesToCart>>

@@ -1,4 +1,5 @@
-import { extractOrderOriginalFiles, isOurPublicFileUrl } from "../customer-artwork"
+import {
+  extractProofArtwork, extractOrderOriginalFiles, isOurPublicFileUrl } from "../customer-artwork"
 import { assertCanShareTo, isVisibleTo, sharingFields, type CustomerOrg } from "../customer-org-sharing"
 
 const BASE = "https://pub-abc.r2.dev"
@@ -67,5 +68,31 @@ describe("org sharing", () => {
     expect(() => assertCanShareTo(orgs, "org_1")).not.toThrow()
     expect(() => assertCanShareTo(orgs, "org_2")).toThrow(/requires/)
     expect(() => assertCanShareTo(orgs, "org_9")).toThrow(/not found/)
+  })
+})
+
+describe("extractProofArtwork", () => {
+  it("takes approved PNG/JPEG/SVG artwork once per URL and names it by order", () => {
+    const out = extractProofArtwork([
+      {
+        order_id: "order_2",
+        display_id: 91,
+        proofs: [
+          { artwork_url: "https://files/a.png?x=1", side: "left_sleeve" },
+          { artwork_url: "https://files/print.pdf", side: "front" },
+          { url: "https://files/mockup.jpg" },
+        ],
+      },
+      { order_id: "order_1", display_id: 80, proofs: [{ artwork_url: "https://files/a.png?x=1", side: "front" }] },
+      { order_id: "order_0", proofs: null },
+    ])
+    expect(out).toEqual([
+      {
+        url: "https://files/a.png?x=1",
+        name: "Approved artwork · order #91 · left sleeve",
+        mime_type: "image/png",
+        source_order_id: "order_2",
+      },
+    ])
   })
 })

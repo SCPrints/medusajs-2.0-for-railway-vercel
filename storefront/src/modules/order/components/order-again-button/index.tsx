@@ -3,13 +3,12 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 
-import { orderAgain, requestReorder, type NeedsStaffLine } from "@lib/data/orders"
+import { orderAgain } from "@lib/data/orders"
 import { phCapture } from "@lib/posthog"
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 type Props = {
   orderId: string
-  /** Only these lines; omit for every studio line on the order. */
+  /** Only these lines; omit for the whole order. */
   lineIds?: string[]
   label?: string
   variant?: "primary" | "secondary"
@@ -24,9 +23,11 @@ const STYLES = {
 }
 
 /**
- * One-click "Order again": copies the studio lines into the cart at today's
- * prices (with the artwork our team approved) and goes to the cart. Lines
- * the cart can't take are listed with an "Ask us to re-order these" button.
+ * One-click "Order again". Most jobs go straight into the cart (same
+ * garments, sizes and the artwork our team approved) and on to the cart page.
+ * A job our team needs to check first — something we set up by hand, or a
+ * quoted price — is sent to us whole instead, and the customer gets a job
+ * reference. Either way it's one button and one click.
  */
 const OrderAgainButton = ({
   orderId,
@@ -39,9 +40,7 @@ const OrderAgainButton = ({
   const { countryCode } = useParams() as { countryCode: string }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [needsStaff, setNeedsStaff] = useState<NeedsStaffLine[] | null>(null)
-  const [added, setAdded] = useState(0)
-  const [asked, setAsked] = useState<string | null>(null)
+  const [sent, setSent] = useState<{ ref: string; quoted: boolean } | null>(null)
 
   const run = async () => {
     setBusy(true)
@@ -55,32 +54,37 @@ const OrderAgainButton = ({
     phCapture("order_again_clicked", {
       order_id: orderId,
       added_lines: res.added_lines,
-      needs_staff: res.needs_staff.length,
+      sent_to_team: Boolean(res.sent_to_team),
+      approval_reason: res.approval_reason ?? null,
     })
-    if (res.needs_staff.length === 0 && res.added_lines > 0) {
+    if (res.sent_to_team) {
+      setBusy(false)
+      setSent({ ref: res.sent_to_team, quoted: res.approval_reason === "quoted_price" })
+      return
+    }
+    if (res.added_lines > 0) {
       router.push(`/${countryCode}/cart`)
       return
     }
     setBusy(false)
-    setAdded(res.added_lines)
-    setNeedsStaff(res.needs_staff)
+    setError("Nothing on this order could be re-ordered. Get in touch and we'll sort it out.")
   }
 
-  const ask = async () => {
-    if (!needsStaff?.length) return
-    setBusy(true)
-    setError(null)
-    const res = await requestReorder(
-      orderId,
-      needsStaff.map((l) => l.line_item_id)
+  if (sent) {
+    return (
+      <div
+        className={`rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 ${className}`}
+        role="status"
+        data-testid="order-again-sent"
+      >
+        <p className="font-semibold">Got it. Your job reference is {sent.ref}.</p>
+        <p className="mt-1 text-xs">
+          {sent.quoted
+            ? "This job was on a quoted price, so we'll confirm it and email you a link to pay."
+            : "We set this job up for you, so we'll check the details and email you a link to pay."}
+        </p>
+      </div>
     )
-    setBusy(false)
-    if (!res.ok) {
-      setError(res.error)
-      return
-    }
-    phCapture("reorder_request_sent", { order_id: orderId, from: "order_again" })
-    setAsked(res.public_id)
   }
 
   return (
@@ -92,58 +96,12 @@ const OrderAgainButton = ({
         className={STYLES[variant]}
         data-testid="order-again-button"
       >
-        {busy && !needsStaff ? "Adding to cart…" : label}
+        {busy ? "One moment…" : label}
       </button>
       {error ? (
         <p role="alert" className="text-xs text-red-600">
           {error}
         </p>
-      ) : null}
-      {needsStaff ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="status">
-          {added > 0 ? (
-            <p className="font-semibold">
-              {added} line{added === 1 ? "" : "s"} added to your cart.
-            </p>
-          ) : null}
-          {needsStaff.length > 0 ? (
-            <>
-              <p className={added > 0 ? "mt-2" : ""}>Our team needs to set these up:</p>
-              <ul className="mt-1 list-disc pl-4">
-                {needsStaff.map((l) => (
-                  <li key={l.line_item_id}>
-                    {l.title}
-                    {l.reason ? ` (${l.reason})` : ""}
-                  </li>
-                ))}
-              </ul>
-              {asked ? (
-                <p className="mt-2 font-semibold">
-                  Sent. Job {asked}. We&apos;ll email you a quote.
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={ask}
-                  disabled={busy}
-                  className={`${STYLES.secondary} mt-2 w-full`}
-                >
-                  {busy ? "Sending…" : "Ask us to re-order these"}
-                </button>
-              )}
-            </>
-          ) : (
-            <p>Nothing on this order could be added to the cart.</p>
-          )}
-          {added > 0 ? (
-            <LocalizedClientLink
-              href="/cart"
-              className={`${STYLES.primary} mt-2 w-full`}
-            >
-              Go to cart
-            </LocalizedClientLink>
-          ) : null}
-        </div>
       ) : null}
     </div>
   )

@@ -198,13 +198,23 @@ export type NeedsStaffLine = {
 }
 
 export type OrderAgainResult =
-  | { ok: true; added_lines: number; needs_staff: NeedsStaffLine[] }
+  | {
+      ok: true
+      added_lines: number
+      needs_staff: NeedsStaffLine[]
+      /** Set when the job went to our team instead of the cart: its reference. */
+      sent_to_team?: string
+      /** Why it went to the team. */
+      approval_reason?: "needs_setup" | "quoted_price"
+    }
   | { ok: false; error: string }
 
 /**
  * One-click re-order: copies the order's studio lines (or just `lineIds`)
  * into my cart at today's prices, using the artwork our team approved.
- * Lines the cart can't take come back in `needs_staff`.
+ * A job that needs our check (lines we set up by hand, or a quoted price for
+ * a customer without a pricing tier) goes to the team whole instead — one
+ * job, one payment — and `sent_to_team` carries its reference.
  */
 export async function orderAgain(
   orderId: string,
@@ -234,7 +244,23 @@ export async function orderAgain(
           ...(lineIds?.length ? { line_ids: lineIds } : {}),
         },
       }
-    )) as { added_lines?: number; needs_staff?: NeedsStaffLine[] }
+    )) as {
+      added_lines?: number
+      needs_staff?: NeedsStaffLine[]
+      requires_approval?: boolean
+      approval_reason?: "needs_setup" | "quoted_price"
+    }
+    if (res.requires_approval) {
+      const sent = await requestReorder(orderId, lineIds)
+      if (!sent.ok) return sent
+      return {
+        ok: true,
+        added_lines: 0,
+        needs_staff: res.needs_staff ?? [],
+        sent_to_team: sent.public_id,
+        approval_reason: res.approval_reason ?? "needs_setup",
+      }
+    }
     revalidateTag("cart", "max")
     return {
       ok: true,

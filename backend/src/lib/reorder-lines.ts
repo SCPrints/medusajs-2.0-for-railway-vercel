@@ -33,6 +33,8 @@ export const isGeneratedLine = (l: OrderLineLike): boolean => {
   return (
     m.screen_setup_for_order === true ||
     m.supacolour_setup_for_order === true ||
+    // One-off service: the artwork was vectorised on the original job.
+    m.vectorization_for_order === true ||
     m.pos_line_kind === "discount"
   )
 }
@@ -50,14 +52,32 @@ export function classifyReorderLines(
     if (isGeneratedLine(l)) continue
     const m = l.metadata ?? {}
     const push = (reason: string) => needs_staff.push({ line_item_id: l.id, title: lineTitle(l), reason })
-    if (m.vectorization_for_order === true) push("Artwork vectorising is a one-off service. We'll check whether it's needed again.")
-    else if (isObj(m.customizerDesign)) {
+    if (isObj(m.customizerDesign)) {
       if (!l.variant_id) push("This line has no size or the garment is no longer stocked.")
       else design.push(l)
     } else if (isObj(m.decorationDesign)) push("Embroidery set up outside the Studio. We'll re-quote it.")
     else push("No saved design on this line. We'll set it up for you.")
   }
   return { design, needs_staff }
+}
+
+/**
+ * Does this re-order come to staff before it becomes a job? Yes when any line
+ * needs setting up by hand, or when a line was sold at a quoted price and the
+ * customer has no pricing tier (a tier keeps their prices consistent; without
+ * one, today's website price could differ from what was negotiated). The whole
+ * selection then goes to staff as ONE job — never half in the cart.
+ */
+export function reorderNeedsApproval(input: {
+  design: OrderLineLike[]
+  needs_staff: NeedsStaff[]
+  hasTier: boolean
+}): { required: boolean; reason: "needs_setup" | "quoted_price" | null } {
+  if (input.needs_staff.length > 0) return { required: true, reason: "needs_setup" }
+  if (!input.hasTier && input.design.some((l) => l.metadata?.quote_locked_price === true)) {
+    return { required: true, reason: "quoted_price" }
+  }
+  return { required: false, reason: null }
 }
 
 /** Print size the original line was priced at. */

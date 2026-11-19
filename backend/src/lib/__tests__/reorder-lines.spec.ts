@@ -3,6 +3,7 @@ import {
   buildReorderLineMetadata,
   classifyReorderLines,
   linePrintSizeId,
+  reorderNeedsApproval,
   setupFeesByGroup,
   type OrderLineLike,
 } from "../reorder-lines"
@@ -38,7 +39,8 @@ describe("classifyReorderLines", () => {
       { id: "blank", title: "Plain tee", metadata: {} },
     ])
     expect(design.map((l) => l.id)).toEqual(["a"])
-    expect(needs_staff.map((n) => n.line_item_id)).toEqual(["nosize", "vec", "emb", "blank"])
+    // Vectorising is a one-off service: skipped, never re-charged or sent to staff.
+    expect(needs_staff.map((n) => n.line_item_id)).toEqual(["nosize", "emb", "blank"])
   })
 
   it("honours line_ids", () => {
@@ -90,6 +92,22 @@ describe("buildReorderLineMetadata print files", () => {
       mockupUrl: "proof.jpg",
       approvedProofId: "p1",
     })
+  })
+})
+
+describe("reorderNeedsApproval", () => {
+  const quoted = { ...studio("q"), metadata: { ...studio("q").metadata, quote_locked_price: true } }
+  it("sends hand-set-up jobs to staff", () => {
+    expect(
+      reorderNeedsApproval({ design: [studio("a")], needs_staff: [{ line_item_id: "x", title: "t", reason: "r" }], hasTier: true })
+    ).toEqual({ required: true, reason: "needs_setup" })
+  })
+  it("sends quoted prices to staff unless the customer has a pricing tier", () => {
+    expect(reorderNeedsApproval({ design: [quoted], needs_staff: [], hasTier: false })).toEqual({ required: true, reason: "quoted_price" })
+    expect(reorderNeedsApproval({ design: [quoted], needs_staff: [], hasTier: true })).toEqual({ required: false, reason: null })
+  })
+  it("lets ordinary website orders straight into the cart", () => {
+    expect(reorderNeedsApproval({ design: [studio("a")], needs_staff: [], hasTier: false })).toEqual({ required: false, reason: null })
   })
 })
 

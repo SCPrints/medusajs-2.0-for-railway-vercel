@@ -2513,22 +2513,117 @@ export default function CustomizerTemplate({
         setHydrationPlaceholderSides(placeholders)
       }
     }
-    // Opened on a different garment than it was made on: keep the artwork,
-    // drop print spots this garment can't take, keep sizes it also has, and
-    // let the customer pick a colour (the old variant doesn't exist here).
+    // Opened on a different garment than it was made on. Nothing is thrown
+    // away: artwork on a spot this garment doesn't have moves to a free spot
+    // it does have (a cap has no back → the front), or waits in "Your artwork"
+    // to be dragged on; each spot's technique switches to one this garment
+    // offers (embroidery on a hat stays embroidery on a tee; a print-only
+    // garment takes it as print). Sizes it also has are kept and the customer
+    // picks the colour (the old variant doesn't exist here).
     const movedGarment =
       destination.kind === "shop" &&
       typeof pendingHydration.productId === "string" &&
       pendingHydration.productId.length > 0 &&
       pendingHydration.productId !== product.id
     let hydrationSizes = pendingHydration.sizes
+    // `hyd` = the design as it applies to THIS garment (sides re-homed).
+    let hyd: CustomizerMetadata = pendingHydration
     if (movedGarment) {
       setHydratedFromProductId(pendingHydration.productId)
-      const dropped = DESIGN_SIDES.filter(
-        (side) =>
-          !allowedPrintSides.includes(side) && (sideLayoutsRef.current[side] ?? []).length > 0
-      )
-      for (const side of dropped) sideLayoutsRef.current[side] = []
+      const label = (side: string) => side.replace(/_/g, " ")
+      const methodsFor = (side: GarmentSide): PrintMethod[] => {
+        const base = printProfile ? profileMethodsForSide(printProfile, side) : []
+        const methods: PrintMethod[] = base.length
+          ? base
+          : productIsBeanie || productIsPuffer
+          ? ["embroidery"]
+          : ["print", "embroidery"]
+        return methods.includes("print") && (side === "front" || side === "back")
+          ? [...methods, "screen"]
+          : methods
+      }
+      const hasArt = (side: GarmentSide) => (sideLayoutsRef.current[side] ?? []).length > 0
+      const homeless = DESIGN_SIDES.filter((side) => !allowedPrintSides.includes(side) && hasArt(side))
+      const sideMap = new Map<GarmentSide, GarmentSide>()
+      const notes: string[] = []
+      const parked: GarmentSide[] = []
+      for (const from of homeless) {
+        const to = allowedPrintSides.find((side) => !hasArt(side))
+        if (to) {
+          sideLayoutsRef.current[to] = sideLayoutsRef.current[from] ?? []
+          sideMap.set(from, to)
+          notes.push(`This garment has no ${label(from)} spot, so that artwork is on the ${label(to)}.`)
+        } else {
+          parked.push(from)
+        }
+        sideLayoutsRef.current[from] = []
+      }
+      if (parked.length) {
+        // No free spot: keep the files one drag away in "Your artwork".
+        const parkedFiles = (pendingHydration.customerOriginalFiles ?? []).filter(
+          (f) => f?.url && f.sides?.some((side) => parked.includes(side as GarmentSide))
+        )
+        if (parkedFiles.length) {
+          setSessionUploads((current) => {
+            const known = new Set(current.map((u) => u.originalStorageUrl))
+            const extra = parkedFiles
+              .filter((f) => !known.has(f.url))
+              .map((f, i) => ({
+                id: `carry_${Date.now()}_${i}`,
+                name: f.fileName || "Artwork",
+                type: f.mimeType || "image/png",
+                dataUrl: "",
+                originalStorageUrl: f.url,
+              }))
+            return extra.length ? [...extra, ...current] : current
+          })
+        }
+        notes.push(
+          `This garment has no ${parked.map(label).join(" or ")} spot. That artwork is waiting in "Your artwork": drag it onto the garment wherever you'd like it.`
+        )
+      }
+      // Carry each side's settings to its new home, then fit the technique.
+      const remap = <T,>(bySide: Partial<Record<GarmentSide, T>> | undefined) => {
+        if (!bySide) return bySide
+        const out: Partial<Record<GarmentSide, T>> = {}
+        for (const [side, value] of Object.entries(bySide) as Array<[GarmentSide, T]>) {
+          if (parked.includes(side)) continue
+          out[sideMap.get(side) ?? side] = value
+        }
+        return out
+      }
+      const methods = { ...(remap(pendingHydration.sideDecorationMethods) ?? {}) }
+      const embroidery = { ...(remap(pendingHydration.sideEmbroideryConfigs) ?? {}) }
+      const screen = { ...(remap(pendingHydration.sideScreenConfigs) ?? {}) }
+      for (const side of allowedPrintSides) {
+        if (!hasArt(side)) continue
+        const saved = (methods[side] ?? "print") as PrintMethod
+        const allowed = methodsFor(side)
+        if (allowed.includes(saved)) continue
+        const next = allowed[0] ?? "print"
+        methods[side] = next as (typeof methods)[GarmentSide]
+        if (next !== "embroidery") delete embroidery[side]
+        if (next !== "screen") delete screen[side]
+        notes.push(
+          `This garment takes ${next === "print" ? "print" : next} on the ${label(side)}, not ${
+            saved === "print" ? "print" : saved
+          }, so we switched it. Check the price.`
+        )
+      }
+      hyd = {
+        ...pendingHydration,
+        sideDecorationMethods: methods,
+        sideEmbroideryConfigs: embroidery,
+        sideScreenConfigs: screen,
+        prints: pendingHydration.prints
+          ?.filter((p) => !parked.includes(p.side))
+          .map((p) => (sideMap.has(p.side) ? { ...p, side: sideMap.get(p.side) as GarmentSide } : p)),
+        activeSide: (() => {
+          const saved = pendingHydration.activeSide as GarmentSide | undefined
+          const mapped = saved ? sideMap.get(saved) ?? saved : undefined
+          return mapped && allowedPrintSides.includes(mapped) ? mapped : allowedPrintSides.find(hasArt)
+        })(),
+      } as CustomizerMetadata
       const sizeValues = new Set(
         (product.variants ?? []).flatMap((v) =>
           ((v.options ?? []) as Array<{ value?: string }>).map((o) => String(o?.value ?? "").toLowerCase())
@@ -2538,13 +2633,7 @@ export default function CustomizerTemplate({
         sizeValues.has(String(s?.size ?? "").toLowerCase())
       )
       setMovedToGarmentNotice(
-        `Your artwork is on this garment now. Check where it sits, then pick a colour and sizes.${
-          dropped.length
-            ? ` This garment can't be printed on the ${dropped
-                .map((s) => s.replace(/_/g, " "))
-                .join(" or ")}, so that artwork was left off.`
-            : ""
-        }`
+        ["Your artwork is on this garment now. Check where it sits, then pick a colour and sizes.", ...notes].join(" ")
       )
     }
     if (Array.isArray(hydrationSizes) && hydrationSizes.length > 0) {
@@ -2587,8 +2676,8 @@ export default function CustomizerTemplate({
         ? (pendingHydration.scpPrintSizeId as ScpPrintSizeId)
         : null
       const bySide: Partial<Record<GarmentSide, ScpPrintSizeId>> = {}
-      if (Array.isArray(pendingHydration.prints)) {
-        for (const p of pendingHydration.prints) {
+      if (Array.isArray(hyd.prints)) {
+        for (const p of hyd.prints) {
           if (!p || !isSize(p.sizeId) || typeof p.side !== "string") continue
           const side = p.side as GarmentSide
           const cur = bySide[side]
@@ -2642,23 +2731,23 @@ export default function CustomizerTemplate({
     // Restore per-side decoration methods (v3 schema). v2 metadata has no
     // entries so all sides default to "print" via getSideDecorationMethod()
     // — no explicit restore needed in that case.
-    if (pendingHydration.sideDecorationMethods) {
-      setSideDecorationMethods(pendingHydration.sideDecorationMethods)
+    if (hyd.sideDecorationMethods) {
+      setSideDecorationMethods(hyd.sideDecorationMethods)
     }
-    if (pendingHydration.sideEmbroideryConfigs) {
-      setSideEmbroideryConfigs(pendingHydration.sideEmbroideryConfigs)
+    if (hyd.sideEmbroideryConfigs) {
+      setSideEmbroideryConfigs(hyd.sideEmbroideryConfigs)
     }
-    if (pendingHydration.sideScreenConfigs) {
-      setSideScreenConfigs(pendingHydration.sideScreenConfigs)
+    if (hyd.sideScreenConfigs) {
+      setSideScreenConfigs(hyd.sideScreenConfigs)
     }
 
     // Restore manual size overrides so a re-edit of a saved/ordered design
     // keeps the prices the customer last saw. Auto-snapped prints carry
     // `manualSize: false` and we leave them out of the override map so the
     // bounding-box math drives them again on first render.
-    if (Array.isArray(pendingHydration.prints)) {
+    if (Array.isArray(hyd.prints)) {
       manualSizeOverridesRef.current.clear()
-      for (const print of pendingHydration.prints) {
+      for (const print of hyd.prints) {
         if (
           print &&
           typeof print.objectId === "string" &&
@@ -2678,7 +2767,7 @@ export default function CustomizerTemplate({
     // order. Without this, re-opening a back-of-hoodie design dumps the user
     // onto the front and they have to hunt for their work.
     let sideToLoad: GarmentSide = currentSideRef.current
-    const savedSide = pendingHydration.activeSide
+    const savedSide = hyd.activeSide
     if (
       savedSide === "front" ||
       savedSide === "back" ||

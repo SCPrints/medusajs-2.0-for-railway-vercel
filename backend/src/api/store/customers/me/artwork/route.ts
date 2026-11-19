@@ -9,7 +9,7 @@ import { z } from "zod"
 import { CUSTOMER_ARTWORK_MODULE } from "../../../../../modules/customer-artwork"
 import type CustomerArtworkModuleService from "../../../../../modules/customer-artwork/service"
 import { MINIO_PUBLIC_URL } from "../../../../../lib/constants"
-import { extractOrderOriginalFiles, isOurPublicFileUrl } from "../../../../../lib/customer-artwork"
+import { extractOrderOriginalFiles, extractProofArtwork, isOurPublicFileUrl } from "../../../../../lib/customer-artwork"
 import {
   listCustomerOrgs,
   sharingFields,
@@ -67,12 +67,30 @@ async function importOrderArtwork(
     [customerId, IMPORT_ORDER_LIMIT]
   )
   const rows: any[] = result?.rows ?? []
-  const files = extractOrderOriginalFiles(
-    rows.flatMap((r) => [
-      { order_id: r.order_id, originals: r.oi_originals },
-      { order_id: r.order_id, originals: r.li_originals },
-    ])
-  ).filter((f) => isOurPublicFileUrl(f.url, MINIO_PUBLIC_URL))
+  // Plus the artwork staff approved in revised proofs: what was actually
+  // printed, including jobs our team set up for the customer.
+  const proofResult = await pg.raw(
+    `select id as order_id, display_id, metadata->'revised_proofs' as proofs
+       from "order"
+      where customer_id = ? and deleted_at is null
+        and jsonb_exists(metadata, 'revised_proofs')
+      order by created_at desc limit ?`,
+    [customerId, IMPORT_ORDER_LIMIT]
+  )
+  const seen = new Set<string>()
+  const files = [
+    ...extractProofArtwork(proofResult?.rows ?? []),
+    ...extractOrderOriginalFiles(
+      rows.flatMap((r) => [
+        { order_id: r.order_id, originals: r.oi_originals },
+        { order_id: r.order_id, originals: r.li_originals },
+      ])
+    ),
+  ].filter((f) => {
+    if (seen.has(f.url) || !isOurPublicFileUrl(f.url, MINIO_PUBLIC_URL)) return false
+    seen.add(f.url)
+    return true
+  })
   if (files.length === 0) return
 
   const existing = (await service.listCustomerArtworks(

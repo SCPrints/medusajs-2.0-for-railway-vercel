@@ -61,3 +61,40 @@ export function extractOrderOriginalFiles(
   }
   return [...byUrl.values()]
 }
+
+const MIME_BY_EXT: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  svg: "image/svg+xml",
+}
+
+/**
+ * Artwork staff approved in a revised proof (`order.metadata.revised_proofs[]
+ * .artwork_url`) — the version that was actually printed, so it belongs in the
+ * customer's library alongside what they uploaded. Only file types the Studio
+ * can place (PNG / JPEG / SVG); one entry per URL, newest order first.
+ */
+export function extractProofArtwork(
+  rows: Array<{ order_id: string; display_id?: number | string | null; proofs: unknown }>
+): OrderOriginalFile[] {
+  const byUrl = new Map<string, OrderOriginalFile>()
+  for (const row of rows) {
+    if (!Array.isArray(row.proofs)) continue
+    for (const p of row.proofs) {
+      const url = typeof (p as any)?.artwork_url === "string" ? (p as any).artwork_url.trim() : ""
+      if (!url || byUrl.has(url)) continue
+      const ext = url.split(/[?#]/)[0].split(".").pop()?.toLowerCase() ?? ""
+      const mime = MIME_BY_EXT[ext]
+      if (!mime) continue
+      const side = typeof (p as any)?.side === "string" ? (p as any).side.replace(/_/g, " ") : ""
+      byUrl.set(url, {
+        url,
+        name: `Approved artwork${row.display_id ? ` · order #${row.display_id}` : ""}${side ? ` · ${side}` : ""}`,
+        mime_type: mime,
+        source_order_id: row.order_id,
+      })
+    }
+  }
+  return Array.from(byUrl.values())
+}

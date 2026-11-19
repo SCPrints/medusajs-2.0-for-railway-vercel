@@ -69,9 +69,10 @@ const AskUsToReorder = ({ orderId, lines }: { orderId: string; lines: AnyLineIte
 
   return (
     <div className="rounded-xl border border-ui-border-base bg-white p-4" data-testid="reorder-request">
-      <h3 className="text-sm font-semibold text-ui-fg-base">Items our team will re-order for you</h3>
+      <h3 className="text-sm font-semibold text-ui-fg-base">Set up by our team</h3>
       <p className="mt-1 text-xs text-ui-fg-subtle">
-        These were set up by our team, so we&apos;ll put them together and email you a quote.
+        We set these up for you, so the details are saved on your job. Order again and we&apos;ll
+        check it and email you a link to pay.
       </p>
       <ul className="m-0 mt-3 flex list-none flex-col gap-1 p-0">
         {lines.map((line) => (
@@ -88,8 +89,8 @@ const AskUsToReorder = ({ orderId, lines }: { orderId: string; lines: AnyLineIte
       </ul>
       {jobRef ? (
         <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status">
-          Thanks! Your job reference is <strong>{jobRef}</strong>. We&apos;ll email you a quote
-          shortly.
+          Got it. Your job reference is <strong>{jobRef}</strong>. We&apos;ll check the details
+          and email you a link to pay.
         </p>
       ) : (
         <>
@@ -117,7 +118,7 @@ const AskUsToReorder = ({ orderId, lines }: { orderId: string; lines: AnyLineIte
               disabled={busy}
               className={`${BTN} bg-ink text-white hover:opacity-90 disabled:opacity-60`}
             >
-              {busy ? "Sending…" : "Ask us to re-order"}
+              {busy ? "Sending…" : "Order again"}
             </button>
           </div>
         </>
@@ -147,7 +148,7 @@ const ReorderActions = ({ order }: Props) => {
             Same again in one click, or change sizes, colours or the garment first.
           </p>
         </div>
-        {groups.length > 1 ? (
+        {groups.length + (staffLines.length ? 1 : 0) > 1 ? (
           <OrderAgainButton
             orderId={order.id}
             label="Order again (whole order)"
