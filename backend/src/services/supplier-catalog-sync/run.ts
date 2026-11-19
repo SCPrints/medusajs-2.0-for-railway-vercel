@@ -77,6 +77,12 @@ type Supplier = {
   module: string
   fetchFeed: (svc: any) => Promise<FeedItem[]>
   ourCode: (row: { handle: string; metadata: any }) => string | null
+  /**
+   * Which feed group (FashionBiz brand list) a product of ours belongs to.
+   * If that whole list came back empty we can't tell "dropped" from "list
+   * broken", so its missing products are held, never hidden.
+   */
+  ourGroup?: (row: { handle: string; metadata: any }) => string | null
   importCodes: (container: MedusaContainer, svc: any, items: FeedItem[]) => Promise<{
     imported: string[]
     errors: Array<{ code: string; error: string }>
@@ -116,8 +122,9 @@ const SUPPLIERS: Supplier[] = [
       // A failed brand throws, so a partial feed never reads as "discontinued".
       for (const brand of FB_BRANDS) {
         for (const p of await svc.fetchAllProductsWithDetail(brand)) {
-          // Keyed on slug alone: FashionBiz moved every Biz Care style into
-          // the biz-collection list (Nov 2026), so brand is not a stable key.
+          // Keyed on slug alone: FashionBiz moved Biz Care styles into the
+          // biz-collection list (Nov 2026; the biz-care list is now empty),
+          // so brand is not a stable key.
           out.push({
             code: p.slug,
             handle: fbHandle(brand, p.slug),
@@ -130,6 +137,7 @@ const SUPPLIERS: Supplier[] = [
       return out
     },
     ourCode: (row) => row.metadata?.fashionbiz?.slug ?? null,
+    ourGroup: fbBrandOf,
     importCodes: async (container, svc, items) => {
       const imported: string[] = []
       const errors: Array<{ code: string; error: string }> = []
@@ -217,10 +225,23 @@ async function syncSupplier(
   // ---- hide (before adding, so the guard judged the catalog as it was) ----
   // Explicit discontinued flags always go; "not listed" ones only when the
   // safety stop didn't trip (then they are held for staff to check).
-  const hideNow = plan.toHide.filter((p) => p.reason === "discontinued" || !plan.hideBlockedReason)
+  const feedGroups = new Set(feed.map((f) => f.group).filter(Boolean))
+  const emptyGroups = new Set<string>()
+  const inEmptyGroup = (p: OurProduct) => {
+    const g = s.ourGroup?.(ours.find((o) => o.id === p.id) ?? { handle: p.handle, metadata: {} })
+    if (!g || feedGroups.has(g)) return false
+    emptyGroups.add(g)
+    return true
+  }
+  const hideNow = plan.toHide.filter(
+    (p) => p.reason === "discontinued" || (!plan.hideBlockedReason && !inEmptyGroup(p))
+  )
   report.held = plan.toHide
     .filter((p) => !hideNow.includes(p))
     .map((p) => line({ ...p, code: p.code ?? "" }))
+  if (emptyGroups.size && !report.hide_blocked_reason) {
+    report.hide_blocked_reason = `${s.label}'s ${[...emptyGroups].join(", ")} list came back empty, so we can't tell if these were dropped. Not hidden. Check them on the supplier's site.`
+  }
   if (mode === "apply") {
     const now = new Date().toISOString()
     for (const p of hideNow) {
