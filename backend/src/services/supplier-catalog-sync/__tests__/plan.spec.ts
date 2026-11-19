@@ -49,11 +49,21 @@ describe("planCatalogSync", () => {
     expect(plan.hideBlockedReason).toBeNull()
   })
 
-  it("refuses to hide when too many would go (bad feed)", () => {
+  it("refuses to hide when too many vanished from the feed (bad feed)", () => {
     const many = Array.from({ length: 200 }, (_, i) => ours(`X${i}`))
     const plan = planCatalogSync([feed("X0")], many)
     expect(plan.toHide).toHaveLength(199)
-    expect(plan.hideBlockedReason).toMatch(/none were hidden/)
+    expect(plan.hideBlockedReason).toMatch(/not hidden/)
+  })
+
+  it("trusts explicit discontinued flags even when there are many", () => {
+    const codes = Array.from({ length: 15 }, (_, i) => `D${i}`)
+    const plan = planCatalogSync(
+      codes.map((c) => feed(c, { discontinued: true })),
+      codes.map((c) => ours(c))
+    )
+    expect(plan.toHide).toHaveLength(15)
+    expect(plan.hideBlockedReason).toBeNull()
   })
 
   it("does nothing on an empty feed", () => {

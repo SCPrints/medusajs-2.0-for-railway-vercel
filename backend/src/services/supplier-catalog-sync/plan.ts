@@ -14,6 +14,8 @@ export type FeedItem = {
   handle: string
   name: string
   discontinued: boolean
+  /** Supplier sub-catalog the item was listed under (FashionBiz brand), needed to import it. */
+  group?: string
 }
 
 export type OurProduct = {
@@ -29,13 +31,17 @@ export type HideReason = "discontinued" | "not_listed"
 export type CatalogSyncPlan = {
   toAdd: FeedItem[]
   toHide: Array<OurProduct & { reason: HideReason }>
-  /** Set when hiding was refused; toHide is still listed for the report. */
+  /**
+   * Set when the "not_listed" hides were refused (they stay in toHide for the
+   * report). Explicit "discontinued" flags are always trusted.
+   */
   hideBlockedReason: string | null
 }
 
 // ponytail: fixed guard — a bad supplier feed (partial page walk, API
-// hiccup) would otherwise read as "everything was discontinued" and empty
-// the catalog. Tune these if a supplier genuinely retires a big range.
+// hiccup, a brand moved to another list) reads as "everything vanished".
+// Only products missing from the feed count; a supplier's own discontinued
+// flag is a deliberate signal. Tune if a supplier genuinely drops a big range.
 export const HIDE_GUARD_MIN = 10
 export const HIDE_GUARD_FRACTION = 0.1
 
@@ -67,10 +73,11 @@ export function planCatalogSync(feed: FeedItem[], ours: OurProduct[]): CatalogSy
     else if (match.discontinued) toHide.push({ ...p, reason: "discontinued" })
   }
 
+  const missing = toHide.filter((p) => p.reason === "not_listed").length
   const limit = Math.max(HIDE_GUARD_MIN, Math.ceil(published.length * HIDE_GUARD_FRACTION))
   const hideBlockedReason =
-    toHide.length > limit
-      ? `${toHide.length} products would be hidden (limit ${limit}). That looks like a bad supplier feed, so none were hidden. Check them by hand.`
+    missing > limit
+      ? `${missing} live products are missing from the supplier's list (limit ${limit}). That looks like a bad supplier feed, so they were not hidden. Check them by hand.`
       : null
 
   return { toAdd, toHide, hideBlockedReason }

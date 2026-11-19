@@ -16,6 +16,7 @@ export interface SupplierCatalogSyncProps {
       add_errors: Array<{ code: string; error: string }>
       pending_add: Line[]
       hidden: Array<Line & { reason: "discontinued" | "not_listed" }>
+      held: Line[]
       hide_blocked_reason: string | null
       error: string | null
     }>
@@ -88,15 +89,12 @@ export const SupplierCatalogSyncEmail = ({ sync, preview }: SupplierCatalogSyncP
             title={isReport ? "Would add as drafts" : "Waiting to add on the next run"}
             items={r.pending_add}
           />
-          {r.hide_blocked_reason ? (
-            <List
-              title="Not hidden (safety stop)"
-              items={r.hidden}
-              note={r.hide_blocked_reason}
-            />
-          ) : (
-            <List title={isReport ? "Would hide" : "Hidden"} items={r.hidden} />
-          )}
+          <List title={isReport ? "Would hide" : "Hidden"} items={r.hidden} />
+          <List
+            title="Missing from the supplier's list, NOT hidden (safety stop)"
+            items={r.held}
+            note={r.hide_blocked_reason ?? undefined}
+          />
 
           {r.add_errors.length ? (
             <>

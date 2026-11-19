@@ -65,6 +65,8 @@ export type SupplierSyncReport = {
   /** Report mode: would be added. Apply mode: over the per-run cap, added next run. */
   pending_add: ProductLine[]
   hidden: Array<ProductLine & { reason: HideReason }>
+  /** Missing from the feed but not hidden because the safety stop tripped. */
+  held: ProductLine[]
   hide_blocked_reason: string | null
   error: string | null
 }
@@ -75,7 +77,7 @@ type Supplier = {
   module: string
   fetchFeed: (svc: any) => Promise<FeedItem[]>
   ourCode: (row: { handle: string; metadata: any }) => string | null
-  importCodes: (container: MedusaContainer, svc: any, codes: string[]) => Promise<{
+  importCodes: (container: MedusaContainer, svc: any, items: FeedItem[]) => Promise<{
     imported: string[]
     errors: Array<{ code: string; error: string }>
   }>
@@ -100,8 +102,8 @@ const SUPPLIERS: Supplier[] = [
         discontinued: /S$/.test(String(p.styleCode ?? "")),
       })),
     ourCode: (row) => row.metadata?.ascolour?.styleCode ?? null,
-    importCodes: async (container, svc, codes) => {
-      const r = await importAsColourStyles(container, svc, codes, ProductStatus.DRAFT)
+    importCodes: async (container, svc, items) => {
+      const r = await importAsColourStyles(container, svc, items.map((f) => f.code), ProductStatus.DRAFT)
       return { imported: r.imported, errors: r.errors.map((e) => ({ code: e.styleCode, error: e.error })) }
     },
   },
@@ -114,30 +116,29 @@ const SUPPLIERS: Supplier[] = [
       // A failed brand throws, so a partial feed never reads as "discontinued".
       for (const brand of FB_BRANDS) {
         for (const p of await svc.fetchAllProductsWithDetail(brand)) {
+          // Keyed on slug alone: FashionBiz moved every Biz Care style into
+          // the biz-collection list (Nov 2026), so brand is not a stable key.
           out.push({
-            code: `${brand}:${p.slug}`,
+            code: p.slug,
             handle: fbHandle(brand, p.slug),
             name: p.name,
             discontinued: String(p.sales_status ?? "").trim().toLowerCase() === "clearance",
+            group: brand,
           })
         }
       }
       return out
     },
-    ourCode: (row) => {
-      const brand = fbBrandOf(row)
-      const slug = row.metadata?.fashionbiz?.slug
-      return brand && slug ? `${brand}:${slug}` : null
-    },
-    importCodes: async (container, svc, codes) => {
+    ourCode: (row) => row.metadata?.fashionbiz?.slug ?? null,
+    importCodes: async (container, svc, items) => {
       const imported: string[] = []
       const errors: Array<{ code: string; error: string }> = []
       for (const brand of FB_BRANDS) {
-        const slugs = codes.filter((c) => c.startsWith(`${brand}:`)).map((c) => c.slice(brand.length + 1))
+        const slugs = items.filter((f) => f.group === brand).map((f) => f.code)
         if (!slugs.length) continue
         const r = await importFashionBizStyles(container, svc, brand, slugs, ProductStatus.DRAFT)
-        imported.push(...r.imported.map((s) => `${brand}:${s}`))
-        errors.push(...r.errors.map((e) => ({ code: `${brand}:${e.slug}`, error: e.error })))
+        imported.push(...r.imported)
+        errors.push(...r.errors.map((e) => ({ code: e.slug, error: e.error })))
       }
       return { imported, errors }
     },
@@ -154,8 +155,8 @@ const SUPPLIERS: Supplier[] = [
         discontinued: p.run_out === true,
       })),
     ourCode: (row) => row.metadata?.aussiepacific?.style_code ?? null,
-    importCodes: async (container, svc, codes) => {
-      const r = await importAussiePacificStyles(container, svc, codes, ProductStatus.DRAFT)
+    importCodes: async (container, svc, items) => {
+      const r = await importAussiePacificStyles(container, svc, items.map((f) => f.code), ProductStatus.DRAFT)
       return { imported: r.imported, errors: r.errors.map((e) => ({ code: e.style_code, error: e.error })) }
     },
   },
@@ -200,6 +201,7 @@ async function syncSupplier(
     add_errors: [],
     pending_add: [],
     hidden: [],
+    held: [],
     hide_blocked_reason: null,
     error: null,
   }
@@ -213,9 +215,15 @@ async function syncSupplier(
   )
 
   // ---- hide (before adding, so the guard judged the catalog as it was) ----
-  if (mode === "apply" && !plan.hideBlockedReason) {
+  // Explicit discontinued flags always go; "not listed" ones only when the
+  // safety stop didn't trip (then they are held for staff to check).
+  const hideNow = plan.toHide.filter((p) => p.reason === "discontinued" || !plan.hideBlockedReason)
+  report.held = plan.toHide
+    .filter((p) => !hideNow.includes(p))
+    .map((p) => line({ ...p, code: p.code ?? "" }))
+  if (mode === "apply") {
     const now = new Date().toISOString()
-    for (const p of plan.toHide) {
+    for (const p of hideNow) {
       const existing = ours.find((o) => o.id === p.id)?.metadata ?? {}
       try {
         await updateProductsWorkflow(container).run({
@@ -231,8 +239,7 @@ async function syncSupplier(
       }
     }
   } else {
-    // Report mode, or blocked: list what would go so staff can act by hand.
-    report.hidden = plan.toHide.map((p) => ({ ...line({ ...p, code: p.code ?? "" }), reason: p.reason }))
+    report.hidden = hideNow.map((p) => ({ ...line({ ...p, code: p.code ?? "" }), reason: p.reason }))
   }
 
   // ---- add ----
@@ -240,7 +247,7 @@ async function syncSupplier(
   const rest = mode === "apply" ? plan.toAdd.slice(MAX_ADDS_PER_RUN) : plan.toAdd
   report.pending_add = rest.map((f) => line({ title: f.name, code: f.code, handle: f.handle }))
   if (batch.length) {
-    const r = await s.importCodes(container, svc, batch.map((f) => f.code))
+    const r = await s.importCodes(container, svc, batch)
     report.add_errors.push(...r.errors)
     const importedSet = new Set(r.imported.map((c) => c.toLowerCase()))
     const after = await loadOurs(container, s)
@@ -259,7 +266,7 @@ async function syncSupplier(
 }
 
 export const reportHasNews = (r: SupplierSyncReport) =>
-  !!(r.added.length || r.add_errors.length || r.pending_add.length || r.hidden.length || r.hide_blocked_reason || r.error)
+  !!(r.added.length || r.add_errors.length || r.pending_add.length || r.hidden.length || r.held.length || r.error)
 
 /**
  * Run the sync for every registered supplier and email one report.
@@ -314,6 +321,7 @@ const emptyReport = (supplier: string, mode: CatalogSyncMode, error: string): Su
   add_errors: [],
   pending_add: [],
   hidden: [],
+  held: [],
   hide_blocked_reason: null,
   error,
 })
@@ -328,7 +336,7 @@ async function emailReport(
   const to = process.env.SUPPLIER_CATALOG_SYNC_EMAIL || CONTACT_NOTIFICATION_EMAIL
   if (!news.length || !to) return
   const added = news.reduce((n, r) => n + r.added.length, 0)
-  const hidden = news.reduce((n, r) => n + (mode === "apply" && !r.hide_blocked_reason ? r.hidden.length : 0), 0)
+  const hidden = news.reduce((n, r) => n + r.hidden.length, 0)
   const subject =
     mode === "report"
       ? "Supplier catalog check: changes waiting (nothing changed yet)"
