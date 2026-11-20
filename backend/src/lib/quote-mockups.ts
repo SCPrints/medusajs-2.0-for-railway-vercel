@@ -5,6 +5,8 @@
  * title (+ side when not the front) so multi-line quotes read clearly.
  */
 
+import { titleWithoutSize } from "./quote-line-group"
+
 const SIDE_LABELS: Record<string, string> = {
   front: "Front",
   back: "Back",
@@ -36,7 +38,8 @@ export function buildQuoteMockups(quote: any): QuoteMockup[] {
       if (typeof url !== "string" || !url || seen.has(url)) continue
       seen.add(url)
       const side = typeof a?.side === "string" ? a.side : "front"
-      const garment = typeof li?.title === "string" ? li.title : null
+      // Every size line shares the mockup; caption it as the garment, not "— Size M".
+      const garment = typeof li?.title === "string" ? titleWithoutSize(li.title) : null
       const sideLabel = SIDE_LABELS[side] ?? null
       const label =
         garment && sideLabel && side !== "front"

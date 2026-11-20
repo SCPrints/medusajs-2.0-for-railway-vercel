@@ -24,6 +24,7 @@ import {
 } from "../quotes/product-line-picker"
 import { mergeServerRows } from "../../lib/quote-line-merge"
 import { AppLink, pricerHref } from "../../lib/nav"
+import { garmentKey, groupLines, sizeFromTitle } from "../../../lib/quote-line-group"
 
 export type Quote = {
   id: string
@@ -193,34 +194,9 @@ function lineItemsSignature(items?: Quote["line_items"]["items"]): string {
     .join("|")
 }
 
-/**
- * Group quote lines that share a Studio design (`group_id`), keeping the
- * quote's order. A line whose group_id nobody else carries stays on its own.
- */
-export function groupRows<T extends { group_id?: string | null }>(rows: T[]): T[][] {
-  const byGroup = new Map<string, T[]>()
-  const out: T[][] = []
-  for (const r of rows) {
-    const gid = r.group_id
-    if (!gid) {
-      out.push([r])
-      continue
-    }
-    const existing = byGroup.get(gid)
-    if (existing) {
-      existing.push(r)
-    } else {
-      const g = [r]
-      byGroup.set(gid, g)
-      out.push(g)
-    }
-  }
-  return out
-}
-
 /** "Heavy Tee — CYPRESS / M" × 2 → "M ×2" (falls back to the whole title). */
 export function sizeSummary(r: { title: string; quantity: string }): string {
-  const size = r.title.includes(" / ") ? r.title.slice(r.title.lastIndexOf(" / ") + 3).trim() : r.title
+  const size = sizeFromTitle(r.title) ?? r.title
   return r.quantity ? `${size || "?"} ×${r.quantity}` : size || "?"
 }
 
@@ -659,7 +635,7 @@ export function LineItemsEditor({
           )
         }
 
-        return groupRows(rows).map((group) => {
+        return groupLines(rows).map((group) => {
           if (group.length === 1) return renderRow(group[0])
           const lead = group.find((r) => r.customizerDesign) ?? group[0]
           return (
@@ -1315,8 +1291,12 @@ export function QuoteDetail({
               // and save it first, so the Studio's post-back attaches the
               // design to THIS line at its quoted price instead of appending
               // a new line at the Studio's price.
+              // Every size of this garment joins the group, so one Studio
+              // session designs them all (attachDesignToPricerLines stamps
+              // each line of the group).
               const group_id = `gs_${crypto.randomUUID().replace(/-/g, "")}`
-              const next = draftLineItems.map((r) => (r.id === row.id ? { ...r, group_id } : r))
+              const key = garmentKey(row)
+              const next = draftLineItems.map((r) => (!r.group_id && garmentKey(r) === key ? { ...r, group_id } : r))
               const res = await fetch(`/admin/quotes/${quote.id}`, {
                 method: "POST",
                 credentials: "include",
