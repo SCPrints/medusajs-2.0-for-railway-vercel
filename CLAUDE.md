@@ -62,7 +62,7 @@ Migrated off Railway in May 2026 after a multi-day Railway outage. The new stack
 | --- | --- | --- | --- | --- |
 | Backend (Medusa server + admin SPA) | Fly.io | Sydney (`syd`) | `api.scprints.com.au` (Fly app `sc-prints-backend`; `.fly.dev` still resolves) | shared-cpu-4x · 4GB · ~$22/mo |
 | Storefront (Next.js) | Vercel | global (Sydney edge) | `scprints.com.au` + `www.` (live; old `.vercel.app` 301s here) | **Pro plan** (NOT Hobby — unrestricted cron schedules + usage-billed image optimization apply) |
-| Postgres 16 | DigitalOcean Managed Postgres | SYD1 | `sc-prints-db-do-user-37546044-0.i.db.ondigitalocean.com:25060` | ~$15/mo |
+| Postgres 18 | DigitalOcean Managed Postgres | SYD1 | `sc-prints-db-do-user-37546044-0.i.db.ondigitalocean.com:25060` (cluster `sc-prints-db`, Basic 1 vCPU / 2 GB / 30 GiB, primary only, user `doadmin`, db `defaultdb`) | ~$30/mo |
 | File storage (S3-compatible) | Cloudflare R2 | Oceania | bucket `sc-prints-media`, public dev URL `https://pub-4b98c1b8d55d4d9597ff5cfac6aa611a.r2.dev` | free tier |
 | Search index | self-hosted Meilisearch v1.55 | Fly.io Sydney | `sc-prints-meili.fly.dev` (separate Fly app, see [meilisearch/fly.toml](meilisearch/fly.toml)) | shared-cpu-1x 512MB + 1GB volume · ~$3/mo |
 | Event bus + workflow engine + locking | self-hosted Redis 7 on Fly.io | Sydney (`syd`) | `sc-prints-redis.internal:6379` (private 6PN, no public exposure, see [redis/fly.toml](redis/fly.toml)) | shared-cpu-1x 512MB + 1GB volume · ~$3/mo |
