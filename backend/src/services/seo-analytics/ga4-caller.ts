@@ -1,12 +1,7 @@
-import { BetaAnalyticsDataClient } from "@google-analytics/data"
 import { google } from "googleapis"
 import type { analyticsdata_v1beta } from "googleapis"
 
-import {
-  buildGoogleJwt,
-  getImpersonationSubject,
-  getServiceAccountKey,
-} from "./google-auth"
+import { buildGoogleJwt } from "./google-auth"
 import { withTransientRetry } from "./retry"
 
 const SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
@@ -14,23 +9,12 @@ const SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
 /**
  * Uniform GA4 caller used by every report that touches the GA4 Data API.
  *
- * Why not just use BetaAnalyticsDataClient everywhere?
- * The official @google-analytics/data SDK is gRPC-first and breaks in three
- * stacked ways under Domain-Wide Delegation (subject impersonation):
- *   raw JWT          → 'this.auth.getUniverseDomain is not a function'
- *   GoogleAuth+gRPC  → 'headers.forEach is not a function'
- *   GoogleAuth+REST  → 'auth.fetch is not a function'
- *
- * So when SEO_IMPERSONATION_USER is set, we route every GA4 call through
- * googleapis.analyticsdata (a plain REST client that already plays nicely
- * with google.auth.JWT + subject — same auth shape gsc-client uses). When
- * unset, we keep BetaAnalyticsDataClient — that path works fine and avoids
- * touching the dev/test code path.
- *
- * The Ga4Caller interface normalises the two transports' response shapes so
- * consumer code can read `response.rows` without caring which transport ran:
- *   - REST: `data.rows`
- *   - gRPC: `[response, ?, ?]` tuple where `response.rows` holds the schema
+ * Every call goes through googleapis.analyticsdata (plain REST) with the
+ * shared JWT from google-auth.ts, which adds the SEO_IMPERSONATION_USER
+ * subject when set. The official @google-analytics/data SDK (gRPC-first) broke
+ * three ways under Domain-Wide Delegation and was only kept for the
+ * no-impersonation case; it was removed on 2026-11-21 because production
+ * always impersonates and its dependency tree carried glob/minimatch advisories.
  */
 export type Ga4Row = analyticsdata_v1beta.Schema$Row
 
@@ -59,44 +43,26 @@ export interface Ga4Caller {
 }
 
 export function buildGa4Caller(): Ga4Caller {
-  const key = getServiceAccountKey()
-  const subject = getImpersonationSubject()
-
-  if (subject) {
-    // Shared, token-caching JWT (see google-auth.ts) — same scope+subject as
-    // GSC's webmasters client but a distinct scope set, so it gets its own
-    // cached instance. Reused across every GA4 report route.
-    const jwt = buildGoogleJwt([SCOPE])
-    const analyticsdata = google.analyticsdata({ version: "v1beta", auth: jwt })
-    return {
-      async runReport(req) {
-        const { property, limit, ...rest } = req
-        // Retry transient undici "Premature close" flakes on the token/API
-        // fetch (see retry.ts). runReport is a read-only query — safe to retry.
-        const res = await withTransientRetry(() =>
-          analyticsdata.properties.runReport({
-            property,
-            requestBody: {
-              ...rest,
-              limit: limit !== undefined ? String(limit) : undefined,
-            } as any,
-          })
-        )
-        return { rows: (res.data.rows ?? []) as Ga4Row[] }
-      },
-    }
-  }
-
-  const client = new BetaAnalyticsDataClient({
-    credentials: {
-      client_email: key.client_email,
-      private_key: key.private_key,
-    },
-  })
+  // Shared, token-caching JWT (see google-auth.ts) — same subject as GSC's
+  // webmasters client but a distinct scope set, so it gets its own cached
+  // instance. Reused across every GA4 report route.
+  const jwt = buildGoogleJwt([SCOPE])
+  const analyticsdata = google.analyticsdata({ version: "v1beta", auth: jwt })
   return {
     async runReport(req) {
-      const [res] = await withTransientRetry(() => client.runReport(req as any))
-      return { rows: (res.rows ?? []) as unknown as Ga4Row[] }
+      const { property, limit, ...rest } = req
+      // Retry transient undici "Premature close" flakes on the token/API
+      // fetch (see retry.ts). runReport is a read-only query — safe to retry.
+      const res = await withTransientRetry(() =>
+        analyticsdata.properties.runReport({
+          property,
+          requestBody: {
+            ...rest,
+            limit: limit !== undefined ? String(limit) : undefined,
+          } as any,
+        })
+      )
+      return { rows: (res.data.rows ?? []) as Ga4Row[] }
     },
   }
 }
