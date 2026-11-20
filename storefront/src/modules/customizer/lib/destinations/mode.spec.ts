@@ -88,3 +88,15 @@ describe("rules", () => {
     expect(submitLabels(shop, none)).toEqual({})
   })
 })
+
+describe("staff mockup limits", () => {
+  const { capsArtworkSize, requiresStitchCount } = require("./mode")
+  const quote = { kind: "quote", quoteId: "q", qsig: "s", groupId: null, seed: null }
+  it("lets staff size artwork freely and save embroidery without a stitch count", () => {
+    expect(capsArtworkSize(quote)).toBe(false)
+    expect(requiresStitchCount(quote)).toBe(false)
+    expect(capsArtworkSize({ kind: "shop" })).toBe(true)
+    expect(requiresStitchCount({ kind: "shop" })).toBe(true)
+    expect(requiresStitchCount({ kind: "pos", sessionId: "p" })).toBe(true)
+  })
+})

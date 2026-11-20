@@ -69,6 +69,18 @@ export const attachesToQuoteGroup = (d: StudioDestination) =>
 export const usesStaffEditor = (d: StudioDestination) => d.kind === "proof" || d.kind === "quote"
 
 /**
+ * Customers can't scale artwork past the chosen print size. Staff mockups
+ * (quote, proof) place it at whatever size the job needs: the job prices it.
+ */
+export const capsArtworkSize = (d: StudioDestination) => !usesStaffEditor(d)
+
+/**
+ * Embroidery needs a stitch count to price a cart or a sale. A quote design
+ * saves artwork only, so staff can save without one.
+ */
+export const requiresStitchCount = (d: StudioDestination) => !savesDesignOnly(d)
+
+/**
  * Embroidery over the auto-priced stitch cap prices at $0, so it can't go to
  * a cart or a sale.
  *   allow          quote: staff price it on the quote

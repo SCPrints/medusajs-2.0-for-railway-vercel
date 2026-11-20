@@ -70,6 +70,8 @@ import {
   overStitchCapAction,
   readDestination,
   attachesToQuoteGroup,
+  capsArtworkSize,
+  requiresStitchCount,
   savesDesignOnly,
   submitLabels,
   usesStaffEditor,
@@ -894,6 +896,11 @@ export default function CustomizerTemplate({
   // Proof + quote: canvas and a fixed staff panel, never the checkout wizard,
   // so every staff "Design in Studio" button opens the same screen.
   const staffEditor = usesStaffEditor(destination)
+  // Read through a ref: the Fabric scaling listener is bound once, possibly
+  // before the URL (and so the destination) is readable.
+  const capsSize = capsArtworkSize(destination)
+  const capsSizeRef = useRef(capsSize)
+  capsSizeRef.current = capsSize
   // The useState seed above can run before the URL is readable (prerender);
   // settle it once the params arrive, or a staff popup half-loads as the shop wizard.
   useEffect(() => {
@@ -999,7 +1006,7 @@ export default function CustomizerTemplate({
   // size after placing artwork), enforce the new max scale on every existing
   // object so artwork can't stay larger than the print area allows.
   useEffect(() => {
-    if (effectivePrintSizeIdForArea === "oversize") {
+    if (effectivePrintSizeIdForArea === "oversize" || !capsSize) {
       return
     }
     const canvas = fabricCanvasRef.current
@@ -1039,7 +1046,7 @@ export default function CustomizerTemplate({
       canvas.requestRenderAll?.()
       saveCurrentSide?.()
     }
-  }, [effectivePrintSizeIdForArea, printArea.width, printArea.height])
+  }, [effectivePrintSizeIdForArea, printArea.width, printArea.height, capsSize])
   const selectedProduct = product
   // Long-sleeve garments accept up to A3 on sleeves; short-sleeve garments stay
   // A6-only. Used to gate the print-size tile picker and to clamp the global
@@ -3362,6 +3369,7 @@ export default function CustomizerTemplate({
       if (
         obj &&
         pr &&
+        capsSizeRef.current &&
         effectivePrintSizeIdRef.current !== "oversize" &&
         pr.width >= MIN_PRINT_AREA_PX &&
         pr.height >= MIN_PRINT_AREA_PX
@@ -4824,7 +4832,7 @@ export default function CustomizerTemplate({
         sideDecorationMethods[side] === "embroidery" &&
         !((sideEmbroideryConfigs[side]?.stitchCount ?? 0) > 0)
     )
-    if (unconfirmedEmbroiderySides.length) {
+    if (unconfirmedEmbroiderySides.length && requiresStitchCount(destination)) {
       const labels = unconfirmedEmbroiderySides
         .map((s) => s.replace(/_/g, " "))
         .join(", ")
@@ -7840,7 +7848,7 @@ export default function CustomizerTemplate({
                       sideDecorationMethods[side] === "embroidery" &&
                       !((sideEmbroideryConfigs[side]?.stitchCount ?? 0) > 0)
                   )
-                  if (!unconfirmed.length) return null
+                  if (!unconfirmed.length || !requiresStitchCount(destination)) return null
                   return (
                     <div className="mt-1.5 rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
                       <p>
