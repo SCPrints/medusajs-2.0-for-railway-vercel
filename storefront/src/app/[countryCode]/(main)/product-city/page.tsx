@@ -44,7 +44,7 @@ export default async function ProductCityPreviewPage({
           Custom Apparel · NSW, AU
         </p>
         <h1
-          className="mt-2 max-w-md text-3xl font-semibold leading-tight text-white small:text-4xl"
+          className="mt-2 max-w-md text-3xl font-semibold leading-tight text-white small:text-4xl small:leading-10"
           style={{ textShadow: "0 2px 16px rgba(0,0,0,0.6)" }}
         >
           Our range, block by block.

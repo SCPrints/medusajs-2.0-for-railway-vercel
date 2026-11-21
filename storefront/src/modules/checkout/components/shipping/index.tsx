@@ -145,7 +145,7 @@ const Shipping: React.FC<ShippingProps> = ({
                         "cursor-pointer hover:border-ink/22 hover:shadow-md":
                           hasPrice,
                         "cursor-not-allowed opacity-50": !hasPrice,
-                        "border-brand ring-1 ring-(--brand-secondary)/30":
+                        "border-brand ring-1":
                           option.id === selectedShippingMethod?.id,
                       }
                     )}

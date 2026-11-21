@@ -7,7 +7,7 @@ import { getOrgMemberLimits, setOrgMemberLimits, type OrgMemberLimit } from "@li
 const aud = (n: number) =>
   new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(n)
 const input =
-  "min-h-11 w-full rounded-md border border-ui-border-base bg-white px-3 text-base focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
+  "min-h-11 w-full rounded-md border border-ui-border-base bg-white px-3 text-base focus:outline-hidden focus-visible:ring-2"
 const button =
   "min-h-11 rounded-md bg-ink px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
 const labelText = "text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-subtle"

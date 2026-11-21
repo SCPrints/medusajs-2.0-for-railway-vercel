@@ -216,7 +216,7 @@ const ReorderActions = ({ order }: Props) => {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 border-t border-ui-border-base bg-ui-bg-subtle/40 px-4 py-3 tablet:flex-row tablet:flex-wrap tablet:items-start tablet:justify-end">
+              <div className="flex flex-col gap-2 border-t border-ui-border-base px-4 py-3 tablet:flex-row tablet:flex-wrap tablet:items-start tablet:justify-end">
                 <button
                   type="button"
                   className={BTN_SECONDARY}

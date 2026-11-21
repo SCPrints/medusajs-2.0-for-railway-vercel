@@ -38,7 +38,7 @@ export default function DesignsTab({ designs, inventory }: Props) {
               key={d.id}
               type="button"
               onClick={() => setActive(d)}
-              className="group flex flex-col overflow-hidden rounded-2xl border border-ui-border-base bg-white text-left transition hover:border-(--brand-secondary)/40 hover:shadow-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
+              className="group flex flex-col overflow-hidden rounded-2xl border border-ui-border-base bg-white text-left transition hover:shadow-xs focus:outline-hidden focus-visible:ring-2"
             >
               <div className="relative aspect-square w-full bg-ui-bg-subtle">
                 {d.thumbnail_url ? (
@@ -150,7 +150,7 @@ function DesignModal({
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                       r.fulfillment_mode === "held_stock"
-                        ? "bg-(--brand-accent)/15 text-ink"
+                        ? " text-ink"
                         : "bg-ui-bg-subtle text-ui-fg-subtle"
                     }`}
                   >

@@ -301,7 +301,7 @@ export default function ProductActions({
         {!hideInlinePurchaseControls &&
         overlayUrl &&
         productMetadataUsesScpCartPricing(product) ? (
-          <div className="rounded-md border border-ui-border-base bg-ui-bg-subtle/40 p-3 space-y-3">
+          <div className="rounded-md border border-ui-border-base p-3 space-y-3">
             <button
               type="button"
               className="text-xs font-medium text-ui-fg-subtle underline underline-offset-2"

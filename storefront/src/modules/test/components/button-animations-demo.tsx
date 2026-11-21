@@ -1315,7 +1315,7 @@ export function useButtonAnimationsLabSections(
         the secondary button is a stand-in.
       </p>
 
-      <div className="flex flex-wrap items-center justify-end gap-3 rounded-lg border border-dashed border-ui-border-base p-3 bg-ui-bg-subtle/50">
+      <div className="flex flex-wrap items-center justify-end gap-3 rounded-lg border border-dashed border-ui-border-base p-3">
         <span className="text-sm text-ui-fg-muted">Demo cart target (fallback):</span>
         <button
           type="button"

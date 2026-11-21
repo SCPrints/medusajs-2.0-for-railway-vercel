@@ -54,7 +54,7 @@ const MobileMegaMenu = ({ audiences }: Props) => {
             <span className="hidden phone:inline">Menu</span>
           </Popover.Button>
 
-          <Popover.Overlay className="fixed inset-0 z-35 bg-(--brand-primary)/35 backdrop-blur-xs" />
+          <Popover.Overlay className="fixed inset-0 z-35 backdrop-blur-xs" />
 
           <Popover.Panel
             data-testid="mobile-nav-menu-popup"

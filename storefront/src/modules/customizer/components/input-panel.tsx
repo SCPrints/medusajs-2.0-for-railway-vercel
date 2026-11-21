@@ -231,7 +231,7 @@ function InputPanel({
       </div>
 
       {!enabled ? (
-        <div className="rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle/60 p-3">
+        <div className="rounded-lg border border-dashed border-ui-border-base p-3">
           <p className="text-xs font-semibold text-ui-fg-base">
             {disabledMessage?.title ?? "Customize first"}
           </p>
@@ -295,7 +295,7 @@ function InputPanel({
             className={`flex w-full items-center gap-3 rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm transition ${
               isUploading
                 ? "cursor-wait opacity-70"
-                : "cursor-pointer hover:border-(--brand-secondary)/50 hover:bg-ui-bg-subtle"
+                : "cursor-pointer hover:bg-ui-bg-subtle"
             }`}
             title="Upload a PNG, JPG, or SVG to add to your design"
           >
@@ -348,7 +348,7 @@ function InputPanel({
                     className="block w-full overflow-hidden rounded-md text-left"
                     title={`Add ${upload.name} to this view`}
                   >
-                    <div className="aspect-square w-full overflow-hidden bg-ui-bg-base/40">
+                    <div className="aspect-square w-full overflow-hidden">
                       <img src={upload.previewUrl} alt={upload.name} className="h-full w-full object-cover" />
                     </div>
                     <p className="truncate px-1.5 py-1 text-[11px] text-ui-fg-subtle group-hover:text-ui-fg-base">
@@ -457,7 +457,7 @@ function InputPanel({
           className={`space-y-2 rounded-lg border p-3 ${
             isEditingText
               ? "border-rose-300 bg-rose-50/40"
-              : "border-ui-border-base bg-ui-bg-subtle/40"
+              : "border-ui-border-base"
           }`}
         >
           <div className="flex items-center justify-between gap-2">

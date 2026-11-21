@@ -468,7 +468,7 @@ export default function RangeOrderForm({
                             autoComplete="off"
                             placeholder="0"
                             aria-label={`${item.name}, size ${v.size}`}
-                            className="h-11 w-14 rounded-md border border-ui-border-base bg-white text-center text-base tabular-nums text-ui-fg-base placeholder:text-ui-fg-muted/50 focus:border-ink focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
+                            className="h-11 w-14 rounded-md border border-ui-border-base bg-white text-center text-base tabular-nums text-ui-fg-base focus:border-ink focus:outline-hidden focus-visible:ring-2"
                           />
                         </td>
                       )
@@ -573,7 +573,7 @@ export default function RangeOrderForm({
               type="button"
               onClick={addAll}
               disabled={lines.length === 0 || adding || !!priceError}
-              className="mt-1 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand px-8 text-base font-semibold text-white transition hover:bg-(--brand-secondary)/90 disabled:cursor-not-allowed disabled:opacity-50 tablet:w-auto"
+              className="mt-1 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand px-8 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 tablet:w-auto"
             >
               {adding ? "Adding…" : "Add all to cart"}
             </button>

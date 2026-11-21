@@ -193,10 +193,10 @@ export default function HomeTrustStrip() {
             >
               <Icon className="mt-0.5 size-5 shrink-0 text-brand phone:size-6" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold leading-tight text-ui-fg-base phone:text-sm">
+                <p className="text-xs font-semibold leading-tight text-ui-fg-base phone:text-sm phone:leading-5">
                   {stat.lead}
                 </p>
-                <p className="mt-0.5 text-[11px] leading-snug text-ui-fg-subtle phone:text-xs">
+                <p className="mt-0.5 text-[11px] leading-snug text-ui-fg-subtle phone:text-xs phone:leading-4">
                   {stat.subLine}
                 </p>
               </div>

@@ -120,13 +120,13 @@ export default async function ContactPage({
         <SeasonalMarginMascot name="cap-spider" size={72} className="right-[8%] -top-1" />
 
         <header className="mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em]">
             Customer support
           </p>
           <h1 className="page-title-marketing mt-3 tracking-tight">
             Contact Us
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg">
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg small:leading-7">
             Have a question about our products or your order? We&apos;re here
             to help.
           </p>
@@ -146,7 +146,7 @@ export default async function ContactPage({
             className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8"
             aria-labelledby="contact-form-heading"
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               Send a message
             </p>
             <h2
@@ -163,7 +163,7 @@ export default async function ContactPage({
           <div className="flex flex-col gap-6">
             <section className="overflow-hidden rounded-2xl border border-ui-border-base bg-white">
               <div className="px-6 pt-6 small:px-8 small:pt-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em]">
                   Find us
                 </p>
                 <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -179,7 +179,7 @@ export default async function ContactPage({
               <div className="flex items-start gap-3">
                 <ClockIcon className="mt-0.5 shrink-0 text-brand" />
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em]">
                     Open hours
                   </p>
                   <h3 className="mt-1 text-lg font-semibold text-ui-fg-base">

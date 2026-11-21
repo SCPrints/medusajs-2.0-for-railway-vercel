@@ -21,6 +21,8 @@ module.exports = {
         padding: "padding-top padding-right padding-bottom padding-left",
       },
       colors: {
+        // Tailwind 3 palette (gray, rose, emerald, ...) so v4 renders the same shades.
+        ...require("./tailwind-v3-colors"),
         /**
          * Semantic theme tokens — channels live in src/styles/globals.css
          * (`:root`). `<alpha-value>` keeps opacity modifiers working
@@ -73,7 +75,9 @@ module.exports = {
         "2xlarge": "1920px",
       },
       fontSize: {
-        "3xl": "2rem",
+        // No line height of its own (Tailwind 3 behaviour: inherits it).
+        // Tailwind 4 would otherwise add its default 1.2 ratio.
+        "3xl": ["2rem", { lineHeight: "inherit" }],
       },
       fontFamily: {
         sans: [

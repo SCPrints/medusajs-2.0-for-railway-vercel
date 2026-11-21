@@ -5972,7 +5972,7 @@ export default function CustomizerTemplate({
   const editorColumn = (
           <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col" : "space-y-4"}>
             <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col overflow-hidden bg-ui-bg-base" : "overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base shadow-xs"}>
-              <div className={`flex flex-col px-4 py-3 small:flex-row small:items-center small:justify-between${assemblyLayout ? " py-2.5" : " border-b border-ui-border-base bg-ui-bg-subtle/40"}`}>
+              <div className={`flex flex-col px-4 py-3 small:flex-row small:items-center small:justify-between${assemblyLayout ? " py-2.5" : " border-b border-ui-border-base"}`}>
                 <div className="flex items-start gap-3">
                   {!assemblyLayout && (
                   <div>
@@ -6029,7 +6029,7 @@ export default function CustomizerTemplate({
                 {!assemblyLayout && (
                 <div
                   id="customizer-input-panel"
-                  className="order-2 border-t border-ui-border-base bg-ui-bg-subtle/30 p-4 scroll-mt-20 lg:order-1 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-r lg:border-t-0 lg:border-ui-border-base"
+                  className="order-2 border-t border-ui-border-base p-4 scroll-mt-20 lg:order-1 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-r lg:border-t-0 lg:border-ui-border-base"
                 >
                   <InputPanel
                     onUploadFile={inputPanelProps.onUploadFile}
@@ -6354,7 +6354,7 @@ export default function CustomizerTemplate({
         className={`w-full rounded-xl border p-4 text-left transition ${
           isNext
             ? "border-ui-border-strong bg-ui-bg-subtle hover:border-ui-fg-base hover:bg-ui-bg-subtle hover:shadow-xs"
-            : "border-dashed border-ui-border-base bg-ui-bg-subtle/30 opacity-60 hover:border-ui-border-strong hover:opacity-90"
+            : "border-dashed border-ui-border-base opacity-60 hover:border-ui-border-strong hover:opacity-90"
         }`}
       >
         <div className="flex items-center gap-2">
@@ -6537,13 +6537,13 @@ export default function CustomizerTemplate({
             />
           ) : allowedSizesForCurrentSide.length === 1 &&
             allowedSizesForCurrentSide[0] === "up_to_a6" ? (
-            <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-subtle">
+            <p className="rounded-md px-2.5 py-1.5 text-xs text-ui-fg-subtle">
               <span className="font-semibold text-ui-fg-base">{sideLabel}</span> prints
               are limited to A6 (10×15 cm) — only one size is available for this location.
             </p>
           ) : (currentSide === "left_sleeve" || currentSide === "right_sleeve") &&
             productIsLongSleeve ? (
-            <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-subtle">
+            <p className="rounded-md px-2.5 py-1.5 text-xs text-ui-fg-subtle">
               <span className="font-semibold text-ui-fg-base">{sideLabel}</span> prints on
               long-sleeve garments can go up to A3 (29×42 cm).
             </p>
@@ -6552,7 +6552,7 @@ export default function CustomizerTemplate({
           sideDecorationMethods[currentSide] === "screen" ? null : (
             <>
             {isSupacolourGarment ? (
-              <p className="rounded-md border border-ui-border-base bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-subtle">
+              <p className="rounded-md border border-ui-border-base px-2.5 py-1.5 text-xs text-ui-fg-subtle">
                 <span className="font-semibold text-ui-fg-base">Premium transfer fabric:</span>{" "}
                 polyester needs our dye-blocking Supacolour transfer — standard prints
                 bleed on this fabric. Pricing below reflects the premium process, plus a
@@ -6583,7 +6583,7 @@ export default function CustomizerTemplate({
                   return (
                     <div
                       key={opt.id}
-                      className="relative flex flex-col items-start gap-0.5 rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle/50 p-2.5 text-left opacity-70"
+                      className="relative flex flex-col items-start gap-0.5 rounded-lg border border-dashed border-ui-border-base p-2.5 text-left opacity-70"
                     >
                       <span className="text-sm font-semibold text-ui-fg-base">{opt.label}</span>
                       <span className="text-[11px] text-ui-fg-subtle">{opt.dimensionsLabel}</span>
@@ -6653,7 +6653,7 @@ export default function CustomizerTemplate({
         </>
       ) : (
         <div className="space-y-2">
-          <div className="flex items-baseline justify-between gap-2 rounded-lg bg-ui-bg-subtle/60 px-2.5 py-2">
+          <div className="flex items-baseline justify-between gap-2 rounded-lg px-2.5 py-2">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-ui-fg-base">{printSizeLabel}</p>
               <p className="text-[11px] text-ui-fg-muted">
@@ -6820,7 +6820,7 @@ export default function CustomizerTemplate({
               }`
         }>
           {showSideNudge && (
-            <div className="flex items-center gap-2 rounded-lg bg-ui-bg-subtle/90 px-3 py-2 text-xs text-ui-fg-base ring-1 ring-ui-border-base">
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-ui-fg-base ring-1 ring-ui-border-base">
               <span className="shrink-0 text-ui-fg-muted" aria-hidden>✏</span>
               Now designing <strong className="mx-0.5">{sideLabel}</strong> — upload artwork in the panel below.
             </div>
@@ -7163,7 +7163,7 @@ export default function CustomizerTemplate({
                 : `space-y-3 rounded-xl border p-4 ${
                     pdpStep === 1
                       ? "border-ui-fg-base bg-ui-bg-base shadow-xs"
-                      : "border-ui-border-base bg-ui-bg-subtle/40"
+                      : "border-ui-border-base"
                   }`
             }>
               <StepHeader
@@ -7275,7 +7275,7 @@ export default function CustomizerTemplate({
                     : `space-y-3 rounded-xl border p-4 ${
                         pdpStep === 2
                           ? "border-ui-fg-base bg-ui-bg-base shadow-xs"
-                          : "border-ui-border-base bg-ui-bg-subtle/40"
+                          : "border-ui-border-base"
                       }`
                 }>
                   <StepHeader
@@ -7612,7 +7612,7 @@ export default function CustomizerTemplate({
               className={`space-y-3 rounded-xl border p-4 ${
                 pdpStep === 3
                   ? "border-ui-fg-base bg-ui-bg-base shadow-xs"
-                  : "border-ui-border-base bg-ui-bg-subtle/40"
+                  : "border-ui-border-base"
               }`}>
               <StepHeader
                 num={stepNum(3)}
@@ -7818,7 +7818,7 @@ export default function CustomizerTemplate({
                     )
                   }
                   return (
-                    <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-base">
+                    <p className="rounded-md px-2.5 py-1.5 text-xs text-ui-fg-base">
                       <span className="font-semibold">Printing on </span>
                       {sidesForSummary.map((s, i) => (
                         <span key={s}>
@@ -7995,7 +7995,7 @@ export default function CustomizerTemplate({
                   rows={3}
                   maxLength={CUSTOMIZER_PRINT_NOTES_MAX_LENGTH}
                   placeholder="e.g. Match logo PMS 185 C, keep 3 cm from collar seam…"
-                  className="w-full resize-y rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted outline-hidden focus:border-ui-border-interactive focus:ring-2 focus:ring-ui-border-interactive/20"
+                  className="w-full resize-y rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted outline-hidden focus:border-ui-border-interactive focus:ring-2"
                   disabled={isSubmitting}
                 />
                 <p className="text-xs text-ui-fg-muted tabular-nums">

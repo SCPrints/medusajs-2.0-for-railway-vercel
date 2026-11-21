@@ -111,7 +111,7 @@ const CSS = `
 const PAPER = "bg-[#efebe4]"
 const INK = "bg-[#1c1917]"
 const label = `${mono.className} text-[11px] font-semibold uppercase tracking-[0.16em]`
-const h2 = `${display.className} text-4xl font-bold leading-[0.95] tracking-tight small:text-6xl`
+const h2 = `${display.className} text-4xl font-bold leading-[0.95] tracking-tight small:text-6xl small:leading-none`
 const container = "content-container"
 const btnInk =
   "group inline-flex min-h-11 items-center gap-2 rounded-full bg-[#1c1917] px-6 py-3 text-sm font-semibold text-[#efebe4]! transition hover:bg-black"
@@ -205,7 +205,7 @@ export default async function ThreadLabGuidePage({ params }: Props) {
         <div>
           <p className={`${label} tl-rise text-[#1c1917]/60`}>Guide · Brand file 01 / Thread Lab</p>
           <h1
-            className={`${display.className} tl-rise mt-5 text-5xl font-bold leading-[0.92] tracking-tight small:text-7xl`}
+            className={`${display.className} tl-rise mt-5 text-5xl font-bold leading-[0.92] tracking-tight small:text-7xl small:leading-none`}
             style={{ ["--d" as string]: "0.1s" }}
           >
             Thread Lab blanks, <span className="text-[#1c1917]/45">tested for print.</span>
@@ -290,7 +290,7 @@ export default async function ThreadLabGuidePage({ params }: Props) {
               className={`p-6 ${i % 2 === 0 ? "border-r" : ""} ${i < 2 ? "border-b" : ""} border-[#1c1917]/20`}
             >
               <dt className={`${label} text-[#1c1917]/50`}>{name}</dt>
-              <dd className={`${display.className} mt-2 text-5xl font-bold leading-none small:text-6xl`}>{value}</dd>
+              <dd className={`${display.className} mt-2 text-5xl font-bold leading-none small:text-6xl small:leading-none`}>{value}</dd>
             </Reveal>
           ))}
         </dl>
@@ -550,7 +550,7 @@ export default async function ThreadLabGuidePage({ params }: Props) {
         <div className={`${container} py-20 text-center small:py-28`}>
           <Reveal>
             <p className={`${label} text-[#efebe4]/55`}>End of report</p>
-            <h2 className={`${display.className} mt-4 text-5xl font-bold leading-[0.92] tracking-tight small:text-8xl`}>
+            <h2 className={`${display.className} mt-4 text-5xl font-bold leading-[0.92] tracking-tight small:text-8xl small:leading-none`}>
               Your logo, <span className="text-[#efebe4]/45">their blank.</span>
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-[#efebe4]/75">

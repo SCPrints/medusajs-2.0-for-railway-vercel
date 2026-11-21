@@ -36,13 +36,13 @@ export default function CmykDtfGuide() {
       <div className="border-b border-ui-border-base bg-ui-bg-subtle">
         <div className="content-container py-14 small:py-20">
           <header className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em]">
               Print preparation
             </p>
             <h1 className="page-title-marketing mt-3 tracking-tight">
               CMYK for DTF printing
             </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg">
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg small:leading-7">
               CMYK describes how cyan, magenta, yellow, and black combine on
               film and garments. Screens use RGB and hex for approximation
               &mdash; the chart below helps artwork setup but doesn&apos;t
@@ -57,13 +57,13 @@ export default function CmykDtfGuide() {
       <div className="content-container py-12 small:py-16">
         <div className="mx-auto max-w-6xl space-y-12 small:space-y-16">
           <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               Pre-flight checklist
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
               Before you export
             </h2>
-            <ul className="mt-5 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+            <ul className="mt-5 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
               <li className="flex gap-3">
                 <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
                 <span>

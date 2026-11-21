@@ -26,7 +26,7 @@ export default async function Orders({
       <header className="relative mb-8 border-l-4 border-brand pl-4">
         {/* Seasonal: the stamp ghost approves proofs (Halloween only). */}
         <SeasonalMarginMascot name="stamp-ghost" size={110} className="right-0 -top-2" />
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em]">
           Order history
         </p>
         <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">

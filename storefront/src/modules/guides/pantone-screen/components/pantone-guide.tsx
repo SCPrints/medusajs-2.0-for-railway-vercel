@@ -31,11 +31,11 @@ export default function PantoneGuide() {
       <div className="border-b border-ui-border-base bg-ui-bg-subtle">
         <div className="content-container py-14 small:py-20">
           <header className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em]">
               Print preparation
             </p>
             <h1 className="page-title-marketing mt-3 tracking-tight">Pantone colours for screen printing</h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg">
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg small:leading-7">
               Screen printing lays down one mixed ink per colour, so a Pantone number is a real target we
               can mix to, not an approximation. This page explains how to supply one, what changes the
               result on fabric, and shows the references we get asked for most. The swatches are screen
@@ -49,11 +49,11 @@ export default function PantoneGuide() {
         <div className="mx-auto max-w-6xl space-y-12 small:space-y-16">
           <section className="grid gap-6 tablet:grid-cols-2">
             <div className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em]">
                 Why Pantone here and CMYK there
               </p>
               <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">Spot ink versus process</h2>
-              <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+              <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
                 A Pantone solid is a spot colour: a single ink mixed by recipe from the base inks. Screen
                 printing prints exactly that ink, which is why it is the method for brand-critical colour.
                 DTF and other digital methods build every colour from cyan, magenta, yellow and black dots,
@@ -70,11 +70,11 @@ export default function PantoneGuide() {
             </div>
 
             <div className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em]">
                 Pre-flight checklist
               </p>
               <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">How to supply a Pantone</h2>
-              <ul className="mt-5 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+              <ul className="mt-5 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
                 <Bullet>
                   Quote the Solid Coated number, the one ending in <strong>C</strong>, for example PANTONE
                   286 C. Uncoated (U) and Bridge (CP) numbers describe paper, not ink.
@@ -93,11 +93,11 @@ export default function PantoneGuide() {
           </section>
 
           <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               What changes the match
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">Fabric is not paper</h2>
-            <div className="mt-5 grid gap-5 text-sm leading-relaxed text-ui-fg-subtle tablet:grid-cols-3 small:text-base">
+            <div className="mt-5 grid gap-5 text-sm leading-relaxed text-ui-fg-subtle tablet:grid-cols-3 small:text-base small:leading-6">
               <p>
                 <strong className="text-ui-fg-base">Garment colour.</strong> Ink is semi-transparent. On a
                 dark or strongly coloured garment the same ink needs a white underbase first, and even then
@@ -114,7 +114,7 @@ export default function PantoneGuide() {
                 fan deck, not a monitor.
               </p>
             </div>
-            <p className="mt-6 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+            <p className="mt-6 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
               We have pressed every colour in the library below onto garments and keep the sheets in the
               studio. For a brand-critical colour we hold your sample against the pressed sheet, then press a
               test on your actual garment before the run.
@@ -135,7 +135,7 @@ export default function PantoneGuide() {
             <Reveal key={section.category} delay={Math.min(i, 3) * 0.05}>
               <section className="scroll-mt-24">
                 <h2 className="text-xl font-bold tracking-tight text-ui-fg-base small:text-2xl">{section.category}</h2>
-                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
                   {section.description}
                 </p>
                 <div className="mt-6 grid gap-5 phone:grid-cols-2 tablet:grid-cols-3 medium:grid-cols-4">
@@ -151,7 +151,7 @@ export default function PantoneGuide() {
             <h2 className="text-xl font-bold tracking-tight text-ui-fg-base small:text-2xl">
               The full library we have pressed
             </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
               Every Pantone Solid Coated colour, including the 2000 to 4000 series, plus the pastels, neons and
               the 10,000 series metallics. Type a number or name to find yours. The tile is a screen
               approximation of the book value; the pressed sheet in the studio is what we match to.

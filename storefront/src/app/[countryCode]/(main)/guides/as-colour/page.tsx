@@ -120,8 +120,8 @@ const CSS = `
 const INK = "#1a1a1a"
 const container = "content-container"
 const label = "text-xs uppercase tracking-[0.14em] text-[#6b6b66]"
-const h2 = "text-4xl font-medium leading-[1.02] tracking-[-0.03em] small:text-6xl"
-const lead = "mt-6 max-w-xl text-base leading-relaxed text-[#4d4d49] small:text-lg"
+const h2 = "text-4xl font-medium leading-[1.02] tracking-[-0.03em] small:text-6xl small:leading-none"
+const lead = "mt-6 max-w-xl text-base leading-relaxed text-[#4d4d49] small:text-lg small:leading-7"
 const rule = "border-[#e6e6e1]"
 const btnDark =
   "inline-flex min-h-11 items-center bg-[#1a1a1a] px-7 py-3 text-sm font-medium text-white! transition hover:bg-[#3a3a36]"
@@ -238,7 +238,7 @@ export default async function AsColourGuidePage() {
         <div className="flex flex-col justify-end px-6 pb-12 pt-16 small:px-14 small:pb-20">
           <p className={`${label} ac-rise`}>Guide · Premium blanks</p>
           <h1
-            className="ac-rise mt-5 text-5xl font-medium leading-[0.98] tracking-[-0.035em] small:text-7xl medium:text-8xl"
+            className="ac-rise mt-5 text-5xl font-medium leading-[0.98] tracking-[-0.035em] small:text-7xl small:leading-none medium:text-8xl medium:leading-none"
             style={delay(0.1)}
           >
             AS Colour, custom printed.
@@ -593,7 +593,7 @@ export default async function AsColourGuidePage() {
       <section className="bg-[#1a1a1a] text-white">
         <div className={`${container} py-24 small:py-32`}>
           <Reveal>
-            <h2 className="max-w-4xl text-5xl font-medium leading-[0.98] tracking-[-0.035em] text-white small:text-7xl">
+            <h2 className="max-w-4xl text-5xl font-medium leading-[0.98] tracking-[-0.035em] text-white small:text-7xl small:leading-none">
               Start with a good blank.
             </h2>
             <p className="mt-6 max-w-xl text-white/70 small:text-lg">

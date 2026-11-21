@@ -49,7 +49,7 @@ const EmptyCartMessage = () => {
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-ui-border-base bg-white text-brand">
           <CartIcon />
         </div>
-        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em]">
           Your cart
         </p>
         <h1 className="page-title-marketing mt-3 tracking-tight">

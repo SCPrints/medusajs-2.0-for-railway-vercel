@@ -90,7 +90,7 @@ export default function LookbookGallery({ items }: Props) {
               type="button"
               onClick={() => setOpenIndex(i)}
               aria-label={`Enlarge ${item.title}`}
-              className="group block w-full cursor-zoom-in overflow-hidden rounded-xl border border-ui-border-base bg-white text-left shadow-xs transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-md focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/60"
+              className="group block w-full cursor-zoom-in overflow-hidden rounded-xl border border-ui-border-base bg-white text-left shadow-xs transition hover:-translate-y-0.5 hover:shadow-md focus:outline-hidden focus-visible:ring-2"
             >
               <div className="relative aspect-4/5 overflow-hidden">
                 {/* Fixed 4:5 crop so every tile reserves its exact height

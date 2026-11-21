@@ -91,7 +91,7 @@ export default async function LookbookJobPage({ params }: Params) {
         <h1 className="text-3xl font-semibold tracking-tight text-ui-fg-base small:text-4xl">
           {job.title}
         </h1>
-        <p className="mt-4 text-base leading-relaxed text-ui-fg-subtle small:text-lg">
+        <p className="mt-4 text-base leading-relaxed text-ui-fg-subtle small:text-lg small:leading-7">
           {describe(job)}
         </p>
 
@@ -101,7 +101,7 @@ export default async function LookbookJobPage({ params }: Params) {
               <LocalizedClientLink
                 key={i.slug}
                 href={`/industries/${i.slug}`}
-                className="inline-flex min-h-9 items-center rounded-full border border-ui-border-base bg-white px-3 text-xs font-semibold uppercase tracking-[0.08em] text-(--brand-primary)/80 hover:border-(--brand-secondary)/40"
+                className="inline-flex min-h-9 items-center rounded-full border border-ui-border-base bg-white px-3 text-xs font-semibold uppercase tracking-[0.08em]"
               >
                 {i.name}
               </LocalizedClientLink>
@@ -168,7 +168,7 @@ export default async function LookbookJobPage({ params }: Params) {
               <li key={p.handle}>
                 <LocalizedClientLink
                   href={`/products/${p.handle}`}
-                  className="group block overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-xs transition hover:border-(--brand-secondary)/40 hover:shadow-md"
+                  className="group block overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-xs transition hover:shadow-md"
                 >
                   <div className="relative aspect-square bg-ui-bg-subtle">
                     {p.thumbnail ? (

@@ -137,7 +137,7 @@ export default function LineItemDesignPreview({
                   </button>
                 </div>
 
-                <div className="relative flex items-center justify-center bg-ui-bg-subtle/40">
+                <div className="relative flex items-center justify-center">
                   {/* Plain <img> — these mockup URLs come from MinIO/S3 and
                       aren't always in `next.config.images.remotePatterns`,
                       and we don't need Next's image optimisation here since
@@ -157,7 +157,7 @@ export default function LineItemDesignPreview({
                           setIndex((i) => (i - 1 + mockups.length) % mockups.length)
                         }
                         aria-label="Previous side"
-                        className="absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-ui-bg-base/90 text-ui-fg-base shadow-md ring-1 ring-ui-border-base hover:bg-ui-bg-base"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full text-ui-fg-base shadow-md ring-1 ring-ui-border-base hover:bg-ui-bg-base"
                       >
                         ‹
                       </button>
@@ -165,7 +165,7 @@ export default function LineItemDesignPreview({
                         type="button"
                         onClick={() => setIndex((i) => (i + 1) % mockups.length)}
                         aria-label="Next side"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-ui-bg-base/90 text-ui-fg-base shadow-md ring-1 ring-ui-border-base hover:bg-ui-bg-base"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full text-ui-fg-base shadow-md ring-1 ring-ui-border-base hover:bg-ui-bg-base"
                       >
                         ›
                       </button>

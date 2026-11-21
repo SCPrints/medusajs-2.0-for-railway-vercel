@@ -204,13 +204,13 @@ export default function SandboxPage() {
   return (
     <div className="content-container py-14 small:py-20">
       <header className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em]">
           Internal
         </p>
         <h1 className="page-title-marketing mt-3 tracking-tight">
           Animation Lab
         </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg">
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg small:leading-7">
           Every animation experiment and design reference in one place. Not
           linked from primary navigation. No tracking, no indexing.
         </p>
@@ -219,7 +219,7 @@ export default function SandboxPage() {
       <div className="mx-auto mt-12 max-w-3xl space-y-10">
         {CATEGORIES.map((category) => (
           <section key={category.title}>
-            <div className="mb-4 border-l-4 border-(--brand-secondary)/40 pl-4">
+            <div className="mb-4 border-l-4 pl-4">
               <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-ui-fg-base">
                 {category.title}
               </h2>

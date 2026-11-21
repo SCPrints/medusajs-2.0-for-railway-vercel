@@ -27,7 +27,7 @@ export default function HeroOverlay() {
           </p>
           <h1
             id="hero-headline"
-            className="mt-3 text-4xl font-semibold leading-tight tracking-tight text-white small:text-5xl large:text-6xl"
+            className="mt-3 text-4xl font-semibold leading-tight tracking-tight text-white small:text-5xl small:leading-none large:text-6xl large:leading-none"
             style={{ textShadow: "0 2px 16px rgba(0,0,0,0.55)" }}
           >
             Custom print apparel for teams, brands &amp; events.

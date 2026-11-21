@@ -3,7 +3,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 
 const SignInPrompt = () => {
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-ui-border-base bg-ui-bg-subtle/30 p-4 small:flex-row small:items-center small:justify-between">
+    <div className="flex flex-col gap-4 rounded-xl border border-ui-border-base p-4 small:flex-row small:items-center small:justify-between">
       <div className="space-y-1">
         <Heading level="h2" className="text-xl leading-7">
           Already have an account?

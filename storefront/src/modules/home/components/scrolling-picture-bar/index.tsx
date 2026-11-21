@@ -234,7 +234,7 @@ const ScrollingPictureBar = () => {
   }
 
   const arrowClass =
-    "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white/85 text-ui-fg-base shadow-elevation-card-rest backdrop-blur-sm transition hover:bg-white hover:border-(--brand-secondary)/60 hover:text-brand focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/50 small:h-12 small:w-12"
+    "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white/85 text-ui-fg-base shadow-elevation-card-rest backdrop-blur-sm transition hover:bg-white hover:text-brand focus-visible:outline-hidden focus-visible:ring-2 small:h-12 small:w-12"
 
   return (
     <section className="w-full bg-ui-bg-base py-8 small:py-10">
@@ -271,7 +271,7 @@ const ScrollingPictureBar = () => {
                   href={brandImage.href}
                   aria-hidden={isClone}
                   tabIndex={isClone ? -1 : undefined}
-                  className="group relative h-[30vh] w-[60vw] shrink-0 overflow-hidden rounded-2xl border border-ui-border-base shadow-elevation-card-rest transition-all hover:border-(--brand-secondary)/60 small:h-[36vh] small:w-[42vw]"
+                  className="group relative h-[30vh] w-[60vw] shrink-0 overflow-hidden rounded-2xl border border-ui-border-base shadow-elevation-card-rest transition-all small:h-[36vh] small:w-[42vw]"
                 >
                   <Image
                     src={brandImage.imageSrc}

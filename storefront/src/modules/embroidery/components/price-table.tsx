@@ -58,7 +58,7 @@ const PriceTable: React.FC<Props> = ({ config, highlightTierIndex, highlightRowI
               <tr
                 key={rowIdx}
                 className={`border-t border-ui-border-base ${
-                  row.isIncrementalRow ? "bg-ui-bg-subtle/40 italic" : ""
+                  row.isIncrementalRow ? " italic" : ""
                 } ${highlightRowIndex === rowIdx ? "bg-ui-bg-highlight" : ""}`}
               >
                 <td className="px-3 py-2 text-ui-fg-base">{row.label}</td>

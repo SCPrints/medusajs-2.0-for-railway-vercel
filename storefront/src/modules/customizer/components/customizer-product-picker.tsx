@@ -257,7 +257,7 @@ const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, ba
                           className={[
                             "group flex w-full flex-col overflow-hidden rounded-xl border bg-white text-left transition",
                             isCurrent
-                              ? "cursor-default border-(--brand-primary) ring-2 ring-(--brand-primary)/30"
+                              ? "cursor-default border-(--brand-primary) ring-2"
                               : "border-ui-border-base hover:border-(--brand-primary) hover:shadow-xs",
                           ].join(" ")}
                         >
@@ -293,7 +293,7 @@ const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, ba
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-ui-border-base bg-ui-bg-subtle/40 px-6 py-3">
+            <div className="flex items-center justify-between gap-3 border-t border-ui-border-base px-6 py-3">
               <p className="text-xs text-ui-fg-subtle" aria-live="polite">
                 {counterText}
               </p>

@@ -23,7 +23,7 @@ const segment = (active: boolean) =>
   `min-h-11 min-w-11 rounded-lg border px-3 text-sm font-semibold transition ${
     active
       ? "border-brand bg-brand text-white"
-      : "border-ui-border-base bg-white text-ui-fg-base hover:border-(--brand-secondary)/50"
+      : "border-ui-border-base bg-white text-ui-fg-base"
   }`
 
 // Mini screen: timber frame, yellow mesh, a block of that screen's ink.
@@ -107,7 +107,7 @@ export default function ScreenCounter() {
 
       <div className="rounded-xl bg-ui-bg-subtle p-6" aria-live="polite">
         <style>{POP_CSS}</style>
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em]">
           Screens to set up
         </p>
         <p className="mt-1 text-6xl font-semibold leading-none text-brand">{total}</p>

@@ -48,7 +48,7 @@ export default function HomeIndustryGrid() {
           <li key={industry.slug}>
             <LocalizedClientLink
               href={`/industries/${industry.slug}`}
-              className="group flex h-full min-h-12 items-center justify-between gap-4 rounded-lg border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs"
+              className="group flex h-full min-h-12 items-center justify-between gap-4 rounded-lg border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-xs"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-ui-fg-base">

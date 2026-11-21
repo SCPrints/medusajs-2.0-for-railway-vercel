@@ -107,7 +107,7 @@ export function LabTierCCommandPalette({ reducedMotion }: { reducedMotion: boole
       <AnimatePresence>
         {open ? (
           <motion.div
-            className="fixed inset-0 z-240 flex items-start justify-center bg-ui-fg-base/40 pt-[15vh] backdrop-blur-xs"
+            className="fixed inset-0 z-240 flex items-start justify-center pt-[15vh] backdrop-blur-xs"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -205,7 +205,7 @@ export function LabTierCNotificationDrawer({ reducedMotion }: { reducedMotion: b
         {open ? (
           <>
             <motion.div
-              className="fixed inset-0 z-220 bg-ui-fg-base/35"
+              className="fixed inset-0 z-220"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}

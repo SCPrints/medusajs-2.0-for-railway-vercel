@@ -123,7 +123,7 @@ export default function AddToHomeBanner() {
       >
         <div className="rounded-2xl border border-ui-border-base bg-white p-4 shadow-2xl">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-(--brand-primary)/5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
               <svg
                 width="22"
                 height="22"

@@ -8,7 +8,7 @@ export default function LookbookJobCard({ job }: { job: LookbookJob }) {
   return (
     <LocalizedClientLink
       href={`/lookbook/${job.slug}`}
-      className="group block overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-xs transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-md"
+      className="group block overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-xs transition hover:-translate-y-0.5 hover:shadow-md"
     >
       <div className="relative aspect-4/5 overflow-hidden bg-ui-bg-subtle">
         <Image

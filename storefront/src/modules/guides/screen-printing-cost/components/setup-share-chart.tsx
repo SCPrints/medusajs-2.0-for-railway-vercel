@@ -10,7 +10,7 @@ const ROWS = [
 export default function SetupShareChart() {
   return (
     <figure className="m-0 rounded-2xl border border-ui-border-base bg-white p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em]">
         Cost of each garment
       </p>
       <div className="mt-4 space-y-4">

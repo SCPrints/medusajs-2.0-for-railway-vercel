@@ -27,7 +27,7 @@ export default async function Profile(){const customer = await getCustomer()
   return (
     <div className="w-full" data-testid="profile-page-wrapper">
       <header className="mb-8 border-l-4 border-brand pl-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em]">
           Your details
         </p>
         <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">

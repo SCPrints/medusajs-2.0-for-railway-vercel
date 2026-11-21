@@ -193,11 +193,11 @@ export default async function ByoPage({
         {/* Seasonal: the patchwork monster brought its own tee (Halloween only). */}
         <SeasonalMarginMascot name="patchwork" size={120} className="right-6 top-10" show="hidden small:block" />
         <header className="mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em]">
             Bring your own
           </p>
           <h1
-            className={`${lora.className} mt-3 text-4xl font-semibold leading-tight text-ink small:text-5xl`}
+            className={`${lora.className} mt-3 text-4xl font-semibold leading-tight text-ink small:text-5xl small:leading-none`}
           >
             BYO: how it works
           </h1>
@@ -227,10 +227,10 @@ export default async function ByoPage({
       {/* 2. What "BYO" means — short intro */}
       <section className="content-container py-12 small:py-16">
         <div className="mx-auto max-w-3xl rounded-2xl border border-ui-border-base bg-white p-8 small:p-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             What &quot;BYO&quot; means
           </p>
-          <p className="mt-3 text-base leading-relaxed text-ui-fg-subtle small:text-lg">
+          <p className="mt-3 text-base leading-relaxed text-ui-fg-subtle small:text-lg small:leading-7">
             BYO (bring your own) means you supply the blank apparel or merch,
             or you source an item we don&apos;t list on the site. We review what
             you bring in, confirm what decoration options suit the fabric and
@@ -266,7 +266,7 @@ export default async function ByoPage({
                 <li
                   key={step.id}
                   className={[
-                    "group relative overflow-hidden p-5 phone:p-6 transition-colors hover:bg-ui-bg-subtle/50",
+                    "group relative overflow-hidden p-5 phone:p-6 transition-colors",
                     "border-ui-border-base",
                     index < STEPS.length - 1 ? "border-b phone:border-b-0" : "",
                     !isLastColPhone ? "phone:border-r tablet:border-r-0" : "",
@@ -281,7 +281,7 @@ export default async function ByoPage({
                 >
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter text-(--brand-secondary)/10 transition-colors group-hover:text-(--brand-secondary)/25"
+                    className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter transition-colors"
                   >
                     {step.number}
                   </span>
@@ -303,7 +303,7 @@ export default async function ByoPage({
       <section className="content-container py-12 small:py-16">
         <div className="grid gap-6 small:grid-cols-2">
           <div className="rounded-2xl border border-ui-border-base bg-white p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               What we&apos;ll need
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base">
@@ -312,7 +312,7 @@ export default async function ByoPage({
             <ul className="mt-6 list-none space-y-4 p-0 text-sm text-ui-fg-subtle small:text-base">
               {BRING_ITEMS.map((item) => (
                 <li key={item} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-(--brand-accent)/15 text-accent">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-accent">
                     <CheckIcon />
                   </span>
                   <span>{item}</span>
@@ -322,18 +322,18 @@ export default async function ByoPage({
           </div>
 
           <div className="flex flex-col rounded-2xl border border-ui-border-base bg-white p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               Production
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base">
               Timelines
             </h2>
-            <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+            <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
               Timelines depend on decoration type, art approval, and current
               workload. We&apos;ll always give a realistic window with your
               quote.
             </p>
-            <p className="mt-3 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+            <p className="mt-3 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
               Rush jobs may be possible &mdash; just ask when you get in touch.
             </p>
             <div className="mt-auto pt-6">

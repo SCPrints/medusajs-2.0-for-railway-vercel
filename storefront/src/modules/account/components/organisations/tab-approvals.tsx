@@ -177,7 +177,7 @@ export default function ApprovalsTab({ orgId }: { orgId: string }) {
                 <label className="block text-sm font-medium text-ui-fg-base">
                   Why are you declining it?
                   <textarea
-                    className="mt-1 w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-base focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
+                    className="mt-1 w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-base focus:outline-hidden focus-visible:ring-2"
                     rows={2}
                     maxLength={500}
                     value={reason}

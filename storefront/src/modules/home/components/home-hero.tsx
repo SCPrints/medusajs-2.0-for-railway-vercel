@@ -104,7 +104,7 @@ export default function HomeHero() {
             Happy Halloween from the SC Prints studio.
           </p>
 
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em]">
             Custom apparel &amp; branded merch · Villawood, Sydney
           </p>
 

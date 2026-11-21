@@ -201,7 +201,7 @@ export default async function ServicesPage({
           {services.map((service) => (
             <article
               key={service.slug}
-              className="group rounded-xl border border-ui-border-base bg-white p-6 shadow-xs transition-all hover:-translate-y-0.5 hover:border-(--brand-secondary)/55 hover:shadow-md small:p-7"
+              className="group rounded-xl border border-ui-border-base bg-white p-6 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md small:p-7"
             >
               <div className="grid gap-5 small:grid-cols-[2fr_1fr] small:gap-7">
                 <div>
@@ -219,7 +219,7 @@ export default async function ServicesPage({
                   </ul>
                 </div>
 
-                <div className="rounded-lg border border-(--brand-secondary)/35 bg-ui-bg-subtle p-4">
+                <div className="rounded-lg border bg-ui-bg-subtle p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
                     Best fit
                   </p>
@@ -255,7 +255,7 @@ export default async function ServicesPage({
               <li
                 key={step.id}
                 className={[
-                  "group relative overflow-hidden p-6 transition-colors hover:bg-ui-bg-subtle/50",
+                  "group relative overflow-hidden p-6 transition-colors",
                   "border-ui-border-base",
                   notLast ? "border-b small:border-b-0 small:border-r" : "",
                 ]
@@ -264,7 +264,7 @@ export default async function ServicesPage({
               >
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter text-(--brand-secondary)/10 transition-colors group-hover:text-(--brand-secondary)/25"
+                  className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter transition-colors"
                 >
                   {step.number}
                 </span>

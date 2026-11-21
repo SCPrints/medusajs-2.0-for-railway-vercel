@@ -134,7 +134,7 @@ const CSS = `
 `
 
 const label = "text-xs font-bold uppercase tracking-[0.14em]"
-const h2 = `${display.className} text-5xl uppercase leading-[0.9] tracking-tight small:text-7xl`
+const h2 = `${display.className} text-5xl uppercase leading-[0.9] tracking-tight small:text-7xl small:leading-none`
 const container = "content-container"
 const btnLight =
   "group inline-flex min-h-11 items-center gap-2 border border-white bg-white px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] text-black! transition hover:bg-transparent hover:text-white!"
@@ -297,7 +297,7 @@ export default async function ShakaWearGuidePage({ params }: Props) {
               [`${styles.length}`, "Cuts in the range"],
             ].map(([value, name], i) => (
               <Reveal key={name} delay={i * 0.08} className="border-b border-r border-white/20 p-6">
-                <dd className={`${display.className} text-6xl uppercase leading-none small:text-7xl`}>
+                <dd className={`${display.className} text-6xl uppercase leading-none small:text-7xl small:leading-none`}>
                   {value}
                 </dd>
                 <dt className={`${label} mt-2 text-white/60`}>{name}</dt>
@@ -637,7 +637,7 @@ export default async function ShakaWearGuidePage({ params }: Props) {
       <section className="bg-[#0a0a0a] text-white">
         <div className={`${container} py-20 text-center small:py-28`}>
           <Reveal>
-            <h2 className={`${display.className} text-6xl uppercase leading-[0.85] tracking-tight small:text-9xl`}>
+            <h2 className={`${display.className} text-6xl uppercase leading-[0.85] tracking-tight small:text-9xl small:leading-none`}>
               Put your name <span className="sw-outline block">on it</span>
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-white/75">

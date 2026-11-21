@@ -906,7 +906,7 @@ export function LabFakeVideoPoster({ reducedMotion }: { reducedMotion: boolean }
       <div className="absolute inset-0 flex items-center justify-center bg-black/25">
         <button
           type="button"
-          className="relative flex h-16 w-16 items-center justify-center rounded-full bg-ui-bg-base/90 text-ui-fg-base shadow-lg"
+          className="relative flex h-16 w-16 items-center justify-center rounded-full text-ui-fg-base shadow-lg"
           onClick={() => {
             setBusy(true)
             window.setTimeout(() => setBusy(false), 1400)
@@ -926,7 +926,7 @@ export function LabFakeVideoPoster({ reducedMotion }: { reducedMotion: boolean }
       <AnimatePresence>
         {busy ? (
           <motion.div
-            className="absolute inset-0 flex items-center justify-center bg-ui-fg-base/80 text-sm text-ui-bg-base"
+            className="absolute inset-0 flex items-center justify-center text-sm text-ui-bg-base"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1195,7 +1195,7 @@ export function LabBottomSheet() {
             <motion.button
               type="button"
               aria-label="Close"
-              className="fixed inset-0 z-190 bg-ui-fg-base/40"
+              className="fixed inset-0 z-190"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}

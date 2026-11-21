@@ -111,7 +111,7 @@ export default function HowOrderWorksSection() {
               <li
                 key={step.id}
                 className={[
-                  "group relative overflow-hidden p-5 phone:p-6 transition-colors hover:bg-ui-bg-subtle/50",
+                  "group relative overflow-hidden p-5 phone:p-6 transition-colors",
                   "border-ui-border-base",
                   index < STEPS.length - 1 ? "border-b phone:border-b-0" : "",
                   !isLastColPhone ? "phone:border-r tablet:border-r-0" : "",
@@ -126,7 +126,7 @@ export default function HowOrderWorksSection() {
               >
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter text-(--brand-secondary)/10 transition-colors group-hover:text-(--brand-secondary)/25"
+                  className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter transition-colors"
                 >
                   {step.number}
                 </span>

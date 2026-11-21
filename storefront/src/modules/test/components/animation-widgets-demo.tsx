@@ -396,7 +396,7 @@ function LoaderOverlayDemo({ reducedMotion }: { reducedMotion: boolean }) {
       <AnimatePresence>
         {open ? (
           <motion.div
-            className="fixed inset-0 z-200 flex flex-col items-center justify-center bg-ui-fg-base/85 backdrop-blur-xs"
+            className="fixed inset-0 z-200 flex flex-col items-center justify-center backdrop-blur-xs"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

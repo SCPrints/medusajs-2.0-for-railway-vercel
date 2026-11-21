@@ -82,7 +82,7 @@ export default async function OrgDetailPage({ params }: PageProps) {
       </nav>
 
       <header className="mb-6 border-l-4 border-brand pl-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em]">
           Organisation
         </p>
         <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">

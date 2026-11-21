@@ -280,7 +280,7 @@ const CartItemGroup = ({
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="flex flex-1 items-center justify-between gap-3 rounded-md text-left transition-colors hover:bg-ui-bg-base/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ui-border-interactive/40"
+              className="flex flex-1 items-center justify-between gap-3 rounded-md text-left transition-colors focus-visible:outline-hidden focus-visible:ring-2"
               aria-expanded={open}
               aria-label={open ? "Collapse group" : "Expand group to see variants"}
               data-testid="cart-group-toggle"

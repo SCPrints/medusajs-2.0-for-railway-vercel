@@ -318,7 +318,7 @@ const FAQS = [
 const prose = "mt-4 max-w-3xl text-base leading-relaxed text-ui-fg-subtle"
 const eyebrow = "text-xs font-semibold uppercase tracking-[0.12em]"
 const card =
-  "h-full rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs"
+  "h-full rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-xs"
 const iconBadge =
   "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/18 text-ink"
 
@@ -466,7 +466,7 @@ export default function ScreenPrintingCostGuidePage() {
       <Reveal className="mt-16">
         <section className="grid items-center gap-6 rounded-2xl bg-ink p-8 text-white small:grid-cols-[auto_1fr] small:gap-10 small:p-10">
           <div className="text-center">
-            <p className="text-7xl font-semibold leading-none text-accent small:text-8xl">
+            <p className="text-7xl font-semibold leading-none text-accent small:text-8xl small:leading-none">
               {MIN}
             </p>
             <p className={`${eyebrow} mt-2 text-white/70`}>piece minimum</p>
@@ -550,7 +550,7 @@ export default function ScreenPrintingCostGuidePage() {
                       </div>
                     ))}
                   </dl>
-                  <p className={`${eyebrow} mt-5 text-(--brand-primary)/80`}>Best for</p>
+                  <p className={`${eyebrow} mt-5`}>Best for</p>
                   <ul className="mt-2 space-y-1.5">
                     {method.bestFor.map((item) => (
                       <li key={item} className="flex items-center gap-2 text-sm text-ui-fg-base">
@@ -634,7 +634,7 @@ export default function ScreenPrintingCostGuidePage() {
           ].map((t, i) => (
             <Reveal key={t.label} delay={i * 0.08}>
               <div className={`${card} ${t.muted ? "bg-ui-bg-subtle" : ""}`}>
-                <p className={`${eyebrow} text-(--brand-primary)/80`}>{t.label}</p>
+                <p className={`${eyebrow}`}>{t.label}</p>
                 <p
                   className={
                     t.muted
@@ -657,7 +657,7 @@ export default function ScreenPrintingCostGuidePage() {
           {FAQS.map((f) => (
             <details
               key={f.q}
-              className="group rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4 transition hover:border-(--brand-secondary)/35"
+              className="group rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4 transition"
             >
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-ui-fg-base">
                 <span>{f.q}</span>

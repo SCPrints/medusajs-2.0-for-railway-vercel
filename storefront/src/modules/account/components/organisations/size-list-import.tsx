@@ -137,7 +137,7 @@ export default function SizeListImport({ groups, knownSizes, existingNames, acti
           void readFile(e.dataTransfer.files?.[0])
         }}
         className={`mt-3 rounded-xl border-2 border-dashed p-2 transition ${
-          dragging ? "border-brand bg-(--brand-secondary)/5" : "border-ui-border-base"
+          dragging ? "border-brand" : "border-ui-border-base"
         }`}
       >
         <textarea
@@ -147,7 +147,7 @@ export default function SizeListImport({ groups, knownSizes, existingNames, acti
           spellCheck={false}
           placeholder={"Name\tTeam\tSize\nJo Steele\tUnder 12s\tM\nAl Brown\tUnder 12s\tL"}
           aria-label="Size list"
-          className="w-full resize-y rounded-lg border-0 bg-transparent p-2 font-mono text-base focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 tablet:text-sm"
+          className="w-full resize-y rounded-lg border-0 bg-transparent p-2 font-mono text-base focus:outline-hidden focus-visible:ring-2 tablet:text-sm"
         />
         <label className="inline-flex min-h-11 cursor-pointer items-center px-2 text-xs font-semibold text-ui-fg-interactive underline">
           or choose a CSV file
@@ -252,7 +252,7 @@ export default function SizeListImport({ groups, knownSizes, existingNames, acti
                 className={`inline-flex min-h-11 items-center justify-center rounded-full px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                   a.primary === false
                     ? "border border-ui-border-base text-ui-fg-base hover:bg-ui-bg-subtle"
-                    : "bg-brand text-white hover:bg-(--brand-secondary)/90"
+                    : "bg-brand text-white"
                 }`}
               >
                 {a.label(usable.length)}

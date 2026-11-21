@@ -866,7 +866,7 @@ export default function CubeGalleryClient({
                   studio/credit line — see the page.tsx mapping */}
               <h1
                 data-detail-item
-                className="mt-10 font-mono text-3xl font-medium uppercase leading-tight tracking-tight small:text-6xl"
+                className="mt-10 font-mono text-3xl font-medium uppercase leading-tight tracking-tight small:text-6xl small:leading-none"
               >
                 {selected.brand}
               </h1>
@@ -893,7 +893,7 @@ export default function CubeGalleryClient({
 
               <p
                 data-detail-item
-                className="mt-10 max-w-2xl text-base leading-relaxed text-white/70 small:text-lg"
+                className="mt-10 max-w-2xl text-base leading-relaxed text-white/70 small:text-lg small:leading-7"
               >
                 {selected.blurb}
               </p>

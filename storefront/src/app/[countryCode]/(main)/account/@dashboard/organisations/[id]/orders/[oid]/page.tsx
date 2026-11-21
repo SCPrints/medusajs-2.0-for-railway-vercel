@@ -87,7 +87,7 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
       </nav>
 
       <header className="mb-6 border-l-4 border-brand pl-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em]">
           Order
         </p>
         <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
@@ -117,7 +117,7 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
 
       {/* Shipping context */}
       <section className="mb-6 rounded-2xl border border-ui-border-base bg-white p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
           Shipping to
         </h2>
         {destination ? (
@@ -165,7 +165,7 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
 
       {/* Items */}
       <section className="mb-6">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
           Items
         </h2>
         <div className="mt-3 overflow-x-auto rounded-2xl border border-ui-border-base bg-white">
@@ -267,7 +267,7 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
 
       {/* Cancel */}
       <section className="rounded-2xl border border-ui-border-base bg-white p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
           Need to change this order?
         </h2>
         <div className="mt-3">

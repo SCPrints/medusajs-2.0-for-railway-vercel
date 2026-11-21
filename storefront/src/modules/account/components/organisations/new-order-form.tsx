@@ -147,7 +147,7 @@ export default function NewOrderForm({
         <select
           value={destinationId}
           onChange={(e) => setDestinationId(e.target.value)}
-          className="mt-3 w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 min-h-11 phone:max-w-md"
+          className="mt-3 w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 min-h-11 phone:max-w-md"
           required
         >
           <option value="">Select a destination…</option>
@@ -174,7 +174,7 @@ export default function NewOrderForm({
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="rounded-full border border-(--brand-secondary)/40 px-3 py-1.5 text-xs font-semibold text-brand transition hover:bg-(--brand-secondary)/10 min-h-11"
+            className="rounded-full border px-3 py-1.5 text-xs font-semibold text-brand transition min-h-11"
           >
             + Add item
           </button>
@@ -238,7 +238,7 @@ export default function NewOrderForm({
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                             inv.fulfillment_mode === "held_stock"
-                              ? "bg-(--brand-accent)/15 text-ink"
+                              ? " text-ink"
                               : "bg-ui-bg-subtle text-ui-fg-subtle"
                           }`}
                         >
@@ -263,7 +263,7 @@ export default function NewOrderForm({
                               Number(e.target.value.replace(/[^\d]/g, "")) || 0
                             )
                           }
-                          className="w-20 rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-right text-sm tabular-nums focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
+                          className="w-20 rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-right text-sm tabular-nums focus:outline-hidden focus-visible:ring-2"
                         />
                         {overAllocated ? (
                           <p className="mt-1 text-[11px] text-amber-700">
@@ -311,7 +311,7 @@ export default function NewOrderForm({
               value={externalRef}
               onChange={(e) => setExternalRef(e.target.value.slice(0, 120))}
               placeholder="PO#, internal ref, etc."
-              className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 min-h-11"
+              className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 min-h-11"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -322,7 +322,7 @@ export default function NewOrderForm({
               type="date"
               value={requiredBy}
               onChange={(e) => setRequiredBy(e.target.value)}
-              className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 min-h-11"
+              className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 min-h-11"
             />
           </label>
         </div>
@@ -335,7 +335,7 @@ export default function NewOrderForm({
             onChange={(e) => setNotes(e.target.value.slice(0, 2000))}
             rows={3}
             placeholder="Any special instructions for our production team."
-            className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
+            className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2"
           />
         </label>
       </section>
@@ -376,7 +376,7 @@ export default function NewOrderForm({
             type="button"
             disabled={!canSubmit}
             onClick={() => setConfirmOpen(true)}
-            className="inline-flex flex-1 items-center justify-center rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-(--brand-secondary)/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11 small:flex-none"
+            className="inline-flex flex-1 items-center justify-center rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 min-h-11 small:flex-none"
           >
             Submit order
           </button>
@@ -499,7 +499,7 @@ function AddItemPicker({
                         setChosenDesign(d)
                         setStep("sku")
                       }}
-                      className="group flex flex-col overflow-hidden rounded-2xl border border-ui-border-base bg-white text-left transition hover:border-(--brand-secondary)/40 hover:shadow-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
+                      className="group flex flex-col overflow-hidden rounded-2xl border border-ui-border-base bg-white text-left transition hover:shadow-xs focus:outline-hidden focus-visible:ring-2"
                     >
                       <div className="relative aspect-square w-full bg-ui-bg-subtle">
                         {d.thumbnail_url ? (
@@ -610,7 +610,7 @@ function SkuPicker({
                       ),
                     }))
                   }
-                  className="w-20 rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-right text-sm tabular-nums focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 min-h-11"
+                  className="w-20 rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-right text-sm tabular-nums focus:outline-hidden focus-visible:ring-2 min-h-11"
                 />
                 <button
                   type="button"
@@ -618,7 +618,7 @@ function SkuPicker({
                   onClick={() => {
                     onAdd(r.id, current)
                   }}
-                  className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-(--brand-secondary)/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
+                  className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
                 >
                   Add
                 </button>
@@ -692,7 +692,7 @@ function ConfirmModal({
             type="button"
             onClick={onConfirm}
             disabled={submitting}
-            className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white transition hover:bg-(--brand-secondary)/90 disabled:opacity-60 min-h-11"
+            className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white transition disabled:opacity-60 min-h-11"
           >
             {submitting ? "Placing…" : "Place order"}
           </button>

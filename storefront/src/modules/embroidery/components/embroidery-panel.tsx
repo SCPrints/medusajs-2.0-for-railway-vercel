@@ -239,7 +239,7 @@ const EmbroideryPanel: React.FC<EmbroideryPanelProps> = ({
           embroidery items in their cart. Picking one pre-fills stitch count
           and placement so they don't have to estimate twice. */}
       {cartDesigns.length > 0 ? (
-        <div className="flex flex-col gap-2 rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
+        <div className="flex flex-col gap-2 rounded-lg border border-ui-border-base p-3">
           {!pickerOpen ? (
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -310,7 +310,7 @@ const EmbroideryPanel: React.FC<EmbroideryPanelProps> = ({
       ) : null}
 
       {reusedFrom ? (
-        <div className="flex items-center justify-between gap-2 rounded-md border border-ui-border-base bg-ui-bg-subtle/60 px-3 py-2 text-xs">
+        <div className="flex items-center justify-between gap-2 rounded-md border border-ui-border-base px-3 py-2 text-xs">
           <span className="text-ui-fg-base">
             ✓ Reusing design from <strong>{reusedFrom}</strong>
           </span>
@@ -329,7 +329,7 @@ const EmbroideryPanel: React.FC<EmbroideryPanelProps> = ({
       ) : null}
 
       {showPlacementPicker && availablePlacements ? (
-        <div className="flex flex-col gap-2 rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
+        <div className="flex flex-col gap-2 rounded-lg border border-ui-border-base p-3">
           <span className="text-xs font-semibold uppercase tracking-wide text-ui-fg-base">
             Embroidery placement
           </span>

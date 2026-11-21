@@ -390,7 +390,7 @@ function PricingPanel({
             return ((currentTierIdx + withinTier) / tiers.length) * 100
           })()
           return (
-            <details className="group rounded-lg border border-ui-border-base bg-ui-bg-subtle/40">
+            <details className="group rounded-lg border border-ui-border-base">
               <summary className="block cursor-pointer list-none px-3 py-2 marker:hidden [&::-webkit-details-marker]:hidden">
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-baseline gap-2 text-xs font-semibold uppercase tracking-wide text-ui-fg-base">
@@ -479,7 +479,7 @@ function PricingPanel({
         })()
       ) : null}
 
-      <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle/60 px-3 py-2.5">
+      <div className="rounded-lg border border-ui-border-base px-3 py-2.5">
         <p className="flex justify-between text-xs">
           <span className="text-ui-fg-subtle">Unit</span>
           <span className="font-medium text-ui-fg-base">{formatMoney(checkoutUnitCents, currencyCode)}</span>
@@ -500,7 +500,7 @@ function PricingPanel({
       </div>
 
       {showDtfTierEstimator ? (
-        <details className="group rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
+        <details className="group rounded-lg border border-ui-border-base p-3">
           <summary className="cursor-pointer list-none text-xs font-semibold text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
             <span className="flex items-center justify-between gap-2">
               SCP print tier reference
@@ -542,7 +542,7 @@ function PricingPanel({
       ) : null}
 
       <details
-        className="group rounded-lg border border-ui-border-base bg-ui-bg-subtle/50"
+        className="group rounded-lg border border-ui-border-base"
         open={
           pricing.sideSurchargePerUnitCents > 0 ||
           pricing.embroideryPerUnitCents > 0 ||

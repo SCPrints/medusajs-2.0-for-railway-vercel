@@ -128,7 +128,7 @@ const EmbroiderySideConfig: React.FC<Props> = ({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
+    <div className="flex flex-col gap-3 rounded-lg border border-ui-border-base p-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-ui-fg-base">
           Embroidery — {SIDE_LABEL[side]}

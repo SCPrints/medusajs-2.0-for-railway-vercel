@@ -442,7 +442,7 @@ function BulkOrderGrid({
   return (
     <div
       className={`flex h-full flex-col ${
-        editMode ? "bg-amber-50/50" : "bg-ui-bg-subtle/30"
+        editMode ? "bg-amber-50/50" : ""
       }`}
     >
       {editMode ? (
@@ -559,7 +559,7 @@ function BulkOrderGrid({
         {/* Desktop grid */}
         <div className="hidden overflow-hidden rounded-lg border border-ui-border-base bg-white shadow-xs md:block">
           <table className="w-full text-sm">
-            <thead className="bg-ui-bg-subtle/60 text-[11px] uppercase tracking-wide text-ui-fg-subtle">
+            <thead className="text-[11px] uppercase tracking-wide text-ui-fg-subtle">
               <tr>
                 <th scope="col" className="w-[260px] px-4 py-3 text-left font-medium">
                   Colour
@@ -609,7 +609,7 @@ function BulkOrderGrid({
               ) : null}
             </tbody>
             {pickedColours.length ? (
-              <tfoot className="bg-ui-bg-subtle/60 text-sm font-medium text-ui-fg-base">
+              <tfoot className="text-sm font-medium text-ui-fg-base">
                 <tr>
                   <td className="px-4 py-3">Total</td>
                   {sizeValues.map((size) => {

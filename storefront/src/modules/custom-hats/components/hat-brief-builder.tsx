@@ -56,7 +56,7 @@ type Decoration = {
 }
 
 const inputClass =
-  "w-full rounded-lg border border-(--brand-primary)/35 bg-white px-3 py-2.5 text-sm text-ui-fg-base placeholder:text-ui-fg-muted/80 focus:outline-hidden focus:ring-2 focus:ring-(--brand-primary)/30"
+  "w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ui-fg-base focus:outline-hidden focus:ring-2"
 const labelClass = "mb-1.5 block text-xs font-semibold text-ui-fg-base"
 
 // A helpful placeholder for the free-text detail, tailored to the chosen method.
@@ -263,10 +263,10 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
     return (
       <div
         id={id}
-        className={`rounded-2xl border border-(--brand-primary)/25 bg-white p-6 text-center${id ? " scroll-mt-28" : ""}`}
+        className={`rounded-2xl border bg-white p-6 text-center${id ? " scroll-mt-28" : ""}`}
         aria-labelledby={formTitleId}
       >
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-(--brand-primary)/8 text-ink">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full text-ink">
           <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -307,8 +307,8 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
                 key={c.id}
                 className={`flex cursor-pointer flex-col gap-0.5 rounded-lg border p-3 text-sm transition ${
                   capStyle === c.id
-                    ? "border-ink bg-(--brand-primary)/5"
-                    : "border-ui-border-base hover:border-(--brand-primary)/50"
+                    ? "border-ink"
+                    : "border-ui-border-base"
                 }`}
               >
                 <span className="flex items-center gap-2 font-medium text-ui-fg-base">
@@ -345,7 +345,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
         <p className="text-xs text-ui-fg-subtle">Add a block per logo/graphic. Choose where it goes and how it&apos;s decorated.</p>
         <div className="space-y-3">
           {decorations.map((d, i) => (
-            <div key={d.id} className="rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
+            <div key={d.id} className="rounded-lg border border-ui-border-base p-3">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold text-ui-fg-subtle">Decoration {i + 1}</span>
                 {decorations.length > 1 && (
@@ -401,7 +401,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {TRIM_OPTIONS.map((t) => (
             <label key={t.id} className="flex cursor-pointer items-center gap-2 text-sm text-ui-fg-base">
-              <input type="checkbox" checked={trims.has(t.id)} onChange={() => toggleTrim(t.id)} className="h-4 w-4 rounded-sm border-(--brand-primary)/40 text-ink focus:ring-ink" />
+              <input type="checkbox" checked={trims.has(t.id)} onChange={() => toggleTrim(t.id)} className="h-4 w-4 rounded-sm text-ink focus:ring-ink" />
               {t.label}
             </label>
           ))}
@@ -414,7 +414,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
         <p className="text-xs text-ui-fg-subtle">Logos, sketches, brand references, or photos of a look you&apos;re after. Faster quotes, fewer rounds.</p>
         <div className="flex flex-wrap items-start gap-2">
           {moodBoard.map((m) => (
-            <div key={m.id} className="relative h-20 w-20 overflow-hidden rounded-md border border-(--brand-primary)/20 bg-ui-bg-subtle">
+            <div key={m.id} className="relative h-20 w-20 overflow-hidden rounded-md border bg-ui-bg-subtle">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={m.preview_url} alt={m.filename} className="h-full w-full object-cover" />
               <button type="button" onClick={() => removeImage(m.id)} className="absolute right-0 top-0 m-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80" aria-label={`Remove ${m.filename}`}>
@@ -423,7 +423,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
             </div>
           ))}
           {moodBoard.length < MAX_MOOD_BOARD && (
-            <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-md border border-dashed border-(--brand-primary)/40 text-xs text-ui-fg-subtle hover:bg-ui-bg-subtle">
+            <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-md border border-dashed text-xs text-ui-fg-subtle hover:bg-ui-bg-subtle">
               + Add
               <input ref={moodInputRef} type="file" accept="image/*" multiple onChange={(e) => addImages(e.target.files)} className="hidden" />
             </label>

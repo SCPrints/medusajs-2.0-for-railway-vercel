@@ -346,7 +346,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
 
       <section className="mt-12 grid gap-6 large:grid-cols-[2fr_1fr]">
         <div className="rounded-xl border border-ui-border-base bg-white p-6 small:p-7">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Why choose this method
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base">
@@ -363,7 +363,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
         </div>
 
         <aside className="rounded-xl border border-ui-border-base bg-ui-bg-subtle p-6 small:p-7">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Not sure?
           </p>
           <h3 className="mt-2 text-xl font-semibold text-ui-fg-base">
@@ -391,25 +391,25 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
       </section>
 
       <section className="mt-12 grid gap-4 small:grid-cols-3">
-        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs">
+        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-xs">
           <ThumbsUpIcon className="text-accent transition-colors group-hover:text-brand" />
-          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em]">
             Best for
           </p>
           <p className="mt-2 text-sm text-ui-fg-subtle">{service.bestFor}</p>
         </article>
 
-        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs">
+        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-xs">
           <ThumbsDownIcon className="text-ui-fg-muted transition-colors group-hover:text-brand" />
-          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em]">
             Not ideal for
           </p>
           <p className="mt-2 text-sm text-ui-fg-subtle">{service.notIdealFor}</p>
         </article>
 
-        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs">
+        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-xs">
           <ClockIcon className="text-accent transition-colors group-hover:text-brand" />
-          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em]">
             Typical turnaround
           </p>
           <p className="mt-2 text-sm text-ui-fg-subtle">{service.typicalTurnaround}</p>

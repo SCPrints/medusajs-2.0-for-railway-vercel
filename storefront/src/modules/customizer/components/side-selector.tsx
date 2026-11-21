@@ -32,7 +32,7 @@ export default function SideSelector({ currentSide, onSelectSide, allowedSides, 
     : SIDE_OPTIONS
   return (
     <div
-      className="flex flex-wrap gap-1 rounded-xl border border-ui-border-base bg-ui-bg-subtle/80 p-1"
+      className="flex flex-wrap gap-1 rounded-xl border border-ui-border-base p-1"
       role="tablist"
       aria-label="Print location"
     >
@@ -48,7 +48,7 @@ export default function SideSelector({ currentSide, onSelectSide, allowedSides, 
             className={`flex min-h-11 min-w-14 flex-1 items-center justify-center rounded-lg px-2 py-2 text-center text-xs font-semibold transition-colors small:min-h-0 small:min-w-0 small:px-3 small:text-sm ${
               selected
                 ? "bg-(--brand-secondary) text-white shadow-md ring-2 ring-(--brand-secondary) ring-offset-2 ring-offset-ui-bg-subtle"
-                : "text-ui-fg-subtle hover:bg-ui-bg-base/60 hover:text-ui-fg-base"
+                : "text-ui-fg-subtle hover:text-ui-fg-base"
             }`}
             onClick={() => onSelectSide(option.value)}
           >

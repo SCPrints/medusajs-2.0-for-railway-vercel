@@ -66,7 +66,7 @@ export default async function SpiritsHubPage({ params }: Props) {
       <section className="relative overflow-hidden border-b border-ui-border-base bg-ui-bg-base">
         <div className="content-container py-20 small:py-28">
           <div className="mx-auto max-w-3xl text-center animate-[fade-in_0.6s_ease-out]">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em]">
               Custom printing
             </p>
             <h1 className="mt-4 text-4xl small:text-5xl font-semibold text-ui-fg-base">
@@ -140,7 +140,7 @@ export default async function SpiritsHubPage({ params }: Props) {
           align="left"
         />
         <ol className="mt-8 grid grid-cols-1 gap-6 small:grid-cols-3">
-          <li className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle/30 p-6">
+          <li className="rounded-2xl border border-ui-border-base p-6">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white">
               1
             </span>
@@ -152,7 +152,7 @@ export default async function SpiritsHubPage({ params }: Props) {
               the actual branded bottles.
             </p>
           </li>
-          <li className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle/30 p-6">
+          <li className="rounded-2xl border border-ui-border-base p-6">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white">
               2
             </span>
@@ -164,7 +164,7 @@ export default async function SpiritsHubPage({ params }: Props) {
               browser editor. No software required.
             </p>
           </li>
-          <li className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle/30 p-6">
+          <li className="rounded-2xl border border-ui-border-base p-6">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white">
               3
             </span>

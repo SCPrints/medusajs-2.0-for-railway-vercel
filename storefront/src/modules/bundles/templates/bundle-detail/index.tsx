@@ -56,7 +56,7 @@ export default function BundleDetail({ bundle }: { bundle: BundleWithProducts })
           {/* Info */}
           <div className="flex flex-col gap-y-6">
             <header className="border-l-4 border-brand pl-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em]">
                 Uniform pack
               </p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ui-fg-base small:text-4xl">
@@ -71,7 +71,7 @@ export default function BundleDetail({ bundle }: { bundle: BundleWithProducts })
 
             {/* Composition list */}
             <div className="rounded-2xl border border-ui-border-base bg-white p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em]">
                 Composition
               </p>
               <h2 className="mt-2 text-lg font-semibold text-ui-fg-base">
@@ -80,7 +80,7 @@ export default function BundleDetail({ bundle }: { bundle: BundleWithProducts })
               <ul className="mt-4 flex list-none flex-col gap-y-3 p-0">
                 {items.map((item, i) => (
                   <li key={i} className="flex items-center gap-x-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-(--brand-secondary)/15 text-xs font-semibold text-brand">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-brand">
                       {item.quantity_per_unit}×
                     </span>
                     <span className="flex-1 text-sm text-ui-fg-base small:text-base">
@@ -117,7 +117,7 @@ export default function BundleDetail({ bundle }: { bundle: BundleWithProducts })
         <div className="content-container">
           <div className="mx-auto max-w-2xl">
             <header className="mb-6 text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em]">
                 Configure
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">

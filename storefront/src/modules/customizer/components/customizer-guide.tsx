@@ -430,7 +430,7 @@ export default function CustomizerGuide({
       {/* Trigger button — wrapper holds the pulse ring outside overflow:hidden context */}
       <div className={`relative shrink-0 ${active ? "invisible pointer-events-none" : ""}`}>
         {showTriggerPulse && (
-          <span className="absolute -inset-1.5 rounded-xl animate-ping bg-(--brand-primary)/30 pointer-events-none" />
+          <span className="absolute -inset-1.5 rounded-xl animate-ping pointer-events-none" />
         )}
         <button
           ref={triggerRef}

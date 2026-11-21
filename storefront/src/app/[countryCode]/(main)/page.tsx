@@ -467,9 +467,9 @@ export default async function Home({
               return (
                 <li
                   key={stat.label}
-                  className="group flex flex-col items-center rounded-lg border border-ui-border-base bg-white p-6 text-center transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs"
+                  className="group flex flex-col items-center rounded-lg border border-ui-border-base bg-white p-6 text-center transition hover:-translate-y-0.5 hover:shadow-xs"
                 >
-                  <Icon className="text-(--brand-secondary)/70 transition-colors group-hover:text-brand" />
+                  <Icon className="transition-colors group-hover:text-brand"/>
                   <p className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl">
                     {stat.value}
                   </p>

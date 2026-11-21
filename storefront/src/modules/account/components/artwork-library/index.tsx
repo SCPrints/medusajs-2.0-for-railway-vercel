@@ -156,7 +156,7 @@ const ArtworkLibrary = ({ artwork, organisations }: Props) => {
         className={[
           "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ink",
           dragging
-            ? "border-brand bg-(--brand-primary)/5"
+            ? "border-brand"
             : "border-ui-border-base bg-white hover:border-ink/40",
         ].join(" ")}
         data-testid="artwork-dropzone"

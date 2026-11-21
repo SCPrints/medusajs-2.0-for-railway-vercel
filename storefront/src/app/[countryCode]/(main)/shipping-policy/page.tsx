@@ -23,11 +23,11 @@ export default function ShippingPolicyPage() {
   return (
     <div className="content-container py-14 small:py-20">
       <header className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em]">
           Policy &middot; Shipping
         </p>
         <h1 className="page-title-marketing mt-3 tracking-tight">Shipping Policy</h1>
-        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg">
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg small:leading-7">
           We take great care producing and packaging custom orders. Here&apos;s how
           we get product from our studio to your door.
         </p>
@@ -35,17 +35,17 @@ export default function ShippingPolicyPage() {
 
       <div className="mx-auto mt-10 max-w-3xl space-y-5">
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 01
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             Delivery areas
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             We ship nationwide across Australia, including all states and
             territories.
           </p>
-          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             <li className="flex gap-3">
               <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
@@ -64,17 +64,17 @@ export default function ShippingPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 02
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             Processing &amp; production time
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             Because items are custom-made, your order goes through a production
             phase before shipping:
           </p>
-          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             <li className="flex gap-3">
               <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
@@ -102,13 +102,13 @@ export default function ShippingPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 03
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             Shipping rates &amp; timeframes
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             Shipping costs are calculated at checkout based on weight,
             dimensions, and destination.
           </p>
@@ -134,7 +134,7 @@ export default function ShippingPolicyPage() {
               </tbody>
             </table>
           </div>
-          <p className="mt-4 text-xs leading-relaxed text-ui-fg-muted small:text-sm">
+          <p className="mt-4 text-xs leading-relaxed text-ui-fg-muted small:text-sm small:leading-5">
             <span className="font-medium text-ui-fg-base">Note:</span> Delivery
             timeframes are estimates provided by our carriers and are in
             addition to our production lead times.
@@ -142,13 +142,13 @@ export default function ShippingPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 04
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             Carriers &amp; tracking
           </h2>
-          <div className="mt-4 space-y-3 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <div className="mt-4 space-y-3 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             <p>
               We partner with Australia Post and reputable local couriers (such
               as StarTrack or Aramex) to ensure reliable delivery.
@@ -162,16 +162,16 @@ export default function ShippingPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 05
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             Damaged or lost shipments
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             We want your prints to arrive in gallery-quality condition.
           </p>
-          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             <li className="flex gap-3">
               <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
@@ -194,13 +194,13 @@ export default function ShippingPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 06
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             Incorrect address &amp; redelivery
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             Please double-check your shipping address at checkout. If a parcel
             is returned to us due to an incorrect address provided by the
             customer, a redelivery fee may apply.

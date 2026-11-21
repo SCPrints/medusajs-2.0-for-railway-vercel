@@ -39,7 +39,7 @@ export default async function GroupOrderJoinPage({
     return (
       <div className="content-container py-14 small:py-20">
         <div className="mx-auto max-w-xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em]">
             Group order
           </p>
           <h1 className="page-title-marketing mt-3 tracking-tight">
@@ -70,7 +70,7 @@ export default async function GroupOrderJoinPage({
     <div className="content-container max-w-3xl py-12">
       <section className="rounded-2xl border border-ui-border-base bg-white p-6 shadow-xs small:p-8">
         <header className="border-l-4 border-brand pl-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             {group_order.organisation_name ?? "Group order"}
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ui-fg-base small:text-3xl">
@@ -185,7 +185,7 @@ export default async function GroupOrderJoinPage({
 
       {participants.length > 0 ? (
         <section className="mt-6 rounded-2xl border border-ui-border-base bg-white p-6 shadow-xs small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Crew &middot; {participants.length} joined
           </p>
           <h2 className="mt-2 text-lg font-semibold text-ui-fg-base">

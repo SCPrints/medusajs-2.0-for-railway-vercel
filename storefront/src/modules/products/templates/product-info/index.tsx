@@ -93,7 +93,7 @@ const ProductInfo = ({ product, hideTitle = false }: ProductInfoProps) => {
       {hideTitle ? null : (
         <Heading
           level="h1"
-          className="text-3xl leading-tight text-ui-fg-base lg:text-4xl"
+          className="text-3xl leading-tight text-ui-fg-base lg:text-4xl lg:leading-10"
           data-testid="product-title"
         >
           {product.title}

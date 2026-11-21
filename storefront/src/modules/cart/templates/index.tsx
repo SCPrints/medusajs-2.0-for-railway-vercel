@@ -27,7 +27,7 @@ const CartTemplate = ({
         {cart?.items?.length ? (
           <>
             <header className="mb-8 border-l-4 border-brand pl-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em]">
                 Your cart
               </p>
               <h1 className="page-title-catalog mt-2" data-testid="cart-page-title">

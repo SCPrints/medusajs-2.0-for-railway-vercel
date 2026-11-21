@@ -18,6 +18,25 @@
   ::file-selector-button {
     border-color: var(--color-gray-200, currentcolor);
   }
+
+  /* Tailwind 3 parity (from the v4 upgrade guide): v4's reset makes form
+     fields see-through, greys placeholders with currentColor/50 and drops the
+     pointer cursor on buttons. Put the v3 behaviour back. */
+  input:where(:not([type="button"], [type="reset"], [type="submit"], [type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="image"], [type="hidden"])),
+  select,
+  textarea {
+    background-color: Field;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400, #9ca3af);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
 @utility instagram-feed-track {
@@ -47,12 +66,15 @@
 
 @utility page-title-marketing {
   /** Primary H1 on marketing / content pages (services, FAQ, hero cards, policies). */
-  @apply text-4xl font-semibold leading-tight text-ui-fg-base small:text-5xl;
+  /* Tailwind 4 parity: @apply no longer picks up our `.text-ui-fg-base`
+     override (navy), and a breakpoint text size no longer resets leading-tight. */
+  @apply text-4xl font-semibold leading-tight text-(--brand-primary) small:text-5xl small:leading-none;
 }
 
 @utility page-title-catalog {
   /** Primary H1 on catalog listing pages (store, collections, categories). */
-  @apply text-3xl font-semibold leading-tight text-ui-fg-base small:text-4xl;
+  /* Tailwind 4 parity: see page-title-marketing. */
+  @apply text-3xl font-semibold leading-tight text-(--brand-primary) small:text-4xl small:leading-10;
 }
 
 @utility contrast-btn {

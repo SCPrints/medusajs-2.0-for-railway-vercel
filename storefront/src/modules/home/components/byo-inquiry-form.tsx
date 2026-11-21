@@ -120,7 +120,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
     setMoodBoard((prev) => prev.filter((m) => m.id !== id))
 
   const inputClass =
-    "w-full rounded-lg border border-(--brand-primary)/35 bg-white px-3 py-2.5 text-sm text-ui-fg-base placeholder:text-ui-fg-muted/80 focus:outline-hidden focus:ring-2 focus:ring-(--brand-primary)/30"
+    "w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ui-fg-base focus:outline-hidden focus:ring-2"
 
   const labelClass = "mb-1.5 block text-xs font-semibold text-ui-fg-base"
 
@@ -237,10 +237,10 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
     return (
       <div
         id={id}
-        className={`rounded-2xl border border-(--brand-primary)/25 bg-white p-6 text-center${id ? " scroll-mt-28" : ""} ${className}`.trim()}
+        className={`rounded-2xl border bg-white p-6 text-center${id ? " scroll-mt-28" : ""} ${className}`.trim()}
         aria-labelledby={formTitleId}
       >
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-(--brand-primary)/8 text-ink">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full text-ink">
           <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path
               strokeLinecap="round"
@@ -390,7 +390,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
                 type="checkbox"
                 checked={selectedGarments.has(g.id)}
                 onChange={() => toggleGarment(g.id)}
-                className="h-4 w-4 rounded-sm border-(--brand-primary)/40 text-ink focus:ring-ink"
+                className="h-4 w-4 rounded-sm text-ink focus:ring-ink"
               />
               {g.label}
             </label>
@@ -439,7 +439,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
           {moodBoard.map((m) => (
             <div
               key={m.id}
-              className="relative h-20 w-20 overflow-hidden rounded-md border border-(--brand-primary)/20 bg-ui-bg-subtle"
+              className="relative h-20 w-20 overflow-hidden rounded-md border bg-ui-bg-subtle"
             >
               <img
                 src={m.preview_url}
@@ -457,7 +457,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
             </div>
           ))}
           {moodBoard.length < MAX_MOOD_BOARD ? (
-            <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-md border border-dashed border-(--brand-primary)/40 text-xs text-ui-fg-subtle hover:bg-ui-bg-subtle">
+            <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-md border border-dashed text-xs text-ui-fg-subtle hover:bg-ui-bg-subtle">
               + Add
               <input
                 ref={moodInputRef}

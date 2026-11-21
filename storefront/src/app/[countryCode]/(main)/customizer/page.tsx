@@ -376,7 +376,7 @@ export default async function CustomizerPage({ params, searchParams }: Customize
                 always has a visible title; full tags + description
                 live in ProductInfo below. */}
             <h1
-              className="mb-4 text-3xl font-semibold leading-tight text-ui-fg-base lg:text-4xl"
+              className="mb-4 text-3xl font-semibold leading-tight text-ui-fg-base lg:text-4xl lg:leading-10"
               data-testid="product-title"
             >
               {customizerProduct.title}

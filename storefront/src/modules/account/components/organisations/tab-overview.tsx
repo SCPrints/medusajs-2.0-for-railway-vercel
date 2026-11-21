@@ -55,7 +55,7 @@ export default function OverviewTab({
     <div className="flex flex-col gap-8">
       {/* Quick stats */}
       <section>
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
           Quick stats
         </h2>
         <div className="mt-3 grid grid-cols-1 gap-3 phone:grid-cols-3">
@@ -85,7 +85,7 @@ export default function OverviewTab({
       {/* Recent orders */}
       <section>
         <div className="flex items-baseline justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
             Recent orders
           </h2>
           {recentOrders.length > 0 ? (
@@ -152,14 +152,14 @@ export default function OverviewTab({
 
       {/* Need to restock? CTA */}
       <section>
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
           Need to restock?
         </h2>
         <div className="mt-3 rounded-2xl border border-ui-border-base bg-white p-5">
           {canPlace ? (
             <LocalizedClientLink
               href={`/account/organisations/${orgId}/orders/new`}
-              className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-(--brand-secondary)/90 min-h-11"
+              className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition min-h-11"
             >
               <span aria-hidden>+</span>
               Place new order

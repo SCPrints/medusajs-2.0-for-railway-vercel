@@ -35,10 +35,10 @@ export default async function OrderCompletedTemplate({
           {/* Seasonal: a fresh tee held up for the new order (Halloween only). */}
           <SeasonalMarginMascot name="zombie-hand" size={100} className="right-6 top-4" />
           <div className="border-l-4 border-brand pl-4 mb-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               Order #{order.display_id} &middot; Confirmed
             </p>
-            <h1 className="mt-2 text-3xl sm:text-4xl font-semibold text-ink leading-tight">
+            <h1 className="mt-2 text-3xl sm:text-4xl sm:leading-10 font-semibold text-ink leading-tight">
               Thank you!
             </h1>
             <p className="text-ui-fg-subtle mt-3 max-w-2xl text-base">

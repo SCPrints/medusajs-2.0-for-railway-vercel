@@ -83,7 +83,7 @@ export default function HomeMovingBanner() {
     <div className="fixed inset-x-0 top-22 z-40 pointer-events-none small:inset-x-auto small:right-5 small:top-34">
       <div className="pointer-events-auto mx-auto max-w-lg px-3 small:mx-0 small:max-w-md small:px-0">
         <div
-          className={`rounded-2xl border-2 border-(--brand-secondary)/20 bg-white p-5 shadow-2xl transition-all duration-300 ease-out ${
+          className={`rounded-2xl border-2 bg-white p-5 shadow-2xl transition-all duration-300 ease-out ${
             animateIn ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
           }`}
         >

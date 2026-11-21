@@ -23,14 +23,14 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="content-container py-14 small:py-20">
       <header className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em]">
           Policy &middot; Privacy
         </p>
         <h1 className="page-title-marketing mt-3 tracking-tight">Privacy Policy</h1>
         <p className="mx-auto mt-4 text-xs font-medium uppercase tracking-[0.12em] text-ui-fg-muted">
           Last updated &middot; April 20, 2026
         </p>
-        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg">
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg small:leading-7">
           We respect your privacy and are committed to protecting your personal
           information. This policy explains how we collect, use, and manage
           your data in accordance with the Australian Privacy Principles.
@@ -39,29 +39,29 @@ export default function PrivacyPolicyPage() {
 
       <div className="mx-auto mt-10 max-w-3xl space-y-5">
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 01
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             Who we are
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             SC PRINTS operates in NSW, Australia.
           </p>
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 02
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             Information we collect
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             We collect personal information that is reasonably necessary for
             our business functions. This includes:
           </p>
-          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             <li className="flex gap-3">
               <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
@@ -89,17 +89,17 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 03
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             How we use your information
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             We use your information to provide our services effectively,
             including:
           </p>
-          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             <li className="flex gap-3">
               <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
@@ -134,17 +134,17 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 04
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             Disclosure of information
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             We do not sell your personal information. However, we may share
             data with trusted third parties to run our business:
           </p>
-          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             <li className="flex gap-3">
               <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
@@ -173,13 +173,13 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Section 05
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
             Data security &amp; retention
           </h2>
-          <div className="mt-4 space-y-3 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+          <div className="mt-4 space-y-3 text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
             <p>
               We implement industry-standard security measures, including SSL
               encryption, to protect your data from unauthorised access or

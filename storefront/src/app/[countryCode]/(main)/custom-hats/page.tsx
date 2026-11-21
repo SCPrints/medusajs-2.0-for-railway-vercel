@@ -71,10 +71,10 @@ export default async function CustomHatsPage({
       {/* Hero */}
       <section className="content-container py-14 small:py-20">
         <header className="mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em]">
             Fully custom headwear
           </p>
-          <h1 className={`${lora.className} mt-3 text-4xl font-semibold leading-tight text-ink small:text-5xl`}>
+          <h1 className={`${lora.className} mt-3 text-4xl font-semibold leading-tight text-ink small:text-5xl small:leading-none`}>
             Custom hats & caps
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-ui-fg-subtle small:text-lg">
@@ -128,7 +128,7 @@ export default async function CustomHatsPage({
         <ol className="mt-8 grid list-none grid-cols-1 gap-px overflow-hidden rounded-lg border border-ui-border-base bg-ui-border-base phone:grid-cols-2 large:grid-cols-4">
           {STEPS.map((s) => (
             <li key={s.n} className="group relative overflow-hidden bg-white p-5 phone:p-6">
-              <span aria-hidden className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter text-(--brand-secondary)/10">
+              <span aria-hidden className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter">
                 {s.n}
               </span>
               <p className="relative mt-8 text-sm font-semibold uppercase tracking-wide text-ui-fg-base">{s.t}</p>

@@ -98,7 +98,7 @@ async function BrandsContent() {
               <li key={b.id}>
                 <LocalizedClientLink
                   href={`/brands/${b.handle}`}
-                  className="group flex h-full flex-col gap-4 rounded-xl border border-ui-border-base bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs"
+                  className="group flex h-full flex-col gap-4 rounded-xl border border-ui-border-base bg-white p-5 text-left transition hover:-translate-y-0.5 hover:shadow-xs"
                 >
                   <span className="flex h-16 w-full items-center justify-start">
                     {logoSrc ? (
@@ -147,7 +147,7 @@ async function BrandsContent() {
         </ul>
 
         <div className="mx-auto mt-16 max-w-3xl rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 text-center small:p-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Can&apos;t find your brand?
           </p>
           <h2 className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl">
@@ -182,7 +182,7 @@ export default function BrandsPage() {
     <>
       <section className="content-container py-12 small:py-16">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em]">
             Brands
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ui-fg-base small:text-4xl medium:text-5xl">

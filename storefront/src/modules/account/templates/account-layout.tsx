@@ -40,7 +40,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         </div>
         <div className="flex flex-col items-start justify-between gap-6 border-t border-ui-border-base py-12 small:flex-row small:items-end">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               Help
             </p>
             <h3 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">

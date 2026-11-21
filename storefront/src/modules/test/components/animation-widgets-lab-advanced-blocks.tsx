@@ -299,7 +299,7 @@ export function LabStickyStoryNav() {
 
   return (
     <div className="max-w-md rounded-xl border border-ui-border-base">
-      <div className="sticky top-0 z-5 border-b border-ui-border-base bg-ui-bg-base/95 px-4 py-2 text-sm font-semibold text-ui-fg-base backdrop-blur-xs">
+      <div className="sticky top-0 z-5 border-b border-ui-border-base px-4 py-2 text-sm font-semibold text-ui-fg-base backdrop-blur-xs">
         {STORY_CHAPTERS[active]?.title ?? "—"}
       </div>
       <div ref={scrollRootRef} className="max-h-[260px] overflow-y-auto">

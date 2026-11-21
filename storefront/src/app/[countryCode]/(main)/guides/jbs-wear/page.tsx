@@ -121,7 +121,7 @@ const CSS = `
 
 const container = "content-container"
 const label = "text-xs font-semibold uppercase tracking-[0.16em]"
-const h2 = `${display.className} text-5xl font-extrabold uppercase leading-[0.92] small:text-7xl`
+const h2 = `${display.className} text-5xl font-extrabold uppercase leading-[0.92] small:text-7xl small:leading-none`
 const chip = `${display.className} inline-block border px-2 py-0.5 text-sm font-semibold uppercase tracking-[0.08em]`
 const btnAmber =
   "inline-flex min-h-11 items-center gap-2 bg-[#f5b300] px-6 py-3 text-sm font-bold uppercase tracking-[0.12em] text-[#0f2238]! transition hover:bg-white"
@@ -631,7 +631,7 @@ export default async function JbsWearGuidePage() {
         <div className="jb-tape h-9" aria-hidden />
         <div className={`${container} py-20 small:py-28`}>
           <Reveal>
-            <h2 className={`${display.className} max-w-4xl text-6xl font-extrabold uppercase leading-[0.88] small:text-8xl`}>
+            <h2 className={`${display.className} max-w-4xl text-6xl font-extrabold uppercase leading-[0.88] small:text-8xl small:leading-none`}>
               Uniforms sorted. <span className="text-[#f5b300]">From one piece.</span>
             </h2>
             <p className="mt-6 max-w-xl text-white/75 small:text-lg">

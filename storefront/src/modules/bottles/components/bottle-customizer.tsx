@@ -353,7 +353,7 @@ export default function BottleCustomizer({
               ref={htmlCanvasRef}
               width={labelPx.width}
               height={labelPx.height}
-              className="rounded-sm shadow-md ring-1 ring-(--brand-primary)/20"
+              className="rounded-sm shadow-md ring-1"
               style={{ background: "rgba(255,255,255,0.85)" }}
             />
           </div>
@@ -368,7 +368,7 @@ export default function BottleCustomizer({
       <div className="medium:col-span-5">
         <div className="flex flex-col gap-y-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               {bottleSpec.spiritType ?? "Custom bottle"}
               {bottleSpec.capacityMl ? ` · ${bottleSpec.capacityMl}ml` : ""}
             </p>

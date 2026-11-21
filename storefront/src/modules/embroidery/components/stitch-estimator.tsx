@@ -545,7 +545,7 @@ const ArtworkEstimateBlock: React.FC<{
         ) : null}
 
         {artwork.aiEstimate ? (
-          <div className="mt-3 rounded-md bg-ui-bg-subtle/60 p-3 text-xs">
+          <div className="mt-3 rounded-md p-3 text-xs">
             <p className="font-semibold text-ui-fg-base">
               AI estimate: {artwork.aiEstimate.stitchesMin.toLocaleString()}–
               {artwork.aiEstimate.stitchesMax.toLocaleString()} stitches (

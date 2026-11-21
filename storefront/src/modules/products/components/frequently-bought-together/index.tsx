@@ -51,7 +51,7 @@ export default async function FrequentlyBoughtTogether({
   return (
     <div className="product-page-constraint">
       <header className="mx-auto mb-10 max-w-xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em]">
           Often ordered together
         </p>
         <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">

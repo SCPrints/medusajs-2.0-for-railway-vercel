@@ -32,7 +32,7 @@ export default function CmykDtfCategorySection({
       <h2 className="text-xl font-bold tracking-tight text-ui-fg-base small:text-2xl">
         {section.category}
       </h2>
-      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ui-fg-subtle small:text-base">
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ui-fg-subtle small:text-base small:leading-6">
         {section.description}
       </p>
       <div className="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">

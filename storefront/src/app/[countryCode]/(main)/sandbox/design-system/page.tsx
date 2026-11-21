@@ -131,7 +131,7 @@ export default function DesignSystemPage() {
         <h1 className="page-title-marketing mt-2 tracking-tight">
           UI Design System
         </h1>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg">
+        <p className="mt-4 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg small:leading-7">
           The tokens and shared components used across the storefront — derived
           from <span className="font-mono text-sm">tailwind.config.js</span>,{" "}
           <span className="font-mono text-sm">globals.css</span> and the design
@@ -330,7 +330,7 @@ export default function DesignSystemPage() {
         <div className="grid gap-6 tablet:grid-cols-2">
           <div className="rounded-large border border-ui-border-base bg-white p-5">
             <div className="border-l-4 border-(--brand-secondary) pl-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em]">
                 Eyebrow
               </p>
               <h3 className="mt-2 text-3xl font-semibold text-ui-fg-base">
@@ -343,7 +343,7 @@ export default function DesignSystemPage() {
           </div>
           <div className="rounded-large border border-ui-border-base bg-white p-5">
             <div className="mx-auto max-w-md text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em]">
                 Eyebrow
               </p>
               <h3 className="mt-2 text-3xl font-semibold text-ui-fg-base">

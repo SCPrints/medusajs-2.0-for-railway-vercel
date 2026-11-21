@@ -931,7 +931,7 @@ export function LabTierESmoothScrollBridge({
               {Array.from({ length: 30 }, (_, i) => (
                 <div
                   key={i}
-                  className="border-b border-ui-border-base/60 px-4 py-4 text-sm text-ui-fg-base"
+                  className="border-b px-4 py-4 text-sm text-ui-fg-base"
                 >
                   Scroll-driven row {i + 1} — every section consumes the same
                   smoothed offset; this is the bridge Lenis automates.
@@ -1032,7 +1032,7 @@ export function LabTierEScrollVelocitySkew({
         {lines.concat(lines).map((l, i) => (
           <p
             key={`${l}-${i}`}
-            className="border-b border-ui-border-base/50 px-4 py-6 text-2xl font-semibold tracking-tight text-ui-fg-base"
+            className="border-b px-4 py-6 text-2xl font-semibold tracking-tight text-ui-fg-base"
           >
             {l}
           </p>

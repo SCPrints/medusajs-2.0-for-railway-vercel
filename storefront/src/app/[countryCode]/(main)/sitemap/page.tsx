@@ -108,11 +108,11 @@ export default async function SitemapPage() {
   return (
     <div className="content-container py-14 small:py-20">
       <header className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em]">
           Navigation
         </p>
         <h1 className="page-title-marketing mt-3 tracking-tight">Site map</h1>
-        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg">
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-ui-fg-subtle small:text-lg small:leading-7">
           Jump to the main areas of the store, services, policies, brands, and
           product collections.
         </p>
@@ -124,7 +124,7 @@ export default async function SitemapPage() {
             key={group.title}
             className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8"
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               {group.eyebrow}
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -137,7 +137,7 @@ export default async function SitemapPage() {
                     href={item.href}
                     className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
                   >
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-(--brand-secondary)/50 transition group-hover:bg-brand" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full transition group-hover:bg-brand" />
                     {item.label}
                   </LocalizedClientLink>
                 </li>
@@ -147,7 +147,7 @@ export default async function SitemapPage() {
         ))}
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8 large:col-span-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Group 05
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -162,7 +162,7 @@ export default async function SitemapPage() {
                 href="/services"
                 className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
               >
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-(--brand-secondary)/50 transition group-hover:bg-brand" />
+                <span className="inline-block h-1.5 w-1.5 rounded-full transition group-hover:bg-brand" />
                 All services
               </LocalizedClientLink>
             </li>
@@ -172,7 +172,7 @@ export default async function SitemapPage() {
                   href={`/services/${s.slug}`}
                   className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
                 >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-(--brand-secondary)/50 transition group-hover:bg-brand" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full transition group-hover:bg-brand" />
                   {s.title}
                 </LocalizedClientLink>
               </li>
@@ -182,7 +182,7 @@ export default async function SitemapPage() {
 
         {sortedBrands.length > 0 && (
           <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8 large:col-span-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               Group 06
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -197,7 +197,7 @@ export default async function SitemapPage() {
                   href="/brands"
                   className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
                 >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-(--brand-secondary)/50 transition group-hover:bg-brand" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full transition group-hover:bg-brand" />
                   All brands
                 </LocalizedClientLink>
               </li>
@@ -207,7 +207,7 @@ export default async function SitemapPage() {
                     href={`/brands/${b.handle}`}
                     className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
                   >
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-(--brand-secondary)/50 transition group-hover:bg-brand" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full transition group-hover:bg-brand" />
                     {b.name}
                   </LocalizedClientLink>
                 </li>
@@ -218,7 +218,7 @@ export default async function SitemapPage() {
 
         {sortedCollections.length > 0 && (
           <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8 large:col-span-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em]">
               Group {sortedBrands.length > 0 ? "07" : "06"}
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -235,7 +235,7 @@ export default async function SitemapPage() {
                     href={`/collections/${c.handle}`}
                     className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
                   >
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-(--brand-secondary)/50 transition group-hover:bg-brand" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full transition group-hover:bg-brand" />
                     {c.title}
                   </LocalizedClientLink>
                 </li>

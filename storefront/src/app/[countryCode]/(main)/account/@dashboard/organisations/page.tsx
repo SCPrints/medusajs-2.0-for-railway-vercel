@@ -20,7 +20,7 @@ export default async function OrganisationsPage() {
   return (
     <div className="w-full">
       <header className="mb-8 border-l-4 border-brand pl-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em]">
           Memberships
         </p>
         <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">
@@ -47,11 +47,11 @@ export default async function OrganisationsPage() {
               <li key={m.organisation.id}>
                 <LocalizedClientLink
                   href={`/account/organisations/${m.organisation.id}`}
-                  className="block rounded-2xl border border-ui-border-base bg-white p-6 transition hover:border-(--brand-secondary)/40 hover:shadow-xs focus:outline-hidden focus:ring-2 focus:ring-(--brand-secondary)/40"
+                  className="block rounded-2xl border border-ui-border-base bg-white p-6 transition hover:shadow-xs focus:outline-hidden focus:ring-2"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex flex-col">
-                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em]">
                         Organisation
                       </p>
                       <p className="mt-1 text-lg font-semibold text-ui-fg-base">
@@ -69,7 +69,7 @@ export default async function OrganisationsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {m.organisation.tax_exempt ? (
-                        <span className="inline-flex items-center rounded-full border border-(--brand-accent)/30 bg-(--brand-accent)/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-accent">
+                        <span className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-accent">
                           Tax-exempt
                         </span>
                       ) : null}
