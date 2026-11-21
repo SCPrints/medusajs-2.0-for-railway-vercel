@@ -20,5 +20,10 @@ module.exports = {
   moduleNameMapper: {
     "^utils/(.*)$": "<rootDir>/src/utils/$1",
   },
+  // pdfkit >= 0.21 pulls in fontkit 3, which ships ES modules only. Node 22
+  // loads it fine at runtime; Jest's CommonJS sandbox needs it compiled.
+  transformIgnorePatterns: [
+    "/node_modules/(?!(\\.pnpm/[^/]+/node_modules/)?(fontkit|brotli|dfa|restructure|unicode-properties|unicode-trie|linebreak|png-js|@noble/ciphers|@noble/hashes|@swc/helpers)/)",
+  ],
   testPathIgnorePatterns: ["/node_modules/", "/.medusa/", "/build/"],
 }
