@@ -197,6 +197,8 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
         subtitle: it.variant_title ?? null,
         description: it.metadata?.description ?? null,
         sizes_pending: isSizesPendingLine(it),
+        // "Order one sample first": one garment, marked by the customer's cart.
+        sample: it.metadata?.sample === true && Number(it.quantity) === 1,
         quantity: Number(it.quantity ?? 0),
         unit_price: num(it.unit_price),
         total: num(it.unit_price) != null ? (num(it.unit_price) as number) * Number(it.quantity ?? 0) : null,

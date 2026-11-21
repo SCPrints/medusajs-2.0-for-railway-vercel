@@ -22,31 +22,13 @@ const STOREFRONT_URL = process.env.STOREFRONT_URL?.replace(/\/$/, "")
 const STOREFRONT_DEFAULT_COUNTRY_CODE =
   process.env.STOREFRONT_DEFAULT_COUNTRY_CODE?.toLowerCase()
 
+// Sign-in is required, as for any order page. ?again=1 makes the page lead with
+// the Order again button (components/reorder-actions).
 const buildReorderUrl = (candidate: ReorderCandidate): string | null => {
   if (!STOREFRONT_URL) return null
-  const country =
-    candidate.country_code ||
-    STOREFRONT_DEFAULT_COUNTRY_CODE ||
-    null
+  const country = candidate.country_code || STOREFRONT_DEFAULT_COUNTRY_CODE || null
   const prefix = country ? `/${country}` : ""
-  if (candidate.reorder_line_item_id) {
-    return `${STOREFRONT_URL}${prefix}/customizer?reorder=${encodeURIComponent(candidate.last_order_id)}:${encodeURIComponent(candidate.reorder_line_item_id)}`
-  }
-  // Fallback to the order detail page where the customer has per-line
-  // "Re-order" buttons.
-  return `${STOREFRONT_URL}${prefix}/account/orders/details/${encodeURIComponent(candidate.last_order_id)}`
-}
-
-const buildAccountOrdersUrl = (
-  candidate: ReorderCandidate
-): string | null => {
-  if (!STOREFRONT_URL) return null
-  const country =
-    candidate.country_code ||
-    STOREFRONT_DEFAULT_COUNTRY_CODE ||
-    null
-  const prefix = country ? `/${country}` : ""
-  return `${STOREFRONT_URL}${prefix}/account/orders`
+  return `${STOREFRONT_URL}${prefix}/account/orders/details/${encodeURIComponent(candidate.last_order_id)}?again=1`
 }
 
 /**
@@ -113,12 +95,6 @@ export async function sendReorderReminders(
       campaign: "reorder_reminder",
       content: "primary_cta",
     })
-    const accountOrdersUrl = tagUrl(buildAccountOrdersUrl(c), {
-      medium: "marketing",
-      campaign: "reorder_reminder",
-      content: "secondary_cta",
-    })
-
     const unsubscribeUrl = buildUnsubscribeUrl(c.email, "reorder_reminder")
     try {
       await notificationModuleService.createNotifications({
@@ -137,12 +113,10 @@ export async function sendReorderReminders(
           reminder: {
             firstName: c.first_name,
             lastOrderDisplayId: c.last_order_display_id,
-            lastOrderTotal: c.last_order_total,
-            currencyCode: c.currency_code,
+            lines: c.lines,
             daysSinceLast: c.days_since_last,
             medianGapDays: c.median_gap_days,
             reorderUrl,
-            accountOrdersUrl,
           },
           unsubscribeUrl,
         },

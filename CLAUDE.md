@@ -224,6 +224,13 @@ Two-stage hydration: stage 1 fetches the metadata, stage 2 replays it onto Fabri
 - **PO number**: checkout Review step → `cart.metadata.po_number` (cleaned by [clean-cart-po-number.ts](backend/src/api/middlewares/clean-cart-po-number.ts)) → order metadata; shown on invoice, receipt PDF, order-placed email, job window, customer order pages.
 - **"Save to my designs"** shows in the Studio again (it was silently hidden from May 2026 when the Studio went embedded-only). Saved designs host their uploads first, so they hold URLs, not multi-MB data URLs.
 
+**Portal extras batches 2-3 (built 21 Nov 2026)** — full table in [Docs/CUSTOMER_PORTAL_EXTRAS_2026_11.md](Docs/CUSTOMER_PORTAL_EXTRAS_2026_11.md). Rules that matter:
+- **Only confirmed emails match by email.** New sign-ups carry `metadata.email_verification_required = true` until they follow the signed link ([email-verification.ts](backend/src/lib/email-verification.ts)); accounts without the flag are confirmed. `findCustomerIdByEmail` / `ownsQuote` ignore unconfirmed accounts, so any new "attach by email" path must go through them. `POST /store/customers/me` strips `metadata` ([customer-metadata-guard.ts](backend/src/api/middlewares/customer-metadata-guard.ts)); customer-writable metadata needs its own route.
+- **Two-step login is Medusa's core MFA** and needs the Fly secret `AUTH_MFA_ENCRYPTION_KEY`.
+- **Customer portal messages are order comments** written as `email:portal:<customer_id>`; what a customer may read is decided only by `visibleMessages` in [job-messages.ts](backend/src/lib/job-messages.ts). Problems / size swaps live on `order.metadata.customer_requests` and never change the order.
+- **Rush and split delivery are requests** (`cart.metadata.rush_request`, `split_delivery`): no price is charged; staff confirm.
+- **Throwaway-DB tests:** Medusa 2.22's `loadEnv` fills BLANK env vars from `backend/.env`, so blanking keys no longer isolates a run; preload a script that makes `.env` read as empty.
+
 ### 4. Live DPI warning + vectorization service
 
 Computes effective DPI = `image source pixels / (rendered canvas px / canvas-px-per-inch)` for every Fabric image; opens a modal if the worst image is below 150 DPI; offers two paths (re-upload or pay for vectorization).

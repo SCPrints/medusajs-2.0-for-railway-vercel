@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { HttpTypes } from "@medusajs/types"
 
@@ -13,6 +13,7 @@ import {
 } from "@modules/customizer/lib/metadata"
 import GarmentPicker from "@modules/account/components/garment-picker"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import { isSampleLine } from "@modules/cart/lib/sample"
 import OrderAgainButton from "@modules/order/components/order-again-button"
 import {
   groupOrderLinesByDesign,
@@ -131,6 +132,15 @@ const ReorderActions = ({ order }: Props) => {
   const router = useRouter()
   const { countryCode } = useParams() as { countryCode: string }
   const [pickerFor, setPickerFor] = useState<string | null>(null)
+  // ?again=1 (the reminder email's button): bring this section into view and
+  // highlight it. The page still needs the customer signed in, as ever.
+  const sectionRef = useRef<HTMLElement>(null)
+  const [fromReminder, setFromReminder] = useState(false)
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("again") !== "1") return
+    setFromReminder(true)
+    sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }, [])
 
   const items = order.items ?? []
   const groups = groupOrderLinesByDesign(items)
@@ -140,7 +150,16 @@ const ReorderActions = ({ order }: Props) => {
   const revisedProofs = (order.metadata as Record<string, unknown> | null)?.revised_proofs
 
   return (
-    <section className="rounded-xl bg-ui-bg-subtle p-5" data-testid="reorder-actions">
+    <section
+      ref={sectionRef}
+      className={`rounded-xl bg-ui-bg-subtle p-5 ${fromReminder ? "ring-2 ring-ink" : ""}`}
+      data-testid="reorder-actions"
+    >
+      {fromReminder ? (
+        <p className="mb-3 rounded-lg bg-white px-3 py-2 text-sm font-medium text-ui-fg-base" role="status">
+          Welcome back. Press Order again on the design you want.
+        </p>
+      ) : null}
       <div className="mb-4 flex flex-col gap-3 tablet:flex-row tablet:items-start tablet:justify-between">
         <div>
           <h2 className="mb-1 text-base font-semibold text-ui-fg-base">Re-order</h2>
@@ -163,6 +182,7 @@ const ReorderActions = ({ order }: Props) => {
           const lineIds = group.lines.map((l) => l.id)
           const showVariantsCollapsed = group.lines.length > 5
           const approved = hasApprovedProof(revisedProofs, lineIds)
+          const isSample = group.lines.every((l) => isSampleLine(l))
 
           return (
             <li
@@ -185,6 +205,11 @@ const ReorderActions = ({ order }: Props) => {
                   <p className="mt-0.5 text-xs text-ui-fg-subtle">
                     {formatQuantitySummary(group.lines, group.totalQty)}
                   </p>
+                  {isSample ? (
+                    <p className="mt-2 text-sm font-medium text-emerald-800">
+                      Sample: one garment. Happy with it? Order the full run and set your real quantities.
+                    </p>
+                  ) : null}
                   {approved ? (
                     <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -227,7 +252,7 @@ const ReorderActions = ({ order }: Props) => {
                 </button>
                 <LocalizedClientLink
                   href={studioHref(group.productHandle, order.id, line.id)}
-                  className={BTN_SECONDARY}
+                  className={isSample ? `${BTN} bg-ink text-white hover:opacity-90` : BTN_SECONDARY}
                   data-testid="reorder-design-link"
                   onClick={() =>
                     phCapture("reorder_design_clicked", {
@@ -237,9 +262,11 @@ const ReorderActions = ({ order }: Props) => {
                     })
                   }
                 >
-                  Change &amp; re-order
+                  {isSample ? "Happy with the sample? Order the full run" : "Change & re-order"}
                 </LocalizedClientLink>
-                <OrderAgainButton orderId={order.id} lineIds={lineIds} className="w-full tablet:w-auto" />
+                {isSample ? null : (
+                  <OrderAgainButton orderId={order.id} lineIds={lineIds} className="w-full tablet:w-auto" />
+                )}
               </div>
             </li>
           )

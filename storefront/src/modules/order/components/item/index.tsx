@@ -2,6 +2,7 @@ import { HttpTypes } from "@medusajs/types"
 import { Table, Text } from "@medusajs/ui"
 
 import { convertMinorToLocale } from "@lib/util/money"
+import { isSampleLine } from "@modules/cart/lib/sample"
 import LineItemOptions from "@modules/common/components/line-item-options"
 import LineItemPrice from "@modules/common/components/line-item-price"
 import LineItemUnitPrice from "@modules/common/components/line-item-unit-price"
@@ -63,6 +64,9 @@ const Item = ({ item, currencyCode }: ItemProps) => {
         >
           {item.title}
         </Text>
+        {isSampleLine(item) ? (
+          <Text className="txt-small font-medium text-emerald-700">Sample: one garment</Text>
+        ) : null}
         {item.variant && (
           <LineItemOptions variant={item.variant} data-testid="product-variant" />
         )}

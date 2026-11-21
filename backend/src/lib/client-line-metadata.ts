@@ -30,6 +30,8 @@
  * decorationDesign server-side before its own addToCartWorkflow call.
  */
 
+import { cleanSampleMetadata } from "./sample-line"
+
 export const SERVER_TRUST_METADATA_KEYS = [
   "quote_locked_price",
   "price_override",
@@ -63,6 +65,9 @@ export const CLIENT_LINE_METADATA_KEYS = [
   "group_order_participants",
   // Order again — { order_id, display_id, line_item_id } of the source line
   "reorder_of",
+  // "Order one sample first" — cleaned by cleanSampleMetadata (lib/sample-line.ts)
+  "sample",
+  "sample_of",
   // Our range — the organisation the line was ordered for (services/org-range)
   "organisation_id",
 ] as const
@@ -103,5 +108,6 @@ export function allowlistClientLineMetadata(
     else dropped.push(key)
   }
   if ("customizerDesign" in out) out.customizerDesign = withoutServerPricing(out.customizerDesign)
+  cleanSampleMetadata(out)
   return { metadata: out, dropped }
 }

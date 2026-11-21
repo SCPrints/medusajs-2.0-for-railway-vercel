@@ -6,14 +6,17 @@ import type {
   OrganisationDesign,
 } from "@lib/data/organisations"
 
+import StockExtras, { downloadStockCsv } from "./stock-extras"
+
 type Props = {
+  orgId: string
   inventory: InventoryRow[]
   designs: OrganisationDesign[]
 }
 
 type ModeFilter = "all" | "held_stock" | "print_on_demand"
 
-export default function InventoryTab({ inventory, designs }: Props) {
+export default function InventoryTab({ orgId, inventory, designs }: Props) {
   const [designFilter, setDesignFilter] = useState<string>("all")
   const [modeFilter, setModeFilter] = useState<ModeFilter>("all")
   const [belowReorderOnly, setBelowReorderOnly] = useState(false)
@@ -94,6 +97,9 @@ export default function InventoryTab({ inventory, designs }: Props) {
           />
           Below reorder point
         </label>
+        <button type="button" onClick={() => downloadStockCsv(filtered)} className="min-h-11 rounded-md border border-ui-border-base px-3 text-sm font-semibold text-ink hover:bg-ui-bg-subtle">
+          Download CSV
+        </button>
       </div>
 
       {/* Summary line */}
@@ -121,6 +127,7 @@ export default function InventoryTab({ inventory, designs }: Props) {
               <th className="px-3 py-3 text-right font-semibold">Reserved</th>
               <th className="px-3 py-3 text-right font-semibold">Available</th>
               <th className="px-3 py-3 text-right font-semibold">Reorder</th>
+              <th className="px-3 py-3 text-left font-semibold">Stock</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-ui-border-base">
@@ -175,6 +182,9 @@ export default function InventoryTab({ inventory, designs }: Props) {
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums text-ui-fg-subtle">
                     {r.reorder_point != null ? `≤ ${r.reorder_point}` : "—"}
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <StockExtras orgId={orgId} row={r} low={lowStock} />
                   </td>
                 </tr>
               )
@@ -252,6 +262,7 @@ export default function InventoryTab({ inventory, designs }: Props) {
                   Print on demand — no held stock.
                 </p>
               )}
+              <StockExtras orgId={orgId} row={r} low={lowStock} />
             </li>
           )
         })}

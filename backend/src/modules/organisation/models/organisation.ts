@@ -41,6 +41,8 @@ const Organisation = model
     credit_limit: model.bigNumber().nullable(),
     // Accounts-payable inbox: tax invoices for this org's orders are also sent here.
     ap_email: model.text().nullable(),
+    // Approved colours / fonts / placement notes / official logos (lib/brand-kit.ts).
+    brand_kit: model.json().default({}),
     metadata: model.json().default({}),
   })
   .indexes([{ on: ["handle"], unique: true }])

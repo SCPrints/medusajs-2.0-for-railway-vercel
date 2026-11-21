@@ -36,14 +36,15 @@ describe("a quote downloaded from the cart", () => {
 
 describe("ownsQuote", () => {
   it("matches the customer id", () => {
-    expect(ownsQuote({ customer_id: "cus_1", email: "x@y.com" }, "cus_1", null)).toBe(true)
+    expect(ownsQuote({ customer_id: "cus_1", email: "x@y.com" }, "cus_1", null, false)).toBe(true)
   })
   it("matches the email, ignoring case and spaces", () => {
-    expect(ownsQuote({ customer_id: null, email: " Jo@Club.com " }, "cus_1", "jo@club.com")).toBe(true)
+    expect(ownsQuote({ customer_id: null, email: " Jo@Club.com " }, "cus_1", "jo@club.com", true)).toBe(true)
+    expect(ownsQuote({ customer_id: null, email: "jo@club.com" }, "cus_1", "jo@club.com", false)).toBe(false)
   })
   it("refuses anyone else, and never matches two empty emails", () => {
-    expect(ownsQuote({ customer_id: "cus_2", email: "a@b.com" }, "cus_1", "jo@club.com")).toBe(false)
-    expect(ownsQuote({ customer_id: null, email: "" }, "cus_1", "")).toBe(false)
+    expect(ownsQuote({ customer_id: "cus_2", email: "a@b.com" }, "cus_1", "jo@club.com", true)).toBe(false)
+    expect(ownsQuote({ customer_id: null, email: "" }, "cus_1", "", true)).toBe(false)
   })
 })
 

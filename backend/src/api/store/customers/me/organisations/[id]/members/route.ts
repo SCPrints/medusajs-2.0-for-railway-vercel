@@ -3,18 +3,10 @@ import {
   MedusaResponse,
 } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import { z } from "zod"
 
-import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../../../lib/audit-entities"
-import { writeAudit } from "../../../../../../../lib/audit-log"
 import { ORGANISATION_MODULE } from "../../../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../../../modules/organisation/service"
-import { requireMembership, requireRole } from "../../_helpers"
-
-const inviteSchema = z.object({
-  email: z.string().email(),
-  role: z.enum(["owner", "purchaser", "viewer"]).default("purchaser"),
-})
+import { requireMembership } from "../../_helpers"
 
 /**
  * GET /store/customers/me/organisations/[id]/members
@@ -73,130 +65,8 @@ export async function GET(
 }
 
 /**
- * POST /store/customers/me/organisations/[id]/members
- *
- * Owner-only. Invite by email — looks up an existing customer by
- * email, adds a member row with the requested role. Idempotent on
- * (organisation_id, customer_id).
- *
- * If no customer exists with the given email, returns 404 with a
- * friendly error so the storefront can show "Ask them to sign up
- * first and then re-invite". (Email-token invites for non-customers
- * are deferred to a follow-up; the spec calls out members tab as
- * net-new UI rather than full email-invite flow.)
+ * POST /store/customers/me/organisations/[id]/members  { email, role }
+ * Same as POST …/invites: nobody is added without accepting an emailed
+ * invitation from the matching, email-confirmed account.
  */
-export async function POST(
-  req: AuthenticatedMedusaRequest,
-  res: MedusaResponse
-) {
-  const membership = await requireMembership(req)
-  requireRole(membership, ["owner"])
-
-  let body: z.infer<typeof inviteSchema>
-  try {
-    body = inviteSchema.parse(req.body ?? {})
-  } catch (err: any) {
-    return res.status(400).json({ error: err?.message ?? "invalid" })
-  }
-
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as any
-  let customer: any
-  try {
-    const { data } = await query.graph({
-      entity: "customer",
-      fields: ["id", "email", "first_name", "last_name"],
-      filters: { email: body.email.toLowerCase() },
-    })
-    customer = data?.[0]
-  } catch {
-    /* fall through */
-  }
-  if (!customer) {
-    // Same shape + status as a successful add, so an org owner can't use
-    // this route to test whether an email has an account (review 4-6).
-    return res.status(202).json({
-      member: null,
-      pending: true,
-      message:
-        "If that email has an SC Prints account they've been added. If not, ask them to register and invite again.",
-    })
-  }
-
-  const service =
-    req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
-  const existing = (await service.listOrganisationMembers({
-    organisation_id: membership.organisation_id,
-    customer_id: customer.id,
-  } as any)) as any[]
-  if (existing.length > 0) {
-    const row = existing[0]
-    return res.json({
-      member: {
-        id: row.id,
-        customer_id: row.customer_id,
-        role: row.role,
-        accepted_at: row.accepted_at,
-        invited_by: row.invited_by,
-        customer: {
-          id: customer.id,
-          email: customer.email ?? null,
-          first_name: customer.first_name ?? null,
-          last_name: customer.last_name ?? null,
-        },
-      },
-      duplicate: true,
-    })
-  }
-
-  const [created] = (await service.createOrganisationMembers([
-    {
-      organisation_id: membership.organisation_id,
-      customer_id: customer.id,
-      role: body.role,
-      invited_by: membership.customer_id,
-      accepted_at: new Date(),
-    },
-  ])) as any[]
-
-  await writeAudit({
-    container: req.scope as any,
-    entity: AUDIT_ENTITY.ORGANISATION,
-    entity_id: membership.organisation_id,
-    action: AUDIT_ACTION.MEMBER_ADDED,
-    actor_id: membership.customer_id,
-    details: {
-      customer_id: customer.id,
-      role: body.role,
-      member_id: created?.id ?? null,
-      source: "portal",
-    },
-  })
-  await writeAudit({
-    container: req.scope as any,
-    entity: AUDIT_ENTITY.CUSTOMER,
-    entity_id: customer.id,
-    action: AUDIT_ACTION.MEMBER_ADDED,
-    actor_id: membership.customer_id,
-    details: {
-      organisation_id: membership.organisation_id,
-      role: body.role,
-      source: "portal",
-    },
-  })
-
-  res.status(201).json({
-    member: {
-      id: created.id,
-      customer_id: created.customer_id,
-      role: created.role,
-      accepted_at: created.accepted_at,
-      invited_by: created.invited_by,
-      customer: {
-        id: customer.id,
-        email: customer.email ?? null,
-        first_name: customer.first_name ?? null,
-        last_name: customer.last_name ?? null,
-      },
-    },
-  })
-}
+export { POST } from "../invites/route"

@@ -6,6 +6,7 @@ import Refresh from "@modules/common/icons/refresh"
 import { HttpTypes } from "@medusajs/types"
 import { LayoutGroup, motion, useReducedMotion } from "framer-motion"
 import { useId, useState } from "react"
+import MaterialsCompliance from "@modules/products/components/materials-compliance"
 import { isBeanieGarmentProduct } from "@modules/products/lib/variant-options"
 
 type ProductTabsProps = {
@@ -114,6 +115,7 @@ const ProductInfoTab = ({ product }: ProductTabsProps) => {
           </div>
         </div>
       </div>
+      <MaterialsCompliance product={product} />
     </div>
   )
 }

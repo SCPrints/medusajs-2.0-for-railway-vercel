@@ -4,7 +4,7 @@ import { sdk } from "@lib/config"
 
 import { getAuthHeaders } from "./cookies"
 
-export type SupplierDocument = { id: string; title: string; url: string; updated_at: string }
+export type SupplierDocument = { id: string; title: string; url: string; updated_at: string; brands?: Array<{ handle: string; name: string }> }
 
 /** SC Prints' own documents (ABN certificate, insurance…) for signed-in customers. */
 export async function listSupplierDocuments(): Promise<SupplierDocument[]> {

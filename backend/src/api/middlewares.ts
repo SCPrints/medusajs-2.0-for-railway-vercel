@@ -6,7 +6,9 @@ import { stripVariantCostMetadataMiddleware } from "./middlewares/strip-variant-
 import { stripLineItemTrustMetadataMiddleware } from "./middlewares/strip-line-item-trust-metadata"
 import { cleanCartPoNumberMiddleware } from "./middlewares/clean-cart-po-number"
 import { cleanCartRushRequestMiddleware } from "./middlewares/clean-cart-rush-request"
+import { cleanCartSplitDeliveryMiddleware } from "./middlewares/clean-cart-split-delivery"
 import { orgCheckoutCompleteGuard, orgPaymentSessionGuard } from "./middlewares/org-checkout-guard"
+import { stampSignupVerificationMiddleware, stripCustomerMetadataMiddleware } from "./middlewares/customer-metadata-guard"
 
 /**
  * Default Express JSON limit is ~100kb; customizer render payloads include
@@ -67,10 +69,22 @@ export default defineMiddlewares({
       middlewares: [stripLineItemTrustMetadataMiddleware],
     },
     {
+      // Sign-up is stamped "email not confirmed yet"; profile updates can't
+      // touch metadata (customer-metadata-guard.ts).
+      matcher: "/store/customers",
+      methods: ["POST"],
+      middlewares: [stampSignupVerificationMiddleware],
+    },
+    {
+      matcher: "/store/customers/me",
+      methods: ["POST"],
+      middlewares: [stripCustomerMetadataMiddleware],
+    },
+    {
       // Checkout's PO number field: trim + cap at 60 (lib/po-number.ts).
       matcher: "/store/carts/:id",
       methods: ["POST"],
-      middlewares: [cleanCartPoNumberMiddleware, cleanCartRushRequestMiddleware],
+      middlewares: [cleanCartPoNumberMiddleware, cleanCartRushRequestMiddleware, cleanCartSplitDeliveryMiddleware],
     },
     {
       // Pricing invariant — last gate before a cart becomes an order.

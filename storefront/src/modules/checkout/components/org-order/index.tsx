@@ -3,7 +3,10 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 
+import { saveSplitDelivery } from "@lib/data/org-ops"
 import { parkCartWithOrg, type OrgAccount, type OrgOrderSelection } from "@lib/data/org-account"
+
+import SplitDelivery from "./split-delivery"
 
 const aud = (n: number) =>
   new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(n)
@@ -48,6 +51,8 @@ const OrgOrder = ({
   const [error, setError] = useState<string | null>(null)
 
   const pickOrg = (id: string) => {
+    // A split belongs to one organisation: drop it when the choice changes.
+    if (value.organisation_id && value.organisation_id !== id) void saveSplitDelivery(value.organisation_id, null)
     setParking(null)
     setError(null)
     onChange({ organisation_id: id || null, cost_centre: null, organisation_po_id: null, po_number: null })
@@ -137,6 +142,8 @@ const OrgOrder = ({
               {needsApproval} An owner needs to approve it.
             </p>
           ) : null}
+
+          <SplitDelivery key={org.organisation.id} orgId={org.organisation.id} />
 
           <div className="tablet:col-span-2">
             {parking ? (

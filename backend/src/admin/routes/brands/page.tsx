@@ -16,6 +16,8 @@ import {
 import { ArrowPath, Plus, PencilSquare, Trash, Tag } from "@medusajs/icons"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
+import { cleanCompliance } from "../../../lib/compliance"
+import { ComplianceFields, fromDraft, toDraft, type ComplianceDraft } from "../../components/compliance/compliance-fields"
 import {
   BrandPicker,
   invalidateBrandPickerCache,
@@ -89,11 +91,23 @@ const BrandFormDrawer = ({
   const [draft, setDraft] = useState<BrandDraft>(BLANK_DRAFT)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Compliance default for the brand's products + which supplier statements
+  // belong to it (lives in brand.metadata, no migration).
+  const [compliance, setCompliance] = useState<ComplianceDraft>(toDraft(null))
+  const [docIds, setDocIds] = useState<string[]>([])
+  const [docs, setDocs] = useState<Array<{ id: string; title: string }>>([])
 
   useEffect(() => {
     if (open) {
       setDraft(editBrand ? brandToDraft(editBrand) : { ...BLANK_DRAFT })
       setError(null)
+      setCompliance(toDraft(editBrand?.metadata?.compliance as any))
+      const ids = editBrand?.metadata?.supplier_document_ids
+      setDocIds(Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : [])
+      fetch("/admin/supplier-documents", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : { documents: [] }))
+        .then((j) => setDocs(j.documents ?? []))
+        .catch(() => setDocs([]))
     }
   }, [open, editBrand])
 
@@ -110,7 +124,13 @@ const BrandFormDrawer = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(draftToPayload(draft)),
+        body: JSON.stringify({
+          ...draftToPayload(draft),
+          // Spread: updating metadata replaces it.
+          ...(editBrand
+            ? { metadata: { ...(editBrand.metadata ?? {}), compliance: cleanCompliance(fromDraft(compliance)), supplier_document_ids: docIds } }
+            : {}),
+        }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.message ?? json?.error ?? `HTTP ${res.status}`)
@@ -214,6 +234,32 @@ const BrandFormDrawer = ({
                 Inactive brands stay in admin but are hidden from the storefront.
               </Text>
             </div>
+
+            {editBrand ? (
+              <div className="flex flex-col gap-y-3 border-t border-ui-border-base pt-4">
+                <Label className="text-sm font-medium">Compliance default</Label>
+                <ComplianceFields value={compliance} onChange={setCompliance} />
+                <Label className="text-xs">Supplier statements for this brand</Label>
+                {docs.length === 0 ? (
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    No supplier documents yet. Add them in Setup → Supplier documents.
+                  </Text>
+                ) : (
+                  docs.map((d) => (
+                    <label key={d.id} className="flex items-center gap-x-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={docIds.includes(d.id)}
+                        onChange={(e) =>
+                          setDocIds((prev) => (e.target.checked ? [...prev, d.id] : prev.filter((x) => x !== d.id)))
+                        }
+                      />
+                      {d.title}
+                    </label>
+                  ))
+                )}
+              </div>
+            ) : null}
 
             {error ? (
               <Text size="small" className="text-ui-tag-red-icon">{error}</Text>

@@ -1,15 +1,18 @@
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { customerQuoteSummary, ownsQuote, type CustomerQuoteSummary } from "../../lib/customer-quotes"
+import { isEmailVerified } from "../../lib/email-verification"
 import { QUOTE_MODULE } from "../../modules/quote"
 import type QuoteModuleService from "../../modules/quote/service"
 import { STRIPE_PAYMENT_LINK_MODULE } from "../../modules/stripe-payment-link"
 
 const LIST_LIMIT = 100
 
+/** The customer's email for matching quotes; null until the account's email is confirmed. */
 export async function customerEmailOf(container: any, customerId: string): Promise<string | null> {
   const knex = container.resolve(ContainerRegistrationKeys.PG_CONNECTION)
-  const row = await knex("customer").where("id", customerId).whereNull("deleted_at").first("email")
+  const row = await knex("customer").where("id", customerId).whereNull("deleted_at").first("email", "metadata")
+  if (!isEmailVerified(row)) return null
   return typeof row?.email === "string" && row.email.trim() ? row.email.trim().toLowerCase() : null
 }
 
@@ -72,7 +75,7 @@ export async function retrieveOwnedQuote(container: any, customerId: string, quo
   } catch {
     return null
   }
-  return ownsQuote(quote, customerId, await customerEmailOf(container, customerId)) ? quote : null
+  return ownsQuote(quote, customerId, await customerEmailOf(container, customerId), true) ? quote : null
 }
 
 /** For an accepted quote: its order (and whether it sits in this customer's account) + any unpaid card link. */

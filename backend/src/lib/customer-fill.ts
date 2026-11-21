@@ -1,5 +1,7 @@
 import { Modules } from "@medusajs/framework/utils"
 
+import { isEmailVerified } from "./email-verification"
+
 /**
  * Keeps the customer record filled in from what people give us elsewhere —
  * order addresses, contact / quote forms. Medusa creates guest customers
@@ -111,7 +113,7 @@ export function customerAddressFromOrder(
 /**
  * The customer that owns this email: a registered account beats a guest
  * record (Medusa keeps one of each when an account holder also checked out
- * as a guest). Null when there is none — never creates one, most enquiries
+ * as a guest), unverified sign-ups never. Null when there is none — never creates one, most enquiries
  * never convert. Best-effort: lookup failures return null.
  */
 export async function findCustomerIdByEmail(container: any, email: unknown): Promise<string | null> {
@@ -119,7 +121,10 @@ export async function findCustomerIdByEmail(container: any, email: unknown): Pro
   if (!e || isOwnInbox(e)) return null
   try {
     const matches: any[] = await container.resolve(Modules.CUSTOMER).listCustomers({ email: e })
-    const pick = matches.find((c) => c?.has_account) ?? matches[0]
+    // An account whose email isn't confirmed yet must not collect someone
+    // else's quotes: skip it (guest records carry no flag, so they still match).
+    const usable = matches.filter(isEmailVerified)
+    const pick = usable.find((c) => c?.has_account) ?? usable[0]
     return pick?.id ?? null
   } catch {
     return null

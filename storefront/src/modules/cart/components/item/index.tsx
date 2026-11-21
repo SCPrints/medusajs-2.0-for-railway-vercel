@@ -5,6 +5,7 @@ import { Table, Text, clx } from "@medusajs/ui"
 import { updateLineItem } from "@lib/data/cart"
 import { HttpTypes } from "@medusajs/types"
 import CartItemSelect from "@modules/cart/components/cart-item-select"
+import SampleFirst from "@modules/cart/components/sample-first"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import DeleteButton from "@modules/common/components/delete-button"
 import LineItemOptions from "@modules/common/components/line-item-options"
@@ -144,6 +145,7 @@ const Item = ({ item, type = "full" }: ItemProps) => {
           {displayTitle}
         </Text>
         <LineItemOptions variant={item.variant} data-testid="product-variant" />
+        {type === "full" ? <SampleFirst item={item} /> : null}
         {customizerMetadata && (
           <>
             <Text className="txt-small text-ui-fg-subtle mt-1">Custom design attached</Text>
@@ -220,6 +222,7 @@ export default memo(Item, (prev, next) => {
     a.quantity === b.quantity &&
     a.unit_price === b.unit_price &&
     a.variant_id === b.variant_id &&
-    a.product_title === b.product_title
+    a.product_title === b.product_title &&
+    (a.metadata as any)?.sample === (b.metadata as any)?.sample
   )
 })

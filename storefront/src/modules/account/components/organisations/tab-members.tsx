@@ -1,9 +1,15 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
-  inviteOrganisationMember,
+  cancelOrgInvite,
+  inviteColleague,
+  listOrgInvites,
+  resendOrgInvite,
+  type OrgInvite,
+} from "@lib/data/identity"
+import {
   removeOrganisationMember,
   updateOrganisationMemberRole,
   type OrgMember,
@@ -35,6 +41,12 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
     text: string
   } | null>(null)
 
+  const [pending, setPending] = useState<OrgInvite[]>([])
+  const loadPending = () => listOrgInvites(orgId).then(setPending)
+  useEffect(() => {
+    loadPending()
+  }, [orgId])
+
   const ownerCount = members.filter((m) => m.role === "owner").length
 
   function refresh() {
@@ -45,15 +57,15 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
     e.preventDefault()
     if (!inviteEmail.trim()) return
     setFeedback(null)
-    const res = await inviteOrganisationMember(orgId, {
-      email: inviteEmail.trim().toLowerCase(),
-      role: inviteRole,
-    })
+    const res = await inviteColleague(orgId, inviteEmail.trim().toLowerCase(), inviteRole)
     if (res.ok) {
       setInviteEmail("")
       setInviteRole("purchaser")
-      setFeedback({ kind: "ok", text: res.message ?? "Member added." })
-      refresh()
+      setFeedback({
+        kind: "ok",
+        text: res.sent ? "Invitation sent." : "Invitation saved, but we couldn't email it yet. Try Resend.",
+      })
+      loadPending()
     } else {
       setFeedback({ kind: "err", text: res.error })
     }
@@ -90,8 +102,8 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
           Invite a member
         </h2>
         <p className="mt-1 text-xs text-ui-fg-muted">
-          They must already have an SC Prints account with this email. Ask
-          them to register first if they haven&apos;t.
+          We&apos;ll email them a link. They sign in or sign up with this
+          email address, confirm it, and accept. The link works for 14 days.
         </p>
         <form
           onSubmit={handleInvite}
@@ -145,6 +157,51 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
           </p>
         ) : null}
       </section>
+
+      {pending.length > 0 ? (
+        <section>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
+            Waiting to accept ({pending.length})
+          </h2>
+          <ul className="mt-3 divide-y divide-ui-border-base rounded-2xl border border-ui-border-base bg-white">
+            {pending.map((i) => (
+              <li key={i.id} className="flex flex-col gap-3 px-5 py-4 phone:flex-row phone:items-center phone:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-ui-fg-base">{i.email}</p>
+                  <p className="text-xs text-ui-fg-muted">
+                    {ROLE_LABEL[i.role]} · expires {new Date(i.expires_at).toLocaleDateString("en-AU")}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={i.send_count >= 3}
+                    onClick={async () => {
+                      const r = await resendOrgInvite(orgId, i.id)
+                      setFeedback(r.ok ? { kind: "ok", text: "Invitation sent again." } : { kind: "err", text: r.error })
+                      loadPending()
+                    }}
+                    className="rounded-full border border-ui-border-base px-3 py-1.5 text-xs font-semibold min-h-11 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Resend
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const r = await cancelOrgInvite(orgId, i.id)
+                      setFeedback(r.ok ? { kind: "ok", text: "Invitation cancelled." } : { kind: "err", text: r.error })
+                      loadPending()
+                    }}
+                    className="rounded-full border border-ui-border-base px-3 py-1.5 text-xs font-semibold text-rose-700 min-h-11"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* Members list */}
       <section>

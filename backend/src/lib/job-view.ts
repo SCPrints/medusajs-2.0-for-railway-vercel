@@ -48,6 +48,8 @@ export type JobLine = {
   description?: string | null
   /** No sizes yet: blanks can't be bought (lib/sizes-pending.ts). */
   sizes_pending?: boolean
+  /** One-garment sample the customer ordered first. */
+  sample?: boolean
   /** "S 4 · M 10 · L 10", or null when the lines carry no size. */
   sizes: string | null
   /** The underlying quote-line / order-item ids. */

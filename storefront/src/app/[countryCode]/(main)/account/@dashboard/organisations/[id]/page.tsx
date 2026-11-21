@@ -26,6 +26,8 @@ import ApprovalsTab from "@modules/account/components/organisations/tab-approval
 import InvoicesTab from "@modules/account/components/organisations/tab-invoices"
 import PeopleTab from "@modules/account/components/organisations/tab-people"
 import RangeTab from "@modules/account/components/organisations/tab-range"
+import AllowanceTab from "@modules/account/components/organisations/tab-allowance"
+import BrandKitTab from "@modules/account/components/organisations/tab-brand-kit"
 
 export const metadata: Metadata = {
   title: "Organisation",
@@ -107,6 +109,7 @@ export default async function OrgDetailPage({ params }: PageProps) {
           { key: "overview", label: "Overview" },
           { key: "range", label: "Our range", badge: range.items.length },
           { key: "people", label: "People", badge: roster.members.length },
+          { key: "allowance", label: "Uniform allowance", gated: role === "viewer" },
           { key: "designs", label: "Designs", badge: designs.length },
           { key: "inventory", label: "Inventory", badge: inventory.length },
           {
@@ -118,6 +121,7 @@ export default async function OrgDetailPage({ params }: PageProps) {
           // Buying on account. These tabs load their own (live) figures.
           { key: "approvals", label: "Drafts & approvals", gated: role === "viewer" },
           { key: "invoices", label: "Invoices" },
+          { key: "brand_kit", label: "Brand kit" },
           { key: "account", label: "Account" },
           {
             key: "members",
@@ -139,9 +143,11 @@ export default async function OrgDetailPage({ params }: PageProps) {
           ),
           range: <RangeTab orgId={id} orgName={organisation.name} range={range} roster={roster} />,
           people: <PeopleTab orgId={id} roster={roster} knownSizes={knownSizesByGroup(range.items)} />,
+          allowance: <AllowanceTab orgId={id} range={range} roster={roster} />,
+          brand_kit: <BrandKitTab orgId={id} />,
           designs: <DesignsTab designs={designs} inventory={inventory} />,
           inventory: (
-            <InventoryTab inventory={inventory} designs={designs} />
+            <InventoryTab orgId={id} inventory={inventory} designs={designs} />
           ),
           destinations: (
             <DestinationsTab destinations={destinations} />

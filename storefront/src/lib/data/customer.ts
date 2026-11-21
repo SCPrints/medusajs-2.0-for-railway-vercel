@@ -10,10 +10,10 @@ import { transferGuestCartToCustomer } from "./cart"
 import { removeAuthToken, setAuthToken } from "./cookies"
 import { authedNextHeaders, awaitedAuthHeaders } from "./sdk-helpers"
 
-// Email/password login returns a JWT string. The SDK also types redirect, MFA
-// and verification responses; none apply to customers here, so fail loudly
-// rather than store something that isn't a token.
-const loginTokenOrThrow = (res: Awaited<ReturnType<typeof sdk.auth.login>>) => {
+// Email/password login returns a JWT string, or (two-step login on) an MFA
+// challenge to finish with a code. Redirect / verification responses don't apply.
+type LoginResult = Awaited<ReturnType<typeof sdk.auth.login>>
+const loginTokenOrThrow = (res: LoginResult) => {
   if (typeof res === "string") return res
   throw new Error("This account needs an extra sign-in step the store doesn't support yet.")
 }
@@ -88,6 +88,10 @@ export async function login(_currentState: unknown, formData: FormData) {
 
   try {
     const token = await sdk.auth.login("customer", "emailpass", { email, password })
+    if (typeof token === "object" && token && "mfa_required" in token) {
+      // Two-step login is on: hand the client the challenge; the password alone gives no access.
+      return { mfa: { challengeId: token.mfa_challenge.id, token: token.token } }
+    }
     const finalToken = loginTokenOrThrow(token)
     await setAuthToken(finalToken)
     revalidateTag("customer", "max")

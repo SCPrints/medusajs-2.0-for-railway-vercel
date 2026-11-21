@@ -14,9 +14,11 @@ import {
   toast,
 } from "@medusajs/ui"
 import { useCallback, useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 
 import { HelpTooltip } from "../../components/reports/help-tooltip"
 import AccountTab from "./components/account-tab"
+import BrandKitTab from "./components/brand-kit-tab"
 import DesignsTab from "./components/designs-tab"
 import DestinationsTab from "./components/destinations-tab"
 import InventoryTab from "./components/inventory-tab"
@@ -50,6 +52,7 @@ type DetailTab =
   | "destinations"
   | "members"
   | "account"
+  | "brand_kit"
 
 const TAB_LABELS: Record<DetailTab, string> = {
   overview: "Overview",
@@ -58,6 +61,7 @@ const TAB_LABELS: Record<DetailTab, string> = {
   destinations: "Destinations",
   members: "Members",
   account: "Account",
+  brand_kit: "Brand kit",
 }
 
 const OrganisationsPage = () => {
@@ -65,6 +69,15 @@ const OrganisationsPage = () => {
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // /app/organisations?org=<id>&tab=brand_kit (the job window links here).
+  const [params] = useSearchParams()
+  const orgParam = params.get("org")
+  const tabParam = params.get("tab")
+  useEffect(() => {
+    if (!orgParam) return
+    setSelectedId(orgParam)
+    if (tabParam === "brand_kit") setActiveTab("brand_kit")
+  }, [orgParam, tabParam])
   const [selected, setSelected] = useState<Organisation | null>(null)
   const [members, setMembers] = useState<Member[]>([])
   const [memberDraft, setMemberDraft] = useState("")
@@ -392,6 +405,8 @@ const OrganisationsPage = () => {
         return renderOverview()
       case "members":
         return renderMembers()
+      case "brand_kit":
+        return <BrandKitTab key={selected.id} organisationId={selected.id} />
       case "account":
         // key: reload the tab's own state when staff pick another organisation.
         return <AccountTab key={selected.id} organisationId={selected.id} />
@@ -562,6 +577,7 @@ const OrganisationsPage = () => {
                     "destinations",
                     "members",
                     "account",
+                    "brand_kit",
                   ] as const
                 ).map((tab) => {
                   const active = activeTab === tab

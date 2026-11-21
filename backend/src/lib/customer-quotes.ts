@@ -53,13 +53,18 @@ function cartPdfOf(quote: { metadata?: Record<string, any> | null }): { total: n
     : null
 }
 
-/** The quote is the customer's: their id on it, or their email (case-insensitive). */
+/**
+ * The quote is the customer's: their id on it, or their email (case-insensitive)
+ * once the account's email is confirmed.
+ */
 export function ownsQuote(
   quote: { customer_id?: string | null; email?: string | null },
   customerId: string,
-  customerEmail: string | null | undefined
+  customerEmail: string | null | undefined,
+  emailVerified: boolean
 ): boolean {
   if (quote.customer_id && quote.customer_id === customerId) return true
+  if (!emailVerified) return false
   const a = (quote.email ?? "").trim().toLowerCase()
   const b = (customerEmail ?? "").trim().toLowerCase()
   return !!a && a === b

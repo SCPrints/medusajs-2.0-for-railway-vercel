@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { getCustomer } from "@lib/data/customer"
 import AccountLayout from "@modules/account/templates/account-layout"
+import EmailBanner from "@modules/account/components/email-banner"
 import { PostHogIdentify } from "@modules/common/components/posthog-identify"
 
 async function AccountShell({
@@ -15,6 +16,11 @@ async function AccountShell({
     <>
       <PostHogIdentify customer={customer} />
       <AccountLayout customer={customer}>
+        {customer && (
+          <Suspense fallback={null}>
+            <EmailBanner />
+          </Suspense>
+        )}
         {customer ? dashboard : login}
       </AccountLayout>
     </>

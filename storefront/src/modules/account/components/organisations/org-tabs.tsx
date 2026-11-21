@@ -6,6 +6,7 @@ export type OrgTabKey =
   | "overview"
   | "range"
   | "people"
+  | "allowance"
   | "designs"
   | "inventory"
   | "destinations"
@@ -14,6 +15,7 @@ export type OrgTabKey =
   | "account"
   | "approvals"
   | "invoices"
+  | "brand_kit"
 
 export type OrgTabDef = {
   key: OrgTabKey

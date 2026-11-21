@@ -13,6 +13,7 @@ import { DspPackPanel } from "./dsp-pack"
 import { ProofPins } from "./proof-pins"
 import { EnterSizes } from "./enter-sizes"
 import { TeamOrder } from "./team-order"
+import { BrandKitLine, SplitDeliveryNote } from "./org-order-notes"
 import { QuoteTools } from "../quote/quote-detail"
 import * as W from "./widgets"
 import { AppLink, pricerHref, useGo } from "../../lib/nav"
@@ -381,7 +382,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
                     <tr key={l.id} className="border-t border-ui-border-base align-top">
                       <td className="py-2 pr-2 w-10">{l.thumbnail ? <img src={l.thumbnail} alt="" className="h-9 w-9 rounded object-cover" /> : null}</td>
                       <td className="py-2">
-                        <span className="font-medium">{l.title}</span>{l.decorated ? <Badge size="2xsmall" className="ml-1">decorated</Badge> : null}
+                        <span className="font-medium">{l.title}</span>{l.decorated ? <Badge size="2xsmall" className="ml-1">decorated</Badge> : null}{l.sample ? <Badge size="2xsmall" color="green" className="ml-1">Sample</Badge> : null}
                         {l.sizes ? <span className="block text-xs text-ui-fg-subtle">{l.sizes}</span> : null}
                         {l.subtitle && !l.sizes ? <span className="block text-xs text-ui-fg-subtle">{l.subtitle}</span> : null}
                         {l.description && l.description !== l.subtitle ? <span className="block text-xs text-ui-fg-subtle">{l.description}</span> : null}
@@ -445,6 +446,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
               order ? (
                 <Flat>
                   <ProofPins orderId={order.id} />
+                  <BrandKitLine order={order} />
                   <Mount W={W.OrderCustomizerDownloads} order={order} />
                   <Mount W={W.OrderCustomizerPrintDetails} order={order} />
                   <Mount W={W.OrderDtfGangsheet} order={order} />
@@ -509,6 +511,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
               <>
                 <DeliveryAddress job={job} onChanged={onChanged} />
                 {order ? <TeamOrder order={order} /> : null}
+                {order ? <SplitDeliveryNote order={order} /> : null}
                 {order ? (
                   <Flat>
                     <Mount W={W.OrderShippingDecision} order={order} />

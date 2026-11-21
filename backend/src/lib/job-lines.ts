@@ -16,6 +16,7 @@ export type RawJobLine = {
   decorated: boolean
   description?: string | null
   sizes_pending?: boolean
+  sample?: boolean
   product_id?: string | null
   /** Order items: Medusa's variant option values, e.g. { Color: "Navy", Size: "M" }. */
   option_values?: Record<string, unknown> | null
@@ -108,6 +109,7 @@ export function groupJobLines(raw: RawJobLine[], marginFor: (groupKey: string, l
       decorated: g.lines.some((l) => l.decorated),
       description: first.description ?? null,
       sizes_pending: g.lines.some((l) => l.sizes_pending),
+      sample: g.lines.some((l) => l.sample),
       sizes: sizes || null,
       line_ids: g.lines.map((l) => l.id),
       margin_pct: marginFor(key, first),

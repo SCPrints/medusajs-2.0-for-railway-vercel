@@ -6,6 +6,8 @@ import ProfileMarketingConsent from "@modules/account/components/profile-marketi
 import ProfileName from "@modules/account/components/profile-name"
 import ProfilePassword from "@modules/account/components/profile-password"
 
+import ProfileTwoStep from "@modules/account/components/profile-two-step"
+import { getTwoStep } from "@lib/data/identity"
 import { notFound } from "next/navigation"
 import { listRegions } from "@lib/data/regions"
 import { getConsent } from "@lib/data/consent"
@@ -19,6 +21,7 @@ export const metadata: Metadata = {
 export default async function Profile(){const customer = await getCustomer()
   const regions = await listRegions()
   const consent = await getConsent()
+  const twoStep = await getTwoStep()
 
   if (!customer || !regions) {
     notFound()
@@ -47,6 +50,8 @@ export default async function Profile(){const customer = await getCustomer()
         <ProfilePhone customer={customer} />
         <Divider />
         <ProfilePassword customer={customer} />
+        <Divider />
+        <ProfileTwoStep email={customer.email} initial={twoStep} />
         <Divider />
         <ProfileMarketingConsent initial={consent} />
         <Divider />
