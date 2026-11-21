@@ -413,7 +413,7 @@ export default function DecorationMethodsGuidePage() {
             ))}
           </div>
           <div>
-            <h2 className="text-2xl font-semibold text-white small:text-3xl">You do not have to pick just one</h2>
+            <h2 className="text-2xl font-semibold text-white small:text-3xl small:leading-8">You do not have to pick just one</h2>
             <p className="mt-3 max-w-2xl text-white/80">
               Methods can be combined on the same garment. An embroidered logo on the chest with a
               printed design on the back is a common pairing: the stitching gives the front a
@@ -450,7 +450,7 @@ export default function DecorationMethodsGuidePage() {
       {/* CTA */}
       <Reveal className="mt-16">
         <section className="rounded-2xl bg-ink p-8 text-center small:p-12">
-          <h2 className="text-2xl font-semibold text-white small:text-3xl">Try it on your own artwork</h2>
+          <h2 className="text-2xl font-semibold text-white small:text-3xl small:leading-8">Try it on your own artwork</h2>
           <p className="mx-auto mt-3 max-w-2xl text-white/80">
             Pick a garment and add your design in the customiser. You can switch between methods
             and see the price for each before you order.

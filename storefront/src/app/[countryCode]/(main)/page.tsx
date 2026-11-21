@@ -470,7 +470,7 @@ export default async function Home({
                   className="group flex flex-col items-center rounded-lg border border-ui-border-base bg-white p-6 text-center transition hover:-translate-y-0.5 hover:shadow-xs"
                 >
                   <Icon className="transition-colors group-hover:text-brand"/>
-                  <p className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl">
+                  <p className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">
                     {stat.value}
                   </p>
                   <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-subtle">
@@ -482,7 +482,7 @@ export default async function Home({
           </ul>
 
           <div className="mt-10 rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 text-center small:p-10">
-            <h3 className="text-2xl font-semibold text-ui-fg-base small:text-3xl">
+            <h3 className="text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">
               Talk to our team about your run.
             </h3>
             <p className="mx-auto mt-3 max-w-xl text-ui-fg-subtle">

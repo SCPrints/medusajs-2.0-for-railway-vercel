@@ -31,7 +31,7 @@ const QuoteDetail = ({
       <header className="flex flex-wrap items-start justify-between gap-3 border-l-4 border-brand pl-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em]">Quote</p>
-          <h1 className="mt-1 text-2xl font-semibold text-ui-fg-base small:text-3xl">{quote.public_id}</h1>
+          <h1 className="mt-1 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">{quote.public_id}</h1>
           <p className="mt-1 text-sm text-ui-fg-subtle">
             {shortDate(quote.created_at)}
             {quote.company ? ` · ${quote.company}` : ""}

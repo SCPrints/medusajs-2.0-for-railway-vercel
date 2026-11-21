@@ -120,7 +120,7 @@ export default function BundleDetail({ bundle }: { bundle: BundleWithProducts })
               <p className="text-xs font-semibold uppercase tracking-[0.18em]">
                 Configure
               </p>
-              <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">
+              <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">
                 Configure your pack
               </h2>
             </header>

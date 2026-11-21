@@ -45,7 +45,7 @@ export default async function EmailPreferencesPage({
   return (
     <div className="content-container py-12 small:py-16">
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-2xl small:text-3xl font-semibold mb-2">
+        <h1 className="text-2xl small:text-3xl small:leading-8 font-semibold mb-2">
           Email preferences
         </h1>
         <p className="text-ui-fg-subtle text-sm mb-6">

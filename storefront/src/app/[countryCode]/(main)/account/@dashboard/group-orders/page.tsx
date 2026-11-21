@@ -15,7 +15,7 @@ export default async function GroupOrdersPage(){const orders = await listMyGroup
         <p className="text-xs font-semibold uppercase tracking-[0.12em]">
           Team orders
         </p>
-        <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">
+        <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">
           Group orders
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-ui-fg-subtle small:text-base">

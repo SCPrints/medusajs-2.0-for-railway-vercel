@@ -472,7 +472,7 @@ export default function ScreenPrintingCostGuidePage() {
             <p className={`${eyebrow} mt-2 text-white/70`}>piece minimum</p>
           </div>
           <div>
-            <h2 className="text-2xl font-semibold text-white small:text-3xl">
+            <h2 className="text-2xl font-semibold text-white small:text-3xl small:leading-8">
               Why there is a minimum
             </h2>
             <p className="mt-3 max-w-2xl text-white/80">
@@ -677,7 +677,7 @@ export default function ScreenPrintingCostGuidePage() {
       {/* CTA */}
       <Reveal className="mt-16">
         <section className="rounded-2xl bg-ink p-8 text-center small:p-12">
-          <h2 className="text-2xl font-semibold text-white small:text-3xl">
+          <h2 className="text-2xl font-semibold text-white small:text-3xl small:leading-8">
             See the price for your job
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-white/80">

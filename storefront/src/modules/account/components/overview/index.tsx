@@ -259,7 +259,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
             Account overview
           </p>
           <h1
-            className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl"
+            className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8"
             data-testid="welcome-message"
             data-value={customer?.first_name}
           >

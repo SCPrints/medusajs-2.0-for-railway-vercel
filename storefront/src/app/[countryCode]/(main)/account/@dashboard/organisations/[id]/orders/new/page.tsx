@@ -62,7 +62,7 @@ export default async function NewOrderPage({ params }: PageProps) {
         <p className="text-xs font-semibold uppercase tracking-[0.12em]">
           New order
         </p>
-        <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">
+        <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">
           New order for {organisation.name}
         </h1>
       </header>

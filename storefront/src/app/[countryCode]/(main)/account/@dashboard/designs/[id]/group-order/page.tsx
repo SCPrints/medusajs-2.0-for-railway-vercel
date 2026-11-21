@@ -32,7 +32,7 @@ export default async function StartGroupOrderPage({ params }: Props){const { id,
         <p className="text-xs font-semibold uppercase tracking-[0.12em]">
           Group order
         </p>
-        <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">
+        <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">
           Set up a group order from &quot;{design.name}&quot;
         </h1>
         <p className="mt-3 max-w-2xl text-sm text-ui-fg-subtle small:text-base">

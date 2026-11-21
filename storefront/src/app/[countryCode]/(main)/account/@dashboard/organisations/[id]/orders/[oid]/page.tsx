@@ -91,7 +91,7 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
           Order
         </p>
         <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-ui-fg-base small:text-3xl">
+          <h1 className="text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">
             Order #{order.display_id}
           </h1>
           <span

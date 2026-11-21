@@ -292,7 +292,7 @@ export default async function FaqPage({
           <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Still need help?
           </p>
-          <h2 className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl">
+          <h2 className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">
             Need a custom quote?
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-ui-fg-subtle">

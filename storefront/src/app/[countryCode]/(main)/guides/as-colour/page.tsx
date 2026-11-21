@@ -369,7 +369,7 @@ export default async function AsColourGuidePage() {
           </div>
 
           <div className="mt-20">
-            <h3 className="text-2xl font-medium tracking-[-0.02em] small:text-3xl">Find a tee.</h3>
+            <h3 className="text-2xl font-medium tracking-[-0.02em] small:text-3xl small:leading-8">Find a tee.</h3>
             <p className="mt-2 max-w-xl text-[#6b6b66]">
               Mens and womens, across the weights and cuts. Narrow it down.
             </p>

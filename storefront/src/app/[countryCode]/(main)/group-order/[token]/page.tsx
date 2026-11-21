@@ -73,7 +73,7 @@ export default async function GroupOrderJoinPage({
           <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             {group_order.organisation_name ?? "Group order"}
           </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ui-fg-base small:text-3xl">
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ui-fg-base small:text-3xl small:leading-8">
             {group_order.title}
           </h1>
           {group_order.owner_name ? (

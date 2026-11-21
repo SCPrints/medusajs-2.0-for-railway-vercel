@@ -54,7 +54,7 @@ export default async function FrequentlyBoughtTogether({
         <p className="text-xs font-semibold uppercase tracking-[0.18em]">
           Often ordered together
         </p>
-        <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">
+        <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">
           Customers who picked this one also reached for these.
         </h2>
       </header>

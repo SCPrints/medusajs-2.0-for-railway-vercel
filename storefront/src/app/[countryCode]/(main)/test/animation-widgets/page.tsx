@@ -58,7 +58,7 @@ export default function AnimationWidgetsTestPage() {
     <>
       <div className="bg-ui-bg-subtle border-b border-ui-border-base">
         <div className="content-container py-8 small:py-10">
-          <h1 className="text-2xl small:text-3xl font-bold text-ui-fg-base">
+          <h1 className="text-2xl small:text-3xl small:leading-8 font-bold text-ui-fg-base">
             Animation widgets lab
           </h1>
           <p className="mt-2 max-w-2xl text-ui-fg-muted text-sm small:text-base">

@@ -169,7 +169,7 @@ export default function ReturnsPolicyPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.12em]">
             Need to report an issue?
           </p>
-          <h2 className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl">
+          <h2 className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">
             We&apos;ll come back within one business day.
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-ui-fg-subtle">

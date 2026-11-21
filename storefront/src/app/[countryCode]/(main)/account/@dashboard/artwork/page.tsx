@@ -20,7 +20,7 @@ export default async function ArtworkPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.12em]">
           Logo library
         </p>
-        <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">My artwork</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl small:leading-8">My artwork</h1>
         <p className="mt-3 max-w-2xl text-sm text-ui-fg-subtle small:text-base">
           Keep your logos here and put them on any garment in a couple of clicks.
         </p>
