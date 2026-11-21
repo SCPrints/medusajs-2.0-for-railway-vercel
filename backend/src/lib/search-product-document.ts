@@ -73,7 +73,7 @@ const variantBaseMinor = (variant: any): number | null => {
  * reading it here was always null and every product indexed as in stock.
  * Returns null when the variant has no inventory items (unknown → don't hide).
  */
-const variantAvailable = (variant: any, locationIds: Set<string>): number | null => {
+export const variantAvailable = (variant: any, locationIds: Set<string>): number | null => {
   const items: any[] = variant?.inventory_items || []
   if (!items.length) return null
   let units = Infinity

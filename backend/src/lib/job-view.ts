@@ -106,6 +106,8 @@ export type JobView = {
     needed_by: string | null
     /** Customer's purchase-order number from checkout (metadata.po_number). */
     po_number?: string | null
+    /** Customer's "Need it sooner?" request from the cart (metadata.rush_request). Price not agreed. */
+    rush_request?: { tier: "priority" | "express"; needed_by?: string } | null
     /** Placed on account (organisation account terms): when payment is due. */
     on_account?: { due_at: string | null } | null
     /** Organisation cost centre code the order is tagged with. */

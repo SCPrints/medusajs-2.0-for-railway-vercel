@@ -24,6 +24,9 @@ export type SavedDesign = {
   shared_from?: { organisation_id: string; organisation_name: string } | null
   /** Resolved from base_product_id; null when the product is gone. */
   base_product_handle?: string | null
+  /** Used on an order whose artwork was approved (orders placed from a saved design only). */
+  approved?: boolean
+  approved_at?: string | null
 }
 
 const DESIGNS_TAG = "customer-designs"

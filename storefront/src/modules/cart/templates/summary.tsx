@@ -6,6 +6,7 @@ import CartTotals from "@modules/common/components/cart-totals"
 import Divider from "@modules/common/components/divider"
 import DiscountCode from "@modules/checkout/components/discount-code"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import DeliveryEstimate from "@modules/cart/components/delivery-estimate"
 import CartEngagement from "@modules/cart/components/cart-engagement"
 import RequestQuote from "@modules/cart/components/request-quote"
 import DownloadQuote from "@modules/cart/components/download-quote"
@@ -38,6 +39,7 @@ const Summary = ({ cart }: SummaryProps) => {
       <DiscountCode cart={cart} />
       <Divider />
       <CartTotals totals={cart} />
+      <DeliveryEstimate cartMetadata={cart.metadata as Record<string, unknown> | null} />
       <LocalizedClientLink
         href={"/checkout?step=" + step}
         data-testid="checkout-button"

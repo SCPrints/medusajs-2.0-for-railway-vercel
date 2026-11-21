@@ -8,7 +8,9 @@ import { ARTWORK_STAGE_LABEL, BLANKS_STAGE_LABEL, DOWNSTREAM_STAGE_LABEL } from 
 import { chaseDraft, ONE_CLICK, performNextAction, takeJob } from "./actions"
 import { TaskQuickAdd } from "../task-quick-add"
 import { AddressFields, ConvertAddressForm, addressComplete, addressPayload, blankAddress, toAddressDraft, type AddressDraft } from "./convert-address-form"
+import { CustomerRequests } from "./customer-requests"
 import { DspPackPanel } from "./dsp-pack"
+import { ProofPins } from "./proof-pins"
 import { EnterSizes } from "./enter-sizes"
 import { TeamOrder } from "./team-order"
 import { QuoteTools } from "../quote/quote-detail"
@@ -251,6 +253,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
               {job.quote ? <span>{job.quote.public_id}</span> : null}
               {job.order ? <span>Order #{job.order.display_id ?? ""}</span> : null}
               {job.order?.po_number ? <span>PO {job.order.po_number}</span> : null}
+              {job.order?.rush_request ? <span className="font-medium text-ui-tag-orange-text">Rush requested ({job.order.rush_request.tier}{job.order.rush_request.needed_by ? `, by ${fmtDate(job.order.rush_request.needed_by)}` : ""}) · price not agreed</span> : null}
               {job.order?.on_account ? <span>On account{job.order.on_account.due_at ? ` · due ${fmtDate(job.order.on_account.due_at)}` : ""}</span> : null}
               {job.order?.cost_centre ? <span>Cost centre {job.order.cost_centre}</span> : null}
               <NeededBy job={job} onChanged={onChanged} />
@@ -441,6 +444,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
             {open.artwork ? (
               order ? (
                 <Flat>
+                  <ProofPins orderId={order.id} />
                   <Mount W={W.OrderCustomizerDownloads} order={order} />
                   <Mount W={W.OrderCustomizerPrintDetails} order={order} />
                   <Mount W={W.OrderDtfGangsheet} order={order} />
@@ -487,6 +491,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
                 <Mount W={W.OrderProductionPhotos} order={order} />
                 <Mount W={W.OrderRejects} order={order} />
                 <Mount W={W.OrderPackingCheck} order={order} />
+                <CustomerRequests jobId={order.id} />
               </Flat>
             ) : null}
           </Container>

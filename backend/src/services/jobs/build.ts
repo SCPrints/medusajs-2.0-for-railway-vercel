@@ -1,4 +1,5 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
+import { cleanRushRequest } from "../../api/middlewares/clean-cart-rush-request"
 import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/framework/utils"
 
 import { ASCOLOUR_WORKSHOP_ADDRESS_1 } from "../../lib/constants"
@@ -464,6 +465,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
             rush_tier: rushTierOf(ometa),
             needed_by: ymd(ometa.needed_by),
             po_number: poNumberFromMetadata(ometa),
+            rush_request: cleanRushRequest(ometa.rush_request),
             on_account: ometa.account_terms
               ? { due_at: iso((ometa.account_terms as any)?.due_at ?? ometa.balance_due_at) }
               : null,

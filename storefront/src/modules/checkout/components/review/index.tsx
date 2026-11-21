@@ -4,6 +4,7 @@ import { Heading, Text, clx } from "@medusajs/ui"
 
 import PaymentButton from "../payment-button"
 import PoNumber from "../po-number"
+import DeliveryEstimate from "@modules/cart/components/delivery-estimate"
 import { useSearchParams } from "next/navigation"
 
 const PACKING_LABEL: Record<string, string> = {
@@ -75,6 +76,9 @@ const Review = ({ cart }: { cart: any }) => {
             </div>
           </div>
           <TeamOrderSummary metadata={cart?.metadata as Record<string, unknown> | null} />
+          <div className="mb-6">
+            <DeliveryEstimate cartMetadata={cart?.metadata as Record<string, unknown> | null} />
+          </div>
           <PoNumber
             initial={
               typeof cart?.metadata?.po_number === "string" ? cart.metadata.po_number : ""

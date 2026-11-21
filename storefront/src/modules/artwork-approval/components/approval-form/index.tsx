@@ -6,6 +6,8 @@ import {
   submitArtworkDecision,
   type ArtworkApprovalState,
 } from "@lib/data/artwork-approval"
+import PinBoard from "@modules/artwork-approval/components/pin-board"
+import type { ProofPin } from "@modules/artwork-approval/lib/pins"
 
 type Props = {
   orderId: string
@@ -18,6 +20,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
   const [comment, setComment] = useState("")
   const [status, setStatus] = useState<string | null>(initial.artwork_stage)
   const [error, setError] = useState<string | null>(null)
+  const [pins, setPins] = useState<ProofPin[]>([])
   const [pending, startTransition] = useTransition()
 
   // Tap/click-to-zoom: the garment shots are studio photos with a lot of
@@ -41,6 +44,13 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
   }, [zoomSrc])
 
   const alreadyApproved = status === "approved"
+  // Same pictures as above, in the order the server numbers them (pin image_index).
+  const pinImages =
+    initial.mockup_urls && initial.mockup_urls.length > 0
+      ? initial.mockup_urls.map((m) => ({ url: m.url, label: m.side_label ?? m.side }))
+      : initial.latest_photo_url
+        ? [{ url: initial.latest_photo_url, label: "Proof" }]
+        : []
 
   const submit = (approved: boolean) => {
     setError(null)
@@ -51,6 +61,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
         approved,
         approver_name: name.trim() || undefined,
         comment: comment.trim() || undefined,
+        pins: approved ? undefined : pins,
       })
       if (!res.ok) {
         setError(res.error)
@@ -207,6 +218,17 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
             className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
             placeholder="Anything we should know? Colour tweaks, placement notes, etc."
           />
+
+          {pinImages.length > 0 ? (
+            <details className="mt-4 rounded-md border border-ui-border-base p-3">
+              <summary className="min-h-11 cursor-pointer text-sm font-semibold text-ink">
+                Point to what needs changing (optional)
+              </summary>
+              <div className="mt-3">
+                <PinBoard images={pinImages} pins={pins} onChange={setPins} />
+              </div>
+            </details>
+          ) : null}
 
           {error ? (
             <p className="mt-3 text-sm text-rose-700">{error}</p>

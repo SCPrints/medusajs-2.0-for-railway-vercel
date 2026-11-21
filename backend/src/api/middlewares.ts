@@ -5,6 +5,7 @@ import { checkoutPriceInvariantMiddleware } from "./middlewares/checkout-price-i
 import { stripVariantCostMetadataMiddleware } from "./middlewares/strip-variant-cost-metadata"
 import { stripLineItemTrustMetadataMiddleware } from "./middlewares/strip-line-item-trust-metadata"
 import { cleanCartPoNumberMiddleware } from "./middlewares/clean-cart-po-number"
+import { cleanCartRushRequestMiddleware } from "./middlewares/clean-cart-rush-request"
 import { orgCheckoutCompleteGuard, orgPaymentSessionGuard } from "./middlewares/org-checkout-guard"
 
 /**
@@ -69,7 +70,7 @@ export default defineMiddlewares({
       // Checkout's PO number field: trim + cap at 60 (lib/po-number.ts).
       matcher: "/store/carts/:id",
       methods: ["POST"],
-      middlewares: [cleanCartPoNumberMiddleware],
+      middlewares: [cleanCartPoNumberMiddleware, cleanCartRushRequestMiddleware],
     },
     {
       // Pricing invariant — last gate before a cart becomes an order.

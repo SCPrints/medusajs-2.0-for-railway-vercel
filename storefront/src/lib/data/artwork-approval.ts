@@ -1,6 +1,7 @@
 "use server"
 
 import { sdk } from "@lib/config"
+import type { ProofPin } from "@modules/artwork-approval/lib/pins"
 
 export type ArtworkApprovalState = {
   order_id: string
@@ -8,6 +9,8 @@ export type ArtworkApprovalState = {
   artwork_stage: string | null
   artwork_approved_at: string | null
   artwork_approver_name: string | null
+  /** Spots the customer marked when they last asked for changes. */
+  change_pins?: ProofPin[]
   /** Latest staff-uploaded revised proof URL (or latest production photo if none). Null if neither exists. */
   latest_photo_url: string | null
   /** Non-null when latest_photo_url comes from a revised proof upload. */
@@ -48,6 +51,7 @@ export async function submitArtworkDecision(input: {
   approved: boolean
   approver_name?: string
   comment?: string
+  pins?: ProofPin[]
 }): Promise<{ ok: true; status: string } | { ok: false; error: string }> {
   try {
     const res = (await sdk.client.fetch("/store/artwork-approval", {

@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 
-import { orderAgain } from "@lib/data/orders"
+import { orderAgain, requestReorder } from "@lib/data/orders"
+import { getReorderStock, type ReorderStockLine } from "@lib/data/reorder-stock"
 import { phCapture } from "@lib/posthog"
 
 type Props = {
@@ -42,10 +43,38 @@ const OrderAgainButton = ({
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<{ ref: string; quoted: boolean } | null>(null)
 
-  const run = async () => {
+  const [short, setShort] = useState<ReorderStockLine[] | null>(null)
+  const [okIds, setOkIds] = useState<string[]>([])
+
+  // Check stock first. If it can't be checked, carry on as before.
+  const start = async () => {
     setBusy(true)
     setError(null)
-    const res = await orderAgain(orderId, lineIds, countryCode)
+    const stock = await getReorderStock(orderId, lineIds).catch(() => null)
+    const bad = stock?.filter((l) => !l.ok) ?? []
+    if (bad.length) {
+      setBusy(false)
+      setShort(bad)
+      setOkIds(stock!.filter((l) => l.ok).map((l) => l.line_item_id))
+      return
+    }
+    await run(lineIds)
+  }
+
+  const askUs = async () => {
+    setBusy(true)
+    const res = await requestReorder(orderId, lineIds)
+    setBusy(false)
+    if (!res.ok) return setError(res.error)
+    setShort(null)
+    setSent({ ref: res.public_id, quoted: false })
+  }
+
+  const run = async (ids?: string[]) => {
+    setBusy(true)
+    setError(null)
+    setShort(null)
+    const res = await orderAgain(orderId, ids, countryCode)
     if (!res.ok) {
       setBusy(false)
       setError(res.error)
@@ -87,11 +116,41 @@ const OrderAgainButton = ({
     )
   }
 
+  if (short) {
+    return (
+      <div className={`rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 ${className}`} data-testid="order-again-short">
+        <p className="font-semibold">Some sizes are short on stock</p>
+        <ul className="m-0 mt-2 flex list-none flex-col gap-1 p-0">
+          {short.map((l) => (
+            <li key={l.line_item_id}>
+              {l.title}
+              {l.variant_title ? ` (${l.variant_title})` : ""} — you ordered {l.wanted}, {l.available} in stock.
+              {l.suggestion
+                ? ` Closest: ${l.suggestion.title}${l.suggestion.available != null ? `, ${l.suggestion.available} in stock` : ""}.`
+                : ""}
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {okIds.length ? (
+            <button type="button" disabled={busy} onClick={() => run(okIds)} className={STYLES.primary}>
+              Add what&apos;s available
+            </button>
+          ) : null}
+          <button type="button" disabled={busy} onClick={askUs} className={STYLES.secondary}>
+            Ask us to re-order
+          </button>
+        </div>
+        {error ? <p role="alert" className="mt-2 text-xs text-red-600">{error}</p> : null}
+      </div>
+    )
+  }
+
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       <button
         type="button"
-        onClick={run}
+        onClick={start}
         disabled={busy}
         className={STYLES[variant]}
         data-testid="order-again-button"

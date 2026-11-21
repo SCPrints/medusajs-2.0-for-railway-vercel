@@ -156,6 +156,11 @@ const SavedDesigns = ({
             >
               <div className="relative">
                 <CardImage src={design.thumbnail_url} alt={design.name} />
+                {design.approved ? (
+                  <span className="absolute right-2 top-2 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-xs">
+                    Approved
+                  </span>
+                ) : null}
                 {design.shared_from ? (
                   <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-ui-fg-base shadow-xs">
                     Shared by {design.shared_from.organisation_name}

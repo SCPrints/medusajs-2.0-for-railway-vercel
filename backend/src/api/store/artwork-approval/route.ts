@@ -4,29 +4,11 @@ import { Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import {
-  ARTWORK_STAGE_EVENT,
-  isProductionStage,
-  type ProductionStage,
-  type ProductionStageChangedEvent,
-} from "../../../lib/production-stage"
-import { getPostHog } from "../../../lib/posthog"
-import { mergeOrderMetadata } from "../../../lib/order-metadata"
-import { raiseAttention } from "../../../services/attention/notify"
-import { emitStageEvents } from "../../../lib/stage-events"
-import {
-  bareLineProofs,
-  buildLineCustomizerExport,
-  lineMockupGroupKey,
-} from "../../../lib/customizer-order-artifacts"
-import {
   artworkProofRound,
   verifyArtworkApproval,
 } from "../../../services/artwork-approval/sign"
-import {
-  STAGE_TRANSITION_NOT_ALLOWED,
-  assertTransition,
-  isTransitionNotAllowed,
-} from "../../../lib/production-stage-guard"
+import { decideProof } from "../../../services/artwork-approval/decide"
+import { buildProofPayload } from "../../../services/artwork-approval/proof-payload"
 
 const schema = z.object({
   order: z.string().min(1),
@@ -34,6 +16,7 @@ const schema = z.object({
   approved: z.boolean(),
   approver_name: z.string().max(200).optional(),
   comment: z.string().max(2000).optional(),
+  pins: z.array(z.unknown()).max(20).optional(),
 })
 
 /**
@@ -41,7 +24,7 @@ const schema = z.object({
  *   → { order_display_id, status, latest_photo_url, current_artwork_stage }
  *
  * POST /store/artwork-approval
- *   body: { order, sig, approved, approver_name?, comment? }
+ *   body: { order, sig, approved, approver_name?, comment?, pins? }
  *   → { ok, status }
  *
  * The GET response is what the storefront /artwork-approval/[id]
@@ -73,177 +56,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   if (!verifyArtworkApproval(orderId, artworkProofRound(meta), sig)) {
     return res.status(400).json({ error: "invalid_signature" })
   }
-  const photos = Array.isArray(meta.production_photos)
-    ? (meta.production_photos as Array<{ url?: string; uploaded_at?: string }>)
-    : []
-  const latestPhotoUrl =
-    photos
-      .filter((p) => typeof p?.url === "string" && p.url.length > 0)
-      .sort((a, b) =>
-        (a.uploaded_at ?? "") < (b.uploaded_at ?? "") ? 1 : -1
-      )[0]?.url ?? null
-
-  const revisedProofs = Array.isArray(meta.revised_proofs)
-    ? (meta.revised_proofs as Array<{
-        line_item_id?: string
-        side?: string
-        url?: string
-        uploaded_at?: string
-        note?: string | null
-      }>)
-    : []
-
-  const hasPerSideProofs = revisedProofs.some((p) => p.line_item_id)
-
-  // Staff-authored per-side "studio note" shown UNDER each mockup on the
-  // approval page. Keyed by `${line_item_id}:${side}` — same key the admin
-  // mockup-note route writes and `buildLineCustomizerExport` artifact sides use.
-  const rawStudioNotes = (meta as { mockup_studio_notes?: unknown }).mockup_studio_notes
-  const studioNotes: Record<string, string> =
-    rawStudioNotes && typeof rawStudioNotes === "object" && !Array.isArray(rawStudioNotes)
-      ? (rawStudioNotes as Record<string, string>)
-      : {}
-
-  // Staff-authored per-side print-dimension override (e.g. "8.75×3.5cm"), shown
-  // UNDER each mockup next to the studio note. Same `${line_item_id}:${side}`
-  // key as the admin print-dimension route writes. Falls back to nothing when
-  // unset — the page simply omits the dimension line.
-  const rawDimensions = (meta as { mockup_print_dimensions?: unknown }).mockup_print_dimensions
-  const printDimensions: Record<string, string> =
-    rawDimensions && typeof rawDimensions === "object" && !Array.isArray(rawDimensions)
-      ? (rawDimensions as Record<string, string>)
-      : {}
-
-  // Build mockup URL list, merging per-side revised proofs where available.
-  // Backward compat: if proofs lack line_item_id, fall back to single-image behaviour.
-  let mockupUrls: Array<{
-    side: string
-    side_label: string | null
-    url: string
-    note: string | null
-    print_dimension: string | null
-  }> = []
-  let legacyProofUrl: string | null = null
-  let legacyProofNote: string | null = null
-
-  // One mockup per (design group, colourway, side): the same design ordered
-  // across N size lines repeats identical mockups otherwise. Notes, print
-  // dimensions, and proofs are stored keyed by `${line_item_id}:${side}`, so
-  // translate line ids to group keys — an entry on ANY line in the group
-  // applies to the kept representative image.
-  const groupKeyOfLine = new Map<string, string>()
-  for (const line of order.items ?? []) {
-    groupKeyOfLine.set(line.id as string, lineMockupGroupKey(line))
-  }
-  const toGroupKeyed = (rec: Record<string, string>) => {
-    const out = new Map<string, string>()
-    for (const [k, v] of Object.entries(rec)) {
-      const idx = k.indexOf(":")
-      if (idx === -1) continue
-      const gk = groupKeyOfLine.get(k.slice(0, idx)) ?? k.slice(0, idx)
-      const nk = `${gk}:${k.slice(idx + 1)}`
-      if (!out.has(nk)) out.set(nk, v)
-    }
-    return out
-  }
-  const groupStudioNotes = toGroupKeyed(studioNotes)
-  const groupPrintDimensions = toGroupKeyed(printDimensions)
-
-  const seen = new Set<string>()
-  const rawArtifacts = (order.items ?? []).flatMap((line: any) => {
-    const exp = buildLineCustomizerExport(line)
-    return (exp?.artifacts ?? [])
-      .filter((a: any) => a.mockup_url && !a.mockup_url_inline_omitted)
-      .map((a: any) => ({
-        groupKey: groupKeyOfLine.get(line.id) as string,
-        side: a.side as string,
-        side_label: a.side_label as string | null,
-        url: a.mockup_url as string,
-      }))
-      .filter((a: any) => {
-        const k = `${a.groupKey}:${a.side}`
-        if (seen.has(k)) return false
-        seen.add(k)
-        return true
-      })
-  })
-
-  if (hasPerSideProofs) {
-    const latestBySideKey = new Map<string, string>()
-    const latestNoteBySideKey = new Map<string, string>()
-    ;[...revisedProofs]
-      .filter((p) => p.line_item_id && p.side && p.url)
-      .sort((a, b) => ((a.uploaded_at ?? "") < (b.uploaded_at ?? "") ? 1 : -1))
-      .forEach((p) => {
-        const gk = groupKeyOfLine.get(p.line_item_id!) ?? p.line_item_id!
-        const k = `${gk}:${p.side}`
-        if (!latestBySideKey.has(k)) {
-          latestBySideKey.set(k, p.url!)
-          // Capture the note from the SAME (latest) proof, if any.
-          if (typeof p.note === "string" && p.note.trim()) {
-            latestNoteBySideKey.set(k, p.note.trim())
-          }
-        }
-      })
-    mockupUrls = rawArtifacts.map((a) => {
-      const k = `${a.groupKey}:${a.side}`
-      return {
-        side: a.side,
-        side_label: a.side_label,
-        url: latestBySideKey.get(k) ?? a.url,
-        // Explicit studio note wins; else fall back to the latest proof's note.
-        note: groupStudioNotes.get(k) ?? latestNoteBySideKey.get(k) ?? null,
-        print_dimension: groupPrintDimensions.get(k) ?? null,
-      }
-    })
-    for (const p of bareLineProofs(order.items ?? [], revisedProofs)) {
-      mockupUrls.push({
-        side: p.side,
-        side_label: p.side_label,
-        url: p.url,
-        note: studioNotes[p.key] ?? p.note,
-        print_dimension: printDimensions[p.key] ?? null,
-      })
-    }
-  } else {
-    const latestRevisedProof = revisedProofs
-      .filter((p) => typeof p?.url === "string" && p.url!.length > 0)
-      .sort((a, b) => ((a.uploaded_at ?? "") < (b.uploaded_at ?? "") ? 1 : -1))[0] ?? null
-
-    if (latestRevisedProof?.url) {
-      legacyProofUrl = latestRevisedProof.url
-      legacyProofNote = latestRevisedProof.note ?? null
-    } else {
-      mockupUrls = rawArtifacts.map((a) => {
-        const k = `${a.groupKey}:${a.side}`
-        return {
-          side: a.side,
-          side_label: a.side_label,
-          url: a.url,
-          note: groupStudioNotes.get(k) ?? null,
-          print_dimension: groupPrintDimensions.get(k) ?? null,
-        }
-      })
-    }
-  }
-
-  res.json({
-    order_id: order.id,
-    order_display_id:
-      typeof order.display_id === "number" ? order.display_id : null,
-    artwork_stage: typeof meta.artwork_stage === "string" ? meta.artwork_stage : null,
-    artwork_approved_at:
-      typeof meta.artwork_approved_at === "string"
-        ? meta.artwork_approved_at
-        : null,
-    artwork_approver_name:
-      typeof meta.artwork_approver_name === "string"
-        ? meta.artwork_approver_name
-        : null,
-    latest_photo_url: legacyProofUrl ?? latestPhotoUrl,
-    revised_proof_note: legacyProofNote,
-    mockup_urls: mockupUrls,
-  })
+  res.json(buildProofPayload(order))
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -262,129 +75,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const meta = (order.metadata ?? {}) as Record<string, unknown>
-  const round = artworkProofRound(meta)
-  if (!verifyArtworkApproval(body.order, round, body.sig)) {
+  if (!verifyArtworkApproval(body.order, artworkProofRound(meta), body.sig)) {
     return res.status(400).json({ error: "invalid_signature" })
   }
 
-  const previousStage =
-    typeof meta.artwork_stage === "string" ? (meta.artwork_stage as string) : null
-  // Only a proof that is actually out for approval can be answered. The
-  // round-bound signature already rules out stale links; this is the clear
-  // message for a link clicked twice or after staff moved the artwork on.
-  if (previousStage !== "awaiting_approval") {
-    return res.status(409).json({
-      error: "not_awaiting_approval",
-      message:
-        "This proof isn't waiting on your approval any more. If you need to change your answer, reply to the proof email and we'll sort it.",
-    })
+  const result = await decideProof(req.scope, order, body)
+  if ("httpStatus" in result) {
+    return res.status(result.httpStatus).json({ error: result.error, message: result.message })
   }
-  const now = new Date().toISOString()
-
-  const nextStage: "approved" | "in_review" = body.approved ? "approved" : "in_review"
-
-  // State machine: a customer link may only answer a proof that is awaiting
-  // approval. pending → approved (no proof was ever sent) and any move once
-  // artwork is approved are refused here instead of silently flipping the
-  // track (review 3-2).
-  try {
-    assertTransition("artwork", previousStage, nextStage, {
-      actor: { kind: "customer_link", name: body.approver_name ?? null },
-    })
-  } catch (err) {
-    if (!isTransitionNotAllowed(err)) throw err
-    return res.status(409).json({
-      error: STAGE_TRANSITION_NOT_ALLOWED,
-      message:
-        "This proof isn't waiting on your approval any more. If you need to change your answer, reply to the proof email and we'll sort it.",
-    })
-  }
-
-  // Append to the same history the admin stage widget renders — without this
-  // the customer's decision flipped `artwork_stage` invisibly and staff saw
-  // "Artwork approved" with no history row explaining who/when.
-  // changed_by is a fixed token, never the typed name — a customer typing a
-  // staff member's name must stay distinguishable from staff (review 3-9).
-  const historyEntry = {
-    stage: nextStage,
-    changed_at: now,
-    changed_by: "customer",
-    source: "customer_link",
-    approver_name: body.approver_name ?? null,
-    note: body.approved
-      ? (body.comment ?? "Approved via customer approval page")
-      : (body.comment ?? "Changes requested via customer approval page"),
-    track: "artwork" as const,
-  }
-
-  // Patch only — merged atomically below with the history entry appended,
-  // so a staff save landing at the same moment loses nothing (review 3-5).
-  const updates: Record<string, unknown> = {
-    artwork_stage: nextStage,
-    artwork_stage_changed_at: now,
-  }
-  if (body.approved) {
-    // Each proof round is approved on its own: stamp when, and which round.
-    updates.artwork_approved_at = now
-    updates.artwork_approved_round = round
-    if (body.approver_name) {
-      updates.artwork_approver_name = body.approver_name
-    }
-    if (body.comment) {
-      updates.artwork_approver_comment = body.comment
-    }
-  } else {
-    updates.artwork_changes_requested_at = now
-    if (body.comment) {
-      updates.artwork_changes_requested_comment = body.comment
-    }
-  }
-
-  await mergeOrderMetadata(req.scope, body.order, updates, {
-    append: { production_stage_history: [historyEntry] },
-  })
-
-  // Fire the existing artwork_stage_changed event so any downstream
-  // notification flows (or future automation rules on artwork) react
-  // exactly like they would when a staff member changes the stage. A
-  // failed emit is queued on the order + audited (review 3-10).
-  const fromStage: ProductionStage | null = isProductionStage(previousStage)
-    ? (previousStage as ProductionStage)
-    : null
-  const payload: ProductionStageChangedEvent = {
-    order_id: body.order,
-    from_stage: fromStage,
-    to_stage: nextStage as ProductionStage,
-    changed_at: now,
-    changed_by: "customer",
-    source: "customer_link",
-    track: "artwork",
-  }
-  await emitStageEvents(req.scope, body.order, [{ name: ARTWORK_STAGE_EVENT, data: payload }])
-
-  // A change request is the customer waiting on us: task for the owner +
-  // staff email now, not when the stale scan notices in two days.
-  if (!body.approved) {
-    await raiseAttention(req.scope, {
-      kind: "changes_requested",
-      order_id: body.order,
-      customer_id: (order as any)?.customer_id ?? null,
-      label: `#${(order as any)?.display_id ?? body.order.slice(-6)}`,
-      from: (order as any)?.email ?? null,
-      subject: body.approver_name ? `Changes requested by ${body.approver_name}` : null,
-      excerpt: body.comment ?? null,
-    }).catch(() => undefined)
-  }
-
-  getPostHog()?.capture({
-    distinctId: order?.email ?? body.order,
-    event: body.approved ? "artwork approved" : "artwork changes requested",
-    properties: {
-      order_id: body.order,
-      approver_name: body.approver_name ?? null,
-      has_comment: !!body.comment,
-    },
-  })
-
-  res.json({ ok: true, status: nextStage })
+  res.json({ ok: true, status: result.status })
 }

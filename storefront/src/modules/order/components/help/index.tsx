@@ -1,6 +1,8 @@
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import React from "react"
 
+import HelpPortal from "./portal"
+
 const Help = () => {
   return (
     <div className="bg-ui-bg-subtle rounded-xl p-6">
@@ -25,6 +27,7 @@ const Help = () => {
           </LocalizedClientLink>
         </li>
       </ul>
+      <HelpPortal />
     </div>
   )
 }

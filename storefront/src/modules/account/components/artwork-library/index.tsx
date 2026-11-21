@@ -11,6 +11,7 @@ import {
 } from "@lib/data/artwork"
 import { phCapture } from "@lib/posthog"
 import GarmentPicker from "@modules/account/components/garment-picker"
+import ArtworkCheckBadge from "@modules/customizer/components/artwork-check-badge"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
 
 type ShareableOrg = { id: string; name: string }
@@ -245,6 +246,9 @@ const ArtworkLibrary = ({ artwork, organisations }: Props) => {
                       </span>
                     ) : null}
                   </span>
+                </div>
+                <div className="pt-2">
+                  <ArtworkCheckBadge url={item.url} mimeType={item.mime_type} />
                 </div>
                 <div className="flex flex-1 flex-col gap-2 p-3">
                   {renamingId === item.id ? (

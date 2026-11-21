@@ -27,6 +27,40 @@ const createBodySchema = z.object({
   customizer_metadata: z.record(z.string(), z.unknown()),
 })
 
+/**
+ * design id → when an order that used it had its artwork approved. One query
+ * for the whole page. Only orders placed from a saved design carry
+ * `source_design_id` on their lines (no backfill for older orders).
+ */
+async function approvedAtByDesign(
+  scope: AuthenticatedMedusaRequest["scope"],
+  designIds: string[]
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  if (designIds.length === 0) return out
+  try {
+    const pg = scope.resolve<any>("__pg_connection__")
+    const { rows } = await pg.raw(
+      `select li.metadata->>'source_design_id' as design_id,
+              max(o.metadata->>'artwork_approved_at') as approved_at
+         from order_line_item li
+         join order_item oi on oi.item_id = li.id and oi.deleted_at is null
+         join "order" o on o.id = oi.order_id
+        where li.deleted_at is null
+          and o.deleted_at is null
+          and o.canceled_at is null
+          and li.metadata->>'source_design_id' = any(?)
+          and o.metadata->>'artwork_approved_at' is not null
+        group by 1`,
+      [designIds]
+    )
+    for (const r of rows ?? []) out.set(r.design_id, r.approved_at)
+  } catch {
+    // The badge is a nicety; never break the list for it.
+  }
+  return out
+}
+
 export async function GET(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
@@ -46,8 +80,13 @@ export async function GET(
     }
   )
 
+  const approved = await approvedAtByDesign(req.scope, designs.map((d: any) => d.id))
   res.json({
-    designs: await decorateDesigns(req.scope, designs, customerId, orgs),
+    designs: (await decorateDesigns(req.scope, designs, customerId, orgs)).map((d: any) => ({
+      ...d,
+      approved: approved.has(d.id),
+      approved_at: approved.get(d.id) ?? null,
+    })),
     count,
     limit: query.limit ?? 50,
     offset: query.offset ?? 0,

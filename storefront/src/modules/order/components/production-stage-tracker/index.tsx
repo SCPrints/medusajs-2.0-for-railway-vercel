@@ -15,6 +15,7 @@ import {
   type BlanksStage,
   type CustomerMilestone,
 } from "@modules/order/lib/production-stage"
+import AccountProof from "@modules/artwork-approval/components/account-proof"
 
 type Props = {
   order: HttpTypes.StoreOrder
@@ -206,6 +207,8 @@ const ProductionStageTracker = ({ order }: Props) => {
           </p>
         </div>
       ) : null}
+
+      {awaitingApproval ? <AccountProof orderId={order.id} /> : null}
     </section>
   )
 }

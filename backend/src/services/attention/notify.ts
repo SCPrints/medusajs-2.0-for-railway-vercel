@@ -44,6 +44,8 @@ const TITLE: Record<JobAttentionKind, (label: string) => string> = {
   accepted_no_order: (l) => `Convert accepted quote ${l} to an order`,
   changes_requested: (l) => `Revise the proof — ${l}`,
   names_numbers_requested: (l) => `Price names / numbers — ${l}`,
+  problem_reported: (l) => `Customer reported a problem — ${l}`,
+  size_swap_requested: (l) => `Size swap requested — ${l}`,
 }
 
 const BODY: Record<JobAttentionKind, string> = {
@@ -55,6 +57,10 @@ const BODY: Record<JobAttentionKind, string> = {
     "The customer asked for changes on the proof. Revise the artwork, then re-send the proof.",
   names_numbers_requested:
     "The customer asked for names / numbers printed on the garments. Nothing was charged for them at checkout. Price it from the roster (job → Delivery), confirm the price with the customer, then go ahead.",
+  problem_reported:
+    "The customer reported a problem with their order (photos are on the job's Activity). Decide it in the job's Customer requests, then reply to them.",
+  size_swap_requested:
+    "The customer asked to swap a size. Check stock (printed garments usually can't be swapped), decide it in the job's Customer requests, then reply to them.",
 }
 
 const jobUrl = (input: AttentionInput): string | null => {
@@ -189,6 +195,8 @@ export async function raiseAttention(
         accepted_no_order: `Accepted, no order — ${input.label}`,
         changes_requested: `Changes requested — ${input.label}`,
         names_numbers_requested: `Names / numbers to price — ${input.label}`,
+        problem_reported: `Problem reported — ${input.label}`,
+        size_swap_requested: `Size swap requested — ${input.label}`,
       }
       // orders@ has no mailbox: replying to this alert must reach the customer
       // and land on the job (same two-address reply-to as the contact-form alert).

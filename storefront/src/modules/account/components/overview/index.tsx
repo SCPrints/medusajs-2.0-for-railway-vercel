@@ -5,6 +5,7 @@ import { HttpTypes } from "@medusajs/types"
 import { TIER_GROUP_NAME_PREFIX, type Tier } from "@lib/customer-tiers"
 import type { SavedDesign } from "@lib/data/designs"
 import OrderAgainButton from "@modules/order/components/order-again-button"
+import { collectParcels } from "@modules/order/lib/parcels"
 import { isStudioLine } from "@modules/order/lib/design-groups"
 import {
   CUSTOMER_MILESTONES,
@@ -57,15 +58,9 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   </p>
 )
 
-/** Active jobs, recent designs and one-click re-order. Renders nothing for brand-new customers. */
-const PickUpWhereYouLeftOff = ({
-  orders,
-  designs,
-}: {
-  orders: HttpTypes.StoreOrder[]
-  designs: SavedDesign[]
-}) => {
-  const activeJobs = orders
+/** Open orders (not delivered / cancelled), newest first, max 5. Renders nothing when there are none. */
+const OrdersInProgress = ({ orders }: { orders: HttpTypes.StoreOrder[] }) => {
+  const jobs = orders
     .map((order) => {
       const { stage } = readProductionStageMetadata(
         (order.metadata ?? null) as Record<string, unknown> | null
@@ -75,47 +70,77 @@ const PickUpWhereYouLeftOff = ({
       return milestone === "delivered" ? null : { order, milestone }
     })
     .filter((j): j is NonNullable<typeof j> => j !== null)
-    .slice(0, 3)
+    .slice(0, 5)
+  if (!jobs.length) return null
+
+  return (
+    <section className="mb-8 px-5 small:px-0" data-testid="orders-in-progress">
+      <h2 className="mb-4 text-xl font-semibold text-ui-fg-base">Orders in progress</h2>
+      <ul className="m-0 flex list-none flex-col gap-3 rounded-2xl border border-ui-border-base bg-white p-5">
+        {jobs.map(({ order, milestone }) => {
+          const idx = milestoneIndex(milestone)
+          const parcel = collectParcels(order).find((p) => p.tracking_number)
+          return (
+            <li key={order.id}>
+              <LocalizedClientLink
+                href={`/account/orders/details/${order.id}`}
+                className="group block rounded-lg p-2 -m-2 hover:bg-ui-bg-subtle"
+              >
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="font-semibold text-ui-fg-base">#{order.display_id}</span>
+                  <span className="text-ui-fg-subtle">{CUSTOMER_MILESTONE_LABEL[milestone]}</span>
+                </div>
+                <div className="mt-2 flex gap-1" aria-hidden>
+                  {CUSTOMER_MILESTONES.map((m, i) => (
+                    <span
+                      key={m}
+                      className={`h-1.5 flex-1 rounded-full ${i <= idx ? "bg-brand" : "bg-ui-bg-subtle"}`}
+                    />
+                  ))}
+                </div>
+              </LocalizedClientLink>
+              {parcel ? (
+                <p className="mt-2 text-xs text-ui-fg-subtle">
+                  Tracking: {parcel.tracking_number}
+                  {parcel.tracking_url ? (
+                    <>
+                      {" · "}
+                      <a
+                        href={parcel.tracking_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 hover:text-brand"
+                      >
+                        Track parcel
+                      </a>
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
+}
+
+/** Active jobs, recent designs and one-click re-order. Renders nothing for brand-new customers. */
+const PickUpWhereYouLeftOff = ({
+  orders,
+  designs,
+}: {
+  orders: HttpTypes.StoreOrder[]
+  designs: SavedDesign[]
+}) => {
   const lastStudioOrder = orders.find((o) => (o.items ?? []).some(isStudioLine))
 
-  if (!activeJobs.length && !designs.length && !lastStudioOrder) return null
+  if (!designs.length && !lastStudioOrder) return null
 
   return (
     <section className="mt-8 px-5 small:px-0" data-testid="pick-up-section">
       <h2 className="mb-4 text-xl font-semibold text-ui-fg-base">Pick up where you left off</h2>
       <div className="grid grid-cols-1 gap-4 small:grid-cols-2">
-        {activeJobs.length ? (
-          <div className="rounded-2xl border border-ui-border-base bg-white p-5">
-            <SectionLabel>Jobs in progress</SectionLabel>
-            <ul className="m-0 mt-3 flex list-none flex-col gap-3 p-0">
-              {activeJobs.map(({ order, milestone }) => {
-                const idx = milestoneIndex(milestone)
-                return (
-                  <li key={order.id}>
-                    <LocalizedClientLink
-                      href={`/account/orders/details/${order.id}`}
-                      className="group block rounded-lg p-2 -m-2 hover:bg-ui-bg-subtle"
-                    >
-                      <div className="flex items-baseline justify-between gap-2 text-sm">
-                        <span className="font-semibold text-ui-fg-base">#{order.display_id}</span>
-                        <span className="text-ui-fg-subtle">{CUSTOMER_MILESTONE_LABEL[milestone]}</span>
-                      </div>
-                      <div className="mt-2 flex gap-1" aria-hidden>
-                        {CUSTOMER_MILESTONES.map((m, i) => (
-                          <span
-                            key={m}
-                            className={`h-1.5 flex-1 rounded-full ${i <= idx ? "bg-brand" : "bg-ui-bg-subtle"}`}
-                          />
-                        ))}
-                      </div>
-                    </LocalizedClientLink>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ) : null}
-
         {lastStudioOrder ? (
           <div className="rounded-2xl border border-ui-border-base bg-white p-5">
             <SectionLabel>Same again?</SectionLabel>
@@ -188,6 +213,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
 
   return (
     <div data-testid="overview-page-wrapper">
+      <OrdersInProgress orders={recentOrders} />
       <div className="small:hidden px-5 pb-6">
         {tier ? (
           <div className="mb-4">

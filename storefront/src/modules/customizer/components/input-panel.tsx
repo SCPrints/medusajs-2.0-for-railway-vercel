@@ -1,5 +1,6 @@
 "use client"
 
+import ArtworkCheckBadge from "./artwork-check-badge"
 import { ChangeEvent, memo, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 
@@ -354,6 +355,7 @@ function InputPanel({
                     <p className="truncate px-1.5 py-1 text-[11px] text-ui-fg-subtle group-hover:text-ui-fg-base">
                       {upload.name}
                     </p>
+                    <ArtworkCheckBadge url={upload.previewUrl} mimeType={upload.type} />
                   </button>
 
                   {onDeleteUpload ? (

@@ -9,6 +9,8 @@ export type JobAttentionKind =
   | "accepted_no_order"
   | "changes_requested"
   | "names_numbers_requested"
+  | "problem_reported"
+  | "size_swap_requested"
 
 /** Email-only kinds: no task, so not part of raiseAttention's JobAttentionKind. */
 type AlertKind = JobAttentionKind | "unmatched_email"
@@ -56,6 +58,16 @@ const COPY: Record<AlertKind, { eyebrow: string; color: string; body: string }> 
     eyebrow: "Names / numbers to price",
     color: "#f97316",
     body: "The customer asked for names or numbers printed on the garments. No price was charged for them. The roster is in the job's Delivery section: price it, confirm with the customer, then go ahead.",
+  },
+  problem_reported: {
+    eyebrow: "Customer reported a problem",
+    color: "#dc2626",
+    body: "The customer reported a problem with their order. Photos and details are on the job's Activity. Decide it under Customer requests, then reply to them.",
+  },
+  size_swap_requested: {
+    eyebrow: "Size swap requested",
+    color: "#f97316",
+    body: "The customer asked to swap a size. Check stock (printed garments usually can't be swapped), decide it under Customer requests, then reply to them.",
   },
 }
 
