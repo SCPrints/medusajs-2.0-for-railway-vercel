@@ -390,7 +390,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
             </div>
           ))}
         </div>
-        <button type="button" onClick={addDecoration} className="block w-fit text-sm font-semibold text-brand underline hover:text-accent">
+        <button type="button" onClick={addDecoration} className="mb-0.5 block w-fit text-sm font-semibold text-brand underline hover:text-accent">
           + Add another decoration
         </button>
       </fieldset>
