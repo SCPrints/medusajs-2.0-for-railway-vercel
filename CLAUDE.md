@@ -1881,6 +1881,17 @@ When a PDP variant or other view is a client component (`"use client"`) but need
 
 `next/font/google` downloads every font from Google **during each Vercel build**; when Google hiccups the build fails with `next/font/google queries have exactly one entry` / `Can't resolve '@vercel/turbopack-next/internal/font/google/font'` even though no code changed. All fonts are committed as Latin `.woff2` files in [storefront/src/fonts/](storefront/src/fonts/) and loaded with `next/font/local`. To add a font: download the Latin woff2 from `fonts.googleapis.com/css2?family=…` (Chrome user agent) into `src/fonts/`, then `localFont({ src: [{ path: "<relative>/fonts/x.woff2", weight: "400 700", style: "normal" }], display: "swap" })` **in the page that uses it** — not a shared fonts module, or every route preloads every font.
 
+## Tailwind CSS 4 (since 2026-11-21)
+
+The storefront runs Tailwind 4 but keeps the v3 setup: [tailwind.config.js](storefront/tailwind.config.js) is loaded with `@config` from [globals.css](storefront/src/styles/globals.css) (Medusa ui-preset, the inverted breakpoint names, tailwindcss-radix), PostCSS is `@tailwindcss/postcss`. The upgrade was tuned until 11 pages rendered pixel-identical to the v3 site, so a visual change after an edit is real, not "Tailwind drift". Things that behave differently from v3 and bit us:
+- **Opacity on CSS-variable and Medusa UI colours now works.** `text-(--brand-primary)/80`, `bg-ui-bg-subtle/50` did nothing in v3; in v4 they fade. 305 dead uses were removed at the upgrade. Writing one now changes the look.
+- **`@apply` only sees Tailwind utilities**, not our plain-CSS overrides of Medusa classes (`.text-ui-fg-base` → navy etc. in globals.css). Use the explicit colour (`text-(--brand-primary)`) inside `@utility` blocks.
+- **`leading-*` wins over a breakpoint text size.** v3's `leading-tight small:text-4xl` took 4xl's own line height at `small`; v4 keeps `leading-tight`. Add `small:leading-…` when you want the size's line height.
+- **`space-y-*` puts the gap on `margin-bottom` of every child but the last** (v3: `margin-top` of every child but the first). Matters when the first child is absolutely positioned (the honeypot: forms set the first field's top margin explicitly) or is a fieldset `<legend>` (legend `mb-0`, next element `mt-N`).
+- **Palette pinned to Tailwind 3.4** ([tailwind-v3-colors.js](storefront/tailwind-v3-colors.js)); v4's OKLCH palette is not used. Base layer restores v3 form-field background, placeholder colour and button pointer cursor.
+- Class renames from the upgrade tool: `shadow-sm`→`shadow-xs`, `shadow`→`shadow-sm`, `rounded`→`rounded-sm`, `outline-none`→`outline-hidden`, `!foo`→`foo!`, `bg-[var(--x)]`→`bg-(--x)`.
+- **Checking a styling change against live**: screenshot both with Playwright and diff the pixels, and compare computed styles element by element (colours normalised through a canvas). Data that moves (product order, rotating lookbook photos) shows as differences; ignore those.
+
 ## Mobile / responsive conventions
 
 The storefront's Tailwind breakpoint names are **inverted from Tailwind defaults** — `small: 1024px` is iPad-landscape / small-desktop, NOT phone. Reading "small" and assuming "phone" silently ships a desktop layout to every device below 1024px. Before adding responsive classes, check [storefront/tailwind.config.js](storefront/tailwind.config.js) `screens` to confirm what you actually mean.
