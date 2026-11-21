@@ -229,6 +229,8 @@ Two-stage hydration: stage 1 fetches the metadata, stage 2 replays it onto Fabri
 - **Two-step login is Medusa's core MFA** and needs the Fly secret `AUTH_MFA_ENCRYPTION_KEY`.
 - **Customer portal messages are order comments** written as `email:portal:<customer_id>`; what a customer may read is decided only by `visibleMessages` in [job-messages.ts](backend/src/lib/job-messages.ts). Problems / size swaps live on `order.metadata.customer_requests` and never change the order.
 - **Rush and split delivery are requests** (`cart.metadata.rush_request`, `split_delivery`): no price is charged; staff confirm.
+- **`REORDER_REMINDERS_ENABLED` is ON in production** (checked 21 Nov 2026), so any change to the reminder builder or template changes a live customer email on the next cron run. The smarter reminder (#10) is built but reverted (`da81fc37`) until Sean approves the email.
+- **`"use server"` files may only export async functions.** `export const x = (…) => post(…)` passes `tsc` and fails the Vercel build ("export was not found"). Before pushing storefront work, scan changed `"use server"` files for `^export ` lines that are not `export async function` / `export type`.
 - **Throwaway-DB tests:** Medusa 2.22's `loadEnv` fills BLANK env vars from `backend/.env`, so blanking keys no longer isolates a run; preload a script that makes `.env` read as empty.
 
 ### 4. Live DPI warning + vectorization service

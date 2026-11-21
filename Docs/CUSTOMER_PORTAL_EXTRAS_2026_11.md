@@ -50,13 +50,20 @@ customer or staff action asked for it; cross-customer / cross-organisation acces
 
 ## Status (21 Nov 2026)
 
-Batch 1 is live (67488f7a). Batches 2 and 3 are built and committed on local `master` (4967bca2 + the batch 3 commit), NOT pushed or deployed.
-Checks: backend + admin + storefront `tsc` clean, 1,741 backend + 512 storefront tests, and 116 live route checks on a throwaway database
-(46 for batch 2, 70 for batch 3). No page has been looked at in a browser.
+**All three batches are live.** Batches 2 and 3 deployed 21 Nov 2026: backend Fly release v472, storefront Vercel build of `d4a775e0`.
+Checks before deploy: backend + admin + storefront `tsc` clean, 1,741 backend + 512 storefront tests, 116 live route checks on a throwaway
+database. After deploy: new routes answer 401/400 on production, the four new tables/column exist, pages answer 200, no new runtime errors.
+No page has been looked at in a browser by a person yet.
 
-**Before deploying batch 3:** set the Fly secret `AUTH_MFA_ENCRYPTION_KEY` (any long random string) or two-step setup errors.
-Migrations run in the release command: `Migration20271122100000` (organisation_invite), `Migration20271122200000`–`02`
-(organisation_allowance, organisation_allowance_pick, `organisation.brand_kit`). No module-link changes.
+**One feature is NOT live: #10 smarter re-order reminders.** `REORDER_REMINDERS_ENABLED` is `true` in production, so shipping the rewrite
+would have changed a live customer email without Sean seeing it. It was reverted in `da81fc37`; the work is in `56d2f2da`
+(`git revert da81fc37` brings it back). Production still sends the old reminder.
+
+`AUTH_MFA_ENCRYPTION_KEY` was already set on Fly. Migrations applied: `Migration20271122100000` (organisation_invite),
+`Migration20271122200000`–`02` (organisation_allowance, organisation_allowance_pick, `organisation.brand_kit`).
+
+The first Vercel build failed: a `"use server"` file exported non-async arrow functions (`tsc` passes, the production build does not).
+Fixed in `d4a775e0`.
 
 ### Batch 2 as built
 | # | What it does | Where |
@@ -85,7 +92,7 @@ Left out of batch 2: account proof routes are for the order's own customer only 
 | 5 | Held stock already had low highlighting and on-hand/reserved figures. Added: "Low" badge, "Top up" (links to Our range), movement history, CSV. | `tab-inventory.tsx`, `stock-extras.tsx` |
 | 6 | Brand kit per organisation (colours, fonts, placement notes, official logos) on `organisation.brand_kit`; owner edits, members read; staff see it on the organisation page and from the job window. | `lib/brand-kit.ts` |
 | 11 | "Order one sample first" on the cart line: sets the line to 1 at the normal one-off price, `metadata.sample = true`; refused for screen print and embroidered caps; no credit promised. Order page: "Happy with the sample? Order the full run". | `lib/sample-line.ts`, `store/carts/[id]/sample-line` |
-| 10 | Re-order reminders (still behind `REORDER_REMINDERS_ENABLED`, still through `shouldSendMarketingEmail`): timed from the customer's own median gap, about the order they repeat most, skipped when they have an open order/cart/quote or nothing re-orderable, max one per 60 days. Email lists last order's garments and one "Order again" button (`?again=1`). | `lib/reorder-reminder-rules.ts`, `services/reorder-reminders/` |
+| 10 | **HELD, not live (see Status).** Re-order reminders (still behind `REORDER_REMINDERS_ENABLED`, still through `shouldSendMarketingEmail`): timed from the customer's own median gap, about the order they repeat most, skipped when they have an open order/cart/quote or nothing re-orderable, max one per 60 days. Email lists last order's garments and one "Order again" button (`?again=1`). | `lib/reorder-reminder-rules.ts`, `services/reorder-reminders/` |
 | 31 | Compliance per product (`product.metadata.compliance`) over a brand default (`brand.metadata`): origin, fibre, weight, certifications, care, statement link. Admin widget on the product; brand default + supplier-statement tagging in the brand drawer; "Materials and compliance" on the product page; statements grouped by brand on Documents. | `lib/compliance.ts`, `admin/widgets/product-compliance.tsx` |
 
 Left out of batch 3: Studio sample button (cart line only); `sample_of` link back to the sample order; a Supacolour (min 10) block on samples;
