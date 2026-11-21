@@ -298,8 +298,8 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
       <HoneypotField />
       {/* 1. Base cap. mt-8 keeps the Tailwind 3 space-y gap (the honeypot is first). */}
       <fieldset className="mt-8 space-y-4">
-        <legend className="text-sm font-semibold text-ink">1. Base cap</legend>
-        <div>
+        <legend className="text-sm font-semibold text-ink mb-0">1. Base cap</legend>
+        <div className="mt-4">
           <label className={labelClass}>Cap style</label>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {CAP_STYLES.map((c) => (
@@ -341,8 +341,8 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
 
       {/* 2. Decorations */}
       <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-ink">2. Decorations</legend>
-        <p className="text-xs text-ui-fg-subtle">Add a block per logo/graphic. Choose where it goes and how it&apos;s decorated.</p>
+        <legend className="text-sm font-semibold text-ink mb-0">2. Decorations</legend>
+        <p className="mt-4 text-xs text-ui-fg-subtle">Add a block per logo/graphic. Choose where it goes and how it&apos;s decorated.</p>
         <div className="space-y-3">
           {decorations.map((d, i) => (
             <div key={d.id} className="rounded-lg border border-ui-border-base p-3">
@@ -397,8 +397,8 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
 
       {/* 3. Structural / trim */}
       <fieldset className="space-y-2">
-        <legend className="text-sm font-semibold text-ink">3. Structural &amp; trim add-ons <span className="font-normal text-ui-fg-subtle">(optional)</span></legend>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <legend className="text-sm font-semibold text-ink mb-0">3. Structural &amp; trim add-ons <span className="font-normal text-ui-fg-subtle">(optional)</span></legend>
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {TRIM_OPTIONS.map((t) => (
             <label key={t.id} className="flex cursor-pointer items-center gap-2 text-sm text-ui-fg-base">
               <input type="checkbox" checked={trims.has(t.id)} onChange={() => toggleTrim(t.id)} className="h-4 w-4 rounded-sm text-ink focus:ring-ink" />
@@ -410,8 +410,8 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
 
       {/* 4. Artwork */}
       <fieldset className="space-y-2">
-        <legend className="text-sm font-semibold text-ink">4. Artwork &amp; references <span className="font-normal text-ui-fg-subtle">(optional, up to {MAX_MOOD_BOARD})</span></legend>
-        <p className="text-xs text-ui-fg-subtle">Logos, sketches, brand references, or photos of a look you&apos;re after. Faster quotes, fewer rounds.</p>
+        <legend className="text-sm font-semibold text-ink mb-0">4. Artwork &amp; references <span className="font-normal text-ui-fg-subtle">(optional, up to {MAX_MOOD_BOARD})</span></legend>
+        <p className="mt-2 text-xs text-ui-fg-subtle">Logos, sketches, brand references, or photos of a look you&apos;re after. Faster quotes, fewer rounds.</p>
         <div className="flex flex-wrap items-start gap-2">
           {moodBoard.map((m) => (
             <div key={m.id} className="relative h-20 w-20 overflow-hidden rounded-md border bg-ui-bg-subtle">
@@ -433,8 +433,8 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
 
       {/* 5. Your details */}
       <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-ink">5. Your details</legend>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <legend className="text-sm font-semibold text-ink mb-0">5. Your details</legend>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="hat-first" className={labelClass}>First name</label>
             <input id="hat-first" name="first-name" type="text" autoComplete="given-name" className={inputClass} />

@@ -380,7 +380,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
 
       <fieldset className="space-y-2">
         <legend className={`${labelClass} mb-2`}>Garment types</legend>
-        <p className="mb-2 text-xs text-ui-fg-subtle">Select all that apply</p>
+        <p className="mt-2 mb-2 text-xs text-ui-fg-subtle">Select all that apply</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {GARMENT_TYPES.map((g) => (
             <label
