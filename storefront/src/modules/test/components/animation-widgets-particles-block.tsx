@@ -1,31 +1,43 @@
 "use client"
 
-import Particles, { initParticlesEngine } from "@tsparticles/react"
+import { Particles, ParticlesProvider, useParticlesProvider } from "@tsparticles/react"
 import { loadSlim } from "@tsparticles/slim"
 
 // `@tsparticles/engine` is installed transitively but not declared as a direct
 // dep, so TS can't resolve a top-level import. Reuse its core options shape
 // loosely — we only use a handful of fields below.
 type ISourceOptions = Record<string, unknown>
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 
 type Props = {
   reducedMotion: boolean
 }
 
+// tsparticles 4: the engine is set up by <ParticlesProvider init>, and
+// useParticlesProvider().loaded says when it's ready (was initParticlesEngine).
 export default function AnimationWidgetsParticlesBlock({ reducedMotion }: Props) {
-  const [ready, setReady] = useState(false)
+  if (reducedMotion) {
+    return <ParticlesPlaceholder text="Particle field hidden (prefers reduced motion)." />
+  }
+  return (
+    <ParticlesProvider init={loadSlim}>
+      <ParticleField />
+    </ParticlesProvider>
+  )
+}
 
-  useEffect(() => {
-    if (reducedMotion) {
-      return
-    }
-    initParticlesEngine(async (engine) => {
-      await loadSlim(engine)
-    })
-      .then(() => setReady(true))
-      .catch(() => setReady(false))
-  }, [reducedMotion])
+function ParticlesPlaceholder({ text }: { text: string }) {
+  return (
+    <div className="relative h-[280px] w-full overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-subtle">
+      <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-sm text-ui-fg-muted">
+        {text}
+      </p>
+    </div>
+  )
+}
+
+function ParticleField() {
+  const { loaded } = useParticlesProvider()
 
   const options: ISourceOptions = useMemo(
     () => ({
@@ -66,16 +78,8 @@ export default function AnimationWidgetsParticlesBlock({ reducedMotion }: Props)
     []
   )
 
-  if (reducedMotion || !ready) {
-    return (
-      <div className="relative h-[280px] w-full overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-subtle">
-        <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-sm text-ui-fg-muted">
-          {reducedMotion
-            ? "Particle field hidden (prefers reduced motion)."
-            : "Loading particles…"}
-        </p>
-      </div>
-    )
+  if (!loaded) {
+    return <ParticlesPlaceholder text="Loading particles…" />
   }
 
   return (
