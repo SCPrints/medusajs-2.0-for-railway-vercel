@@ -1,4 +1,4 @@
-FROM node:22-slim
+FROM node:24-slim
 
 # System deps for sharp (libvips) and native module compilation
 RUN apt-get update && apt-get install -y \
