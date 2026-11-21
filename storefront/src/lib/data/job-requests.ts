@@ -62,14 +62,21 @@ async function post(path: string, body: Record<string, unknown>): Promise<Result
   }
 }
 
-export const sendOrderMessage = (orderId: string, text: string) => post(`${base(orderId)}/messages`, { text })
+// "use server" files may only export async functions (the production build drops anything else).
+export async function sendOrderMessage(orderId: string, text: string): Promise<Result> {
+  return post(`${base(orderId)}/messages`, { text })
+}
 
-export const reportOrderProblem = (
+export async function reportOrderProblem(
   orderId: string,
   body: { what: string; details: string; line_item_ids: string[]; photo_urls: string[] }
-) => post(`${base(orderId)}/problems`, body)
+): Promise<Result> {
+  return post(`${base(orderId)}/problems`, body)
+}
 
-export const requestSizeSwap = (
+export async function requestSizeSwap(
   orderId: string,
   body: { line_item_id: string; from_size: string; to_size: string; quantity: number; note?: string }
-) => post(`${base(orderId)}/size-swaps`, body)
+): Promise<Result> {
+  return post(`${base(orderId)}/size-swaps`, body)
+}
