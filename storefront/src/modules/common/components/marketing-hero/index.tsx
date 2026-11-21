@@ -31,7 +31,7 @@ export default function MarketingHero({
 }: MarketingHeroProps) {
   const eyebrowEl =
     eyebrowVariant === "pill" ? (
-      <span className="inline-flex rounded-full border border-[var(--brand-secondary)]/40 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-brand">
+      <span className="inline-flex rounded-full border border-(--brand-secondary)/40 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-brand">
         {eyebrow}
       </span>
     ) : (
@@ -71,7 +71,7 @@ export default function MarketingHero({
       className={clx(
         "rounded-2xl border border-ui-border-base bg-ui-bg-subtle",
         padding === "spacious"
-          ? "p-8 shadow-sm small:p-12"
+          ? "p-8 shadow-xs small:p-12"
           : "p-8 small:p-10",
         className
       )}

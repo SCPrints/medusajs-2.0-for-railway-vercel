@@ -11,7 +11,7 @@ const BRAND_BACKGROUND = "rgb(var(--surface))"
 
 // Shared layout + motion classes for every button in the pagination bar.
 const BASE_BUTTON_CLASSES =
-  "group relative inline-flex items-center justify-center min-w-10 h-10 px-3 rounded-full leading-none select-none transition-[transform,background-color,color,box-shadow] duration-200 ease-out focus:outline-none"
+  "group relative inline-flex items-center justify-center min-w-10 h-10 px-3 rounded-full leading-none select-none transition-[transform,background-color,color,box-shadow] duration-200 ease-out focus:outline-hidden"
 
 export function Pagination({
   page,

@@ -38,7 +38,7 @@ export async function generateMetadata({
 export default function PrintFormationHeroPage() {
   return (
     <div className="relative min-h-screen bg-[#dee1e8] text-[#1a1a2e]">
-      <div className="pointer-events-none fixed left-0 top-0 z-[40] w-full px-4 py-4 sm:px-6">
+      <div className="pointer-events-none fixed left-0 top-0 z-40 w-full px-4 py-4 sm:px-6">
         <div className="pointer-events-auto inline-flex">
           <LocalizedClientLink
             href="/"
@@ -51,7 +51,7 @@ export default function PrintFormationHeroPage() {
       {/* "Ink to garment" — a DTF / heat-transfer print forming on a blank tee.
           Loose ink particles converge into the SC PRINTS wordmark, then a
           heat-press bar sweeps across and sets the transfer crisp. */}
-      <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden">
+      <section className="relative h-dvh min-h-[600px] w-full overflow-hidden">
         <PrintFormationHero style={{ position: "absolute", inset: 0, height: "100%" }} />
       </section>
     </div>

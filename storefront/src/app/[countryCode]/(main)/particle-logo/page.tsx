@@ -43,7 +43,7 @@ export async function generateMetadata({
 export default function ParticleLogoPage() {
   return (
     <div className="relative min-h-screen bg-black text-white">
-      <div className="pointer-events-none fixed left-0 top-0 z-[40] w-full px-4 py-4 sm:px-6">
+      <div className="pointer-events-none fixed left-0 top-0 z-40 w-full px-4 py-4 sm:px-6">
         <div className="pointer-events-auto inline-flex">
           <LocalizedClientLink
             href="/"

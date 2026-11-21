@@ -35,7 +35,7 @@ const MobileMegaMenu = ({ audiences }: Props) => {
             data-testid="mobile-nav-menu-button"
             data-no-squish
             aria-label="Open navigation menu"
-            className="relative h-full flex min-h-11 min-w-11 items-center gap-2 text-base font-medium text-brand transition-all ease-out duration-200 focus:outline-none hover:text-accent"
+            className="relative h-full flex min-h-11 min-w-11 items-center gap-2 text-base font-medium text-brand transition-all ease-out duration-200 focus:outline-hidden hover:text-accent"
           >
             <svg
               width="22"
@@ -54,11 +54,11 @@ const MobileMegaMenu = ({ audiences }: Props) => {
             <span className="hidden phone:inline">Menu</span>
           </Popover.Button>
 
-          <Popover.Overlay className="fixed inset-0 z-[35] bg-[var(--brand-primary)]/35 backdrop-blur-sm" />
+          <Popover.Overlay className="fixed inset-0 z-35 bg-(--brand-primary)/35 backdrop-blur-xs" />
 
           <Popover.Panel
             data-testid="mobile-nav-menu-popup"
-            className="fixed inset-x-0 top-20 bottom-0 z-40 flex flex-col overflow-hidden border-t-2 border-white/20 bg-header-panel/95 text-sm text-header-fg shadow-lg outline-none backdrop-blur-2xl"
+            className="fixed inset-x-0 top-20 bottom-0 z-40 flex flex-col overflow-hidden border-t-2 border-white/20 bg-header-panel/95 text-sm text-header-fg shadow-lg outline-hidden backdrop-blur-2xl"
           >
             <div
               className="content-container flex min-h-0 flex-1 flex-col py-6 overflow-y-auto"

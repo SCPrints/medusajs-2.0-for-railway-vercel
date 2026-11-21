@@ -53,7 +53,7 @@ export default function NewsletterSignup() {
         value={email}
         onChange={(event) => setEmail(event.target.value)}
         placeholder="you@example.com"
-        className="w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ui-fg-base"
+        className="w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm outline-hidden focus:ring-2 focus:ring-ui-fg-base"
       />
       <button
         type="submit"

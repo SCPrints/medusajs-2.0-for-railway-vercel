@@ -138,7 +138,7 @@ export default function PdpSplitTabs({
                 aria-selected={active === i}
                 aria-controls={`${baseId}-panel-${i}`}
                 tabIndex={active === i ? 0 : -1}
-                className="relative z-[1] min-h-11 px-4 py-2.5 pb-3 text-left text-sm font-medium text-ui-fg-muted transition-colors data-[active=true]:text-ui-fg-base small:px-5"
+                className="relative z-1 min-h-11 px-4 py-2.5 pb-3 text-left text-sm font-medium text-ui-fg-muted transition-colors data-[active=true]:text-ui-fg-base small:px-5"
                 data-active={active === i}
                 onClick={() => {
                   if (i === 1) {
@@ -171,7 +171,7 @@ export default function PdpSplitTabs({
       >
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-start">
           <div className="lg:col-span-7">
-            <div className="overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-4 shadow-sm">
+            <div className="overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-4 shadow-xs">
               {gallery}
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function PdpSplitTabs({
                 type="button"
                 onClick={openGuideFromPhotos}
                 aria-label="Open the step-by-step guide"
-                className="flex shrink-0 items-center gap-1 rounded-lg border border-brand bg-brand px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 whitespace-nowrap"
+                className="flex shrink-0 items-center gap-1 rounded-lg border border-brand bg-brand px-2.5 py-1.5 text-xs font-medium text-white shadow-xs transition hover:brightness-110 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 whitespace-nowrap"
               >
                 <svg
                   width="12"
@@ -211,7 +211,7 @@ export default function PdpSplitTabs({
                 Need help?
               </button>
             </div>
-            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4 shadow-sm">
+            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4 shadow-xs">
               {variantPickers}
               <button
                 type="button"

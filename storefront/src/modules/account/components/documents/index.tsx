@@ -4,7 +4,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import { shortDate } from "../quotes/format"
 
 const row = "flex min-h-14 items-center justify-between gap-3 px-4 py-3"
-const link = "inline-flex min-h-11 items-center rounded-md border border-ui-border-base bg-white px-4 text-sm font-semibold !text-ui-fg-base hover:bg-ui-bg-subtle"
+const link = "inline-flex min-h-11 items-center rounded-md border border-ui-border-base bg-white px-4 text-sm font-semibold text-ui-fg-base! hover:bg-ui-bg-subtle"
 
 const DocumentsList = ({ documents }: { documents: SupplierDocument[] }) => (
   <div className="flex flex-col gap-8" data-testid="documents">

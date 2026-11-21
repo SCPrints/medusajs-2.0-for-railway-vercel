@@ -107,7 +107,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               placeholder="alex@example.com"
-              className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40 min-h-11"
+              className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 min-h-11"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -117,7 +117,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value as OrgRole)}
-              className="rounded-md border border-ui-border-base bg-white px-2 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40 min-h-11"
+              className="rounded-md border border-ui-border-base bg-white px-2 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 min-h-11"
             >
               {ROLE_OPTIONS.map((r) => (
                 <option key={r} value={r}>
@@ -129,7 +129,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
           <button
             type="submit"
             disabled={busy || !inviteEmail.trim()}
-            className="inline-flex shrink-0 items-center justify-center rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
+            className="inline-flex shrink-0 items-center justify-center rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-(--brand-secondary)/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
           >
             Invite
           </button>
@@ -148,7 +148,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
 
       {/* Members list */}
       <section>
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
           Members ({members.length})
         </h2>
         <ul className="mt-3 divide-y divide-ui-border-base rounded-2xl border border-ui-border-base bg-white">
@@ -171,7 +171,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
                   <p className="text-sm font-semibold text-ui-fg-base">
                     {label}{" "}
                     {isMe ? (
-                      <span className="ml-1 inline-block rounded bg-ui-bg-subtle px-1.5 py-0.5 text-[10px] font-semibold text-ui-fg-muted">
+                      <span className="ml-1 inline-block rounded-sm bg-ui-bg-subtle px-1.5 py-0.5 text-[10px] font-semibold text-ui-fg-muted">
                         You
                       </span>
                     ) : null}
@@ -191,7 +191,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
                         handleRoleChange(m.id, e.target.value as OrgRole)
                       }
                       disabled={busy || (isLastOwner && m.role === "owner")}
-                      className="rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {ROLE_OPTIONS.map((r) => (
                         <option key={r} value={r}>

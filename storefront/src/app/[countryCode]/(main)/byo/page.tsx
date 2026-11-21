@@ -193,7 +193,7 @@ export default async function ByoPage({
         {/* Seasonal: the patchwork monster brought its own tee (Halloween only). */}
         <SeasonalMarginMascot name="patchwork" size={120} className="right-6 top-10" show="hidden small:block" />
         <header className="mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
             Bring your own
           </p>
           <h1
@@ -209,7 +209,7 @@ export default async function ByoPage({
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <a
               href="#byo-inquiry"
-              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
             >
               Ask us a BYO question
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -227,7 +227,7 @@ export default async function ByoPage({
       {/* 2. What "BYO" means — short intro */}
       <section className="content-container py-12 small:py-16">
         <div className="mx-auto max-w-3xl rounded-2xl border border-ui-border-base bg-white p-8 small:p-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             What &quot;BYO&quot; means
           </p>
           <p className="mt-3 text-base leading-relaxed text-ui-fg-subtle small:text-lg">
@@ -281,7 +281,7 @@ export default async function ByoPage({
                 >
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter text-[var(--brand-secondary)]/10 transition-colors group-hover:text-[var(--brand-secondary)]/25"
+                    className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter text-(--brand-secondary)/10 transition-colors group-hover:text-(--brand-secondary)/25"
                   >
                     {step.number}
                   </span>
@@ -303,7 +303,7 @@ export default async function ByoPage({
       <section className="content-container py-12 small:py-16">
         <div className="grid gap-6 small:grid-cols-2">
           <div className="rounded-2xl border border-ui-border-base bg-white p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               What we&apos;ll need
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base">
@@ -312,7 +312,7 @@ export default async function ByoPage({
             <ul className="mt-6 list-none space-y-4 p-0 text-sm text-ui-fg-subtle small:text-base">
               {BRING_ITEMS.map((item) => (
                 <li key={item} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent)]/15 text-accent">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-(--brand-accent)/15 text-accent">
                     <CheckIcon />
                   </span>
                   <span>{item}</span>
@@ -322,7 +322,7 @@ export default async function ByoPage({
           </div>
 
           <div className="flex flex-col rounded-2xl border border-ui-border-base bg-white p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               Production
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base">
@@ -365,7 +365,7 @@ export default async function ByoPage({
             Tell us the printing type and garments you have in mind &mdash;
             we&apos;ll come back with advice, pricing, and timelines.
           </p>
-          <div className="mx-auto max-w-xl scroll-mt-24 rounded-2xl border border-ui-border-base bg-white p-6 shadow-sm small:p-8">
+          <div className="mx-auto max-w-xl scroll-mt-24 rounded-2xl border border-ui-border-base bg-white p-6 shadow-xs small:p-8">
             <ByoInquiryForm id="byo-inquiry" />
           </div>
           <p className="mt-10 text-center text-sm text-ui-fg-subtle">

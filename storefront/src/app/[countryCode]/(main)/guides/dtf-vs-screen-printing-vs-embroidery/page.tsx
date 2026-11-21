@@ -197,8 +197,8 @@ const CSS = `
 const prose = "mt-4 max-w-3xl text-base leading-relaxed text-ui-fg-subtle"
 const eyebrow = "text-xs font-semibold uppercase tracking-[0.12em]"
 const card =
-  "h-full rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-sm"
-const linkClass = "font-semibold !text-brand underline underline-offset-4"
+  "h-full rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-xs"
+const linkClass = "font-semibold text-brand! underline underline-offset-4"
 
 export default function DecorationMethodsGuidePage() {
   const articleLd = {
@@ -239,7 +239,7 @@ export default function DecorationMethodsGuidePage() {
           </p>
           <a
             href="#picker"
-            className="group mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
+            className="group mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white! shadow-xs transition hover:brightness-110"
           >
             Find your method
             <span aria-hidden className="transition-transform group-hover:translate-y-0.5">
@@ -258,7 +258,7 @@ export default function DecorationMethodsGuidePage() {
                 <MethodSwatch
                   method={m.key}
                   id={`hero-${m.key}`}
-                  className="h-auto w-full drop-shadow-sm"
+                  className="h-auto w-full drop-shadow-xs"
                   title={`Close-up of a design decorated with ${m.key === "dtf" ? "a DTF print" : m.name.toLowerCase()}`}
                 />
                 <p className="mt-2 text-sm font-semibold text-ui-fg-base">{m.name}</p>
@@ -365,7 +365,7 @@ export default function DecorationMethodsGuidePage() {
                     <li key={limit} className="flex gap-3">
                       <span
                         aria-hidden
-                        className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand/[0.12] text-xs font-bold !text-[#d81e4f]"
+                        className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand/12 text-xs font-bold text-[#d81e4f]!"
                       >
                         !
                       </span>
@@ -394,7 +394,7 @@ export default function DecorationMethodsGuidePage() {
                     sizes="(min-width: 1024px) 25vw, (min-width: 480px) 50vw, 100vw"
                     className="object-cover transition duration-500 hover:scale-[1.03]"
                   />
-                  <span className="absolute left-3 top-3 rounded-md bg-ink px-2 py-1 text-xs font-semibold !text-white">
+                  <span className="absolute left-3 top-3 rounded-md bg-ink px-2 py-1 text-xs font-semibold text-white!">
                     {photo.method}
                   </span>
                 </div>
@@ -458,7 +458,7 @@ export default function DecorationMethodsGuidePage() {
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <LocalizedClientLink
               href="/store"
-              className="group inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white! shadow-xs transition hover:brightness-110"
             >
               Choose a garment
               <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
@@ -467,7 +467,7 @@ export default function DecorationMethodsGuidePage() {
             </LocalizedClientLink>
             <LocalizedClientLink
               href="/contact"
-              className="inline-flex min-h-11 items-center rounded-lg border border-white/30 px-6 py-3 text-sm font-semibold !text-white transition hover:bg-white/10"
+              className="inline-flex min-h-11 items-center rounded-lg border border-white/30 px-6 py-3 text-sm font-semibold text-white! transition hover:bg-white/10"
             >
               Ask us which suits your job
             </LocalizedClientLink>

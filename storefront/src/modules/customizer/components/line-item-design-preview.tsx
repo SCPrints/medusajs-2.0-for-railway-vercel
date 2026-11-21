@@ -90,7 +90,7 @@ export default function LineItemDesignPreview({
       {open && typeof document !== "undefined"
         ? createPortal(
             <div
-              className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 p-4"
+              className="fixed inset-0 z-1200 flex items-center justify-center bg-black/60 p-4"
               role="dialog"
               aria-modal
               aria-label="Design preview"

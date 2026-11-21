@@ -20,7 +20,7 @@ export default function InstagramFeedStrip({
   return (
     <section className="border-t border-ui-border-base bg-ui-bg-subtle">
       <div className="content-container flex flex-wrap items-center justify-between gap-3 py-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--brand-primary)]/80">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-(--brand-primary)/80">
           On the gram
         </p>
         <a
@@ -48,21 +48,21 @@ export default function InstagramFeedStrip({
               href={profileUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-ui-border-base bg-white px-5 py-2.5 text-sm font-semibold text-ui-fg-base shadow-sm transition hover:border-[var(--brand-secondary)]/50"
+              className="inline-flex items-center gap-2 rounded-full border border-ui-border-base bg-white px-5 py-2.5 text-sm font-semibold text-ui-fg-base shadow-xs transition hover:border-(--brand-secondary)/50"
             >
-              <span className="inline-block h-6 w-6 rounded bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#8134af]" aria-hidden />
+              <span className="inline-block h-6 w-6 rounded-sm bg-linear-to-br from-[#f58529] via-[#dd2a7b] to-[#8134af]" aria-hidden />
               Follow {label} for photos &amp; updates
             </a>
           </div>
         ) : (
-          <div className="instagram-feed-track flex w-max gap-3 py-2 motion-reduce:!animate-none">
+          <div className="instagram-feed-track flex w-max gap-3 py-2 motion-reduce:animate-none!">
             {track.map((item, index) => (
               <a
                 key={`${item.id}-${index}`}
                 href={item.permalink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group relative h-36 w-36 shrink-0 overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-sm small:h-44 small:w-44"
+                className="group relative h-36 w-36 shrink-0 overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-xs small:h-44 small:w-44"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- Instagram CDN hostnames vary */}
                 <img

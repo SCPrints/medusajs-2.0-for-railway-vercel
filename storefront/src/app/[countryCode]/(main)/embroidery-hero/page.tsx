@@ -38,7 +38,7 @@ export async function generateMetadata({
 export default function EmbroideryHeroPage() {
   return (
     <div className="relative min-h-screen bg-[#15152a] text-white">
-      <div className="pointer-events-none fixed left-0 top-0 z-[40] w-full px-4 py-4 sm:px-6">
+      <div className="pointer-events-none fixed left-0 top-0 z-40 w-full px-4 py-4 sm:px-6">
         <div className="pointer-events-auto inline-flex">
           <LocalizedClientLink
             href="/"
@@ -50,7 +50,7 @@ export default function EmbroideryHeroPage() {
       </div>
       {/* Machine-embroidery hero: the SC Prints wordmark stitched in satin thread
           on hooped fabric. Sheen follows the cursor; loops with a snip + restitch. */}
-      <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-[#20203a]">
+      <section className="relative h-dvh min-h-[600px] w-full overflow-hidden bg-[#20203a]">
         <EmbroideryStitchHero style={{ position: "absolute", inset: 0, height: "100%" }} />
       </section>
     </div>

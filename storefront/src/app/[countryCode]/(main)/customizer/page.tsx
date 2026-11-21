@@ -333,7 +333,7 @@ export default async function CustomizerPage({ params, searchParams }: Customize
         // to document.body and therefore stacks as a sibling of this shell — at
         // z-9999 the shell painted over the delete-upload confirm, the product
         // picker, the POA + low-res modals, so staff saw "nothing happens".
-        className="fixed inset-0 z-[70] overflow-y-auto bg-ui-bg-base"
+        className="fixed inset-0 z-70 overflow-y-auto bg-ui-bg-base"
         data-testid="customizer-proof-shell"
       >
         <div className="mx-auto max-w-[1400px] px-3 py-4">

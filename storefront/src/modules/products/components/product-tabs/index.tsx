@@ -40,7 +40,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
               aria-selected={active === i}
               aria-controls={`${baseId}-panel-${i}`}
               tabIndex={active === i ? 0 : -1}
-              className="relative z-[1] px-3 py-2 pb-3 text-left text-sm font-medium text-ui-fg-muted transition-colors data-[active=true]:text-ui-fg-base small:px-4"
+              className="relative z-1 px-3 py-2 pb-3 text-left text-sm font-medium text-ui-fg-muted transition-colors data-[active=true]:text-ui-fg-base small:px-4"
               data-active={active === i}
               onClick={() => setActive(i)}
             >

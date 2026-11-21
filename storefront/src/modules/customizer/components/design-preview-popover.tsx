@@ -199,7 +199,7 @@ function DesignPreviewPopover({
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={!hasArtwork}
-        className="inline-flex items-center gap-1.5 rounded-full border border-ui-border-base bg-ui-bg-base px-3 py-1.5 text-xs font-semibold text-ui-fg-base shadow-sm transition-colors hover:border-ui-fg-base disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-full border border-ui-border-base bg-ui-bg-base px-3 py-1.5 text-xs font-semibold text-ui-fg-base shadow-xs transition-colors hover:border-ui-fg-base disabled:cursor-not-allowed disabled:opacity-50"
         aria-haspopup="dialog"
         aria-expanded={open}
       >
@@ -251,7 +251,7 @@ function DesignPreviewPopover({
                   key={side}
                   className="overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle"
                 >
-                  <div className="relative aspect-[4/5] w-full overflow-hidden">
+                  <div className="relative aspect-4/5 w-full overflow-hidden">
                     {thumb ? (
                       <>
                         {/* Garment layer: native <img> so any CDN URL loads without CORS headers */}

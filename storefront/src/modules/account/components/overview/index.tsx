@@ -52,7 +52,7 @@ const ArrowRightIcon = ({ className }: { className?: string }) => (
 )
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
     {children}
   </p>
 )
@@ -197,10 +197,10 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
         {latestOrder ? (
           <LocalizedClientLink
             href={`/account/orders/details/${latestOrder.id}`}
-            className="block rounded-xl border border-ui-border-base bg-white p-4 shadow-sm"
+            className="block rounded-xl border border-ui-border-base bg-white p-4 shadow-xs"
             data-testid="mobile-latest-order"
           >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               Latest order
             </p>
             <div className="mt-1 flex items-center justify-between gap-3">
@@ -255,7 +255,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
       </div>
       <div className="hidden small:block">
         <header className="border-l-4 border-brand pl-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Account overview
           </p>
           <h1
@@ -280,7 +280,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
 
         <div className="mt-8 grid grid-cols-2 gap-4">
           <div className="rounded-2xl border border-ui-border-base bg-white p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               Profile
             </p>
             <p
@@ -306,7 +306,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
           </div>
 
           <div className="rounded-2xl border border-ui-border-base bg-white p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               Addresses
             </p>
             <p
@@ -332,7 +332,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
         <section className="mt-10">
           <div className="mb-5 flex items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
                 Recent activity
               </p>
               <h2 className="mt-1 text-xl font-semibold text-ui-fg-base">
@@ -363,7 +363,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
                 >
                   <LocalizedClientLink
                     href={`/account/orders/details/${order.id}`}
-                    className="group block rounded-xl border border-ui-border-base bg-white p-4 transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm"
+                    className="group block rounded-xl border border-ui-border-base bg-white p-4 transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs"
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="grid flex-1 grid-cols-3 gap-x-4 gap-y-1 text-xs small:text-sm">
@@ -424,7 +424,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
                   </p>
                   <LocalizedClientLink
                     href="/store"
-                    className="group mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                    className="group mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
                   >
                     Browse the store
                     <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

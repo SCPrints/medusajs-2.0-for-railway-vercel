@@ -430,7 +430,7 @@ export default function CustomizerGuide({
       {/* Trigger button — wrapper holds the pulse ring outside overflow:hidden context */}
       <div className={`relative shrink-0 ${active ? "invisible pointer-events-none" : ""}`}>
         {showTriggerPulse && (
-          <span className="absolute -inset-1.5 rounded-xl animate-ping bg-[var(--brand-primary)]/30 pointer-events-none" />
+          <span className="absolute -inset-1.5 rounded-xl animate-ping bg-(--brand-primary)/30 pointer-events-none" />
         )}
         <button
           ref={triggerRef}
@@ -442,7 +442,7 @@ export default function CustomizerGuide({
           }}
           aria-label="Open the step-by-step guide"
           aria-expanded={active}
-          className="flex min-h-9 items-center gap-1 rounded-lg border border-[var(--brand-primary)] bg-[var(--brand-primary)] px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 whitespace-nowrap"
+          className="flex min-h-9 items-center gap-1 rounded-lg border border-(--brand-primary) bg-(--brand-primary) px-2.5 py-1.5 text-xs font-medium text-white shadow-xs transition hover:brightness-110 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-primary) focus-visible:ring-offset-2 whitespace-nowrap"
         >
           <svg
             width="12"
@@ -592,7 +592,7 @@ export default function CustomizerGuide({
                   type="button"
                   onClick={() => handleClose("skip")}
                   aria-label="Close guide"
-                  className="rounded p-0.5 text-ui-fg-muted transition-colors hover:text-ui-fg-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ui-fg-base"
+                  className="rounded-sm p-0.5 text-ui-fg-muted transition-colors hover:text-ui-fg-base focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ui-fg-base"
                 >
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
                     <path
@@ -634,14 +634,14 @@ export default function CustomizerGuide({
                 <button
                   type="button"
                   onClick={() => handleClose("skip")}
-                  className="text-xs text-ui-fg-muted underline underline-offset-2 transition-colors hover:text-ui-fg-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ui-fg-base rounded"
+                  className="text-xs text-ui-fg-muted underline underline-offset-2 transition-colors hover:text-ui-fg-base focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ui-fg-base rounded-sm"
                 >
                   Skip tour
                 </button>
                 <button
                   type="button"
                   onClick={handleGotIt}
-                  className="rounded-lg bg-ui-fg-base px-4 py-2 text-sm font-medium text-ui-bg-base shadow-sm transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
+                  className="rounded-lg bg-ui-fg-base px-4 py-2 text-sm font-medium text-ui-bg-base shadow-xs transition-opacity hover:opacity-80 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
                 >
                   {guideStep === 4 ? "Finish tour" : "Got it →"}
                 </button>

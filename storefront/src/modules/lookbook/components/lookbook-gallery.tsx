@@ -90,9 +90,9 @@ export default function LookbookGallery({ items }: Props) {
               type="button"
               onClick={() => setOpenIndex(i)}
               aria-label={`Enlarge ${item.title}`}
-              className="group block w-full cursor-zoom-in overflow-hidden rounded-xl border border-ui-border-base bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/60"
+              className="group block w-full cursor-zoom-in overflow-hidden rounded-xl border border-ui-border-base bg-white text-left shadow-xs transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-md focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/60"
             >
-              <div className="relative aspect-[4/5] overflow-hidden">
+              <div className="relative aspect-4/5 overflow-hidden">
                 {/* Fixed 4:5 crop so every tile reserves its exact height
                     before the image loads. The previous width={0}/height={0} +
                     h-auto pattern reserved ZERO space, so each image load
@@ -150,7 +150,7 @@ export default function LookbookGallery({ items }: Props) {
           aria-modal="true"
           aria-label={current.title}
           onClick={close}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm small:p-8"
+          className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs small:p-8"
         >
           {/* Close */}
           <button
@@ -158,7 +158,7 @@ export default function LookbookGallery({ items }: Props) {
             type="button"
             onClick={close}
             aria-label="Close"
-            className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 small:right-5 small:top-5"
+            className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 small:right-5 small:top-5"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
               <path d="M6 6l12 12M18 6L6 18" />
@@ -174,7 +174,7 @@ export default function LookbookGallery({ items }: Props) {
                 prev()
               }}
               aria-label="Previous"
-              className="absolute left-2 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 small:left-5"
+              className="absolute left-2 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 small:left-5"
             >
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M15 5l-7 7 7 7" />
@@ -191,7 +191,7 @@ export default function LookbookGallery({ items }: Props) {
                 next()
               }}
               aria-label="Next"
-              className="absolute right-2 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 small:right-5"
+              className="absolute right-2 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 small:right-5"
             >
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M9 5l7 7-7 7" />

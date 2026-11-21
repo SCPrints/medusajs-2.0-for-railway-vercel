@@ -49,7 +49,7 @@ export default function BundleIndex({ bundles }: { bundles: Bundle[] }) {
         </LocalizedClientLink>
 
         <header className="mt-8 mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
             Uniform packs
           </p>
           <h1 className="page-title-marketing mt-3 tracking-tight">
@@ -73,7 +73,7 @@ export default function BundleIndex({ bundles }: { bundles: Bundle[] }) {
             <div className="mt-6 flex justify-center">
               <LocalizedClientLink
                 href="/contact"
-                className="group inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                className="group inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
               >
                 Talk to our team
                 <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -94,7 +94,7 @@ export default function BundleIndex({ bundles }: { bundles: Bundle[] }) {
       <section className="border-t border-ui-border-base bg-ui-bg-subtle py-14 small:py-16">
         <div className="content-container">
           <div className="mx-auto max-w-2xl rounded-2xl border border-ui-border-base bg-white p-8 text-center small:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               Custom packs
             </p>
             <h2 className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl">
@@ -107,7 +107,7 @@ export default function BundleIndex({ bundles }: { bundles: Bundle[] }) {
             <div className="mt-6 flex justify-center">
               <LocalizedClientLink
                 href="/contact"
-                className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
               >
                 Get in touch
                 <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

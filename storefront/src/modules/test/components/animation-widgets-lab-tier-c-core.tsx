@@ -197,7 +197,7 @@ export function LabTierCFabSpeedDial({ reducedMotion }: { reducedMotion: boolean
                     ? { duration: 0 }
                     : { type: "spring", stiffness: 400, damping: 26, delay: i * 0.04 }
                 }
-                className="absolute bottom-10 h-10 w-10 rounded-full border border-ui-border-base bg-ui-bg-base text-sm font-bold shadow"
+                className="absolute bottom-10 h-10 w-10 rounded-full border border-ui-border-base bg-ui-bg-base text-sm font-bold shadow-sm"
               >
                 {a.label}
               </motion.button>
@@ -247,7 +247,7 @@ export function LabTierCSwipeDeleteRow({ reducedMotion }: { reducedMotion: boole
             setGone(true)
           }
         }}
-        className="relative z-[1] flex items-center justify-between bg-ui-bg-base px-4 py-4"
+        className="relative z-1 flex items-center justify-between bg-ui-bg-base px-4 py-4"
       >
         <span className="text-sm text-ui-fg-base">Swipe left to delete (demo)</span>
       </motion.div>
@@ -263,11 +263,11 @@ export function LabTierCFloatingLabelInput() {
         id={id}
         type="text"
         placeholder=" "
-        className="peer w-full rounded-xl border border-ui-border-base bg-ui-bg-base px-3 pb-2 pt-5 text-sm text-ui-fg-base outline-none focus:border-[#FF2E63]"
+        className="peer w-full rounded-xl border border-ui-border-base bg-ui-bg-base px-3 pb-2 pt-5 text-sm text-ui-fg-base outline-hidden focus:border-[#FF2E63]"
       />
       <label
         htmlFor={id}
-        className="pointer-events-none absolute left-3 top-1/2 origin-left -translate-y-1/2 text-sm text-ui-fg-muted transition-all duration-200 peer-focus:top-3 peer-focus:translate-y-0 peer-focus:scale-75 peer-focus:text-[#FF2E63] peer-[:not(:placeholder-shown)]:top-3 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:scale-75"
+        className="pointer-events-none absolute left-3 top-1/2 origin-left -translate-y-1/2 text-sm text-ui-fg-muted transition-all duration-200 peer-focus:top-3 peer-focus:translate-y-0 peer-focus:scale-75 peer-focus:text-[#FF2E63] peer-not-placeholder-shown:top-3 peer-not-placeholder-shown:translate-y-0 peer-not-placeholder-shown:scale-75"
       >
         Email
       </label>
@@ -410,7 +410,7 @@ export function LabTierCPullRefreshTeardrop({ reducedMotion }: { reducedMotion: 
           animate={reducedMotion ? {} : { opacity: stretch > 8 ? 1 : 0.6 }}
         />
       </svg>
-      <p className="mt-2 max-w-[12rem] text-center text-xs text-ui-fg-muted">
+      <p className="mt-2 max-w-48 text-center text-xs text-ui-fg-muted">
         Drag down in this box — teardrop stretches (lab mock, not real pull-to-refresh).
       </p>
     </div>
@@ -427,9 +427,9 @@ export function LabTierCTextHighlightMarker({ reducedMotion }: { reducedMotion: 
         className="relative inline"
         initial={false}
       >
-        <span className="relative z-[1]">decorated merch</span>
+        <span className="relative z-1">decorated merch</span>
         <motion.span
-          className="absolute bottom-0 left-0 right-0 top-[55%] z-0 origin-left rounded-sm bg-[#FF2E63]/35"
+          className="absolute bottom-0 left-0 right-0 top-[55%] z-0 origin-left rounded-xs bg-[#FF2E63]/35"
           initial={{ scaleX: 0 }}
           animate={{ scaleX: inView ? 1 : 0 }}
           transition={reducedMotion ? { duration: 0 } : { duration: 0.55, ease: "easeOut" }}
@@ -456,7 +456,7 @@ export function LabTierCSlotMachineWords({ reducedMotion }: { reducedMotion: boo
   return (
     <p className="text-lg text-ui-fg-base">
       We build{" "}
-      <span className="relative inline-block min-w-[7rem] overflow-hidden align-bottom font-semibold text-[#FF2E63]">
+      <span className="relative inline-block min-w-28 overflow-hidden align-bottom font-semibold text-[#FF2E63]">
         <AnimatePresence mode="wait">
           <motion.span
             key={word}
@@ -489,7 +489,7 @@ export function LabTierCMarqueeOutlineFill({ reducedMotion }: { reducedMotion: b
           {["SCROLL • ", "OUTLINE • ", "FILL • ", "LAB • "].map((t) => (
             <span
               key={t}
-              className="bg-gradient-to-r from-[#FF2E63] via-indigo-500 to-[#FF2E63] bg-clip-text px-2 text-3xl font-black uppercase text-transparent"
+              className="bg-linear-to-r from-[#FF2E63] via-indigo-500 to-[#FF2E63] bg-clip-text px-2 text-3xl font-black uppercase text-transparent"
               style={{ WebkitTextStroke: "1px rgba(100,100,100,0.35)" }}
             >
               {t}
@@ -498,7 +498,7 @@ export function LabTierCMarqueeOutlineFill({ reducedMotion }: { reducedMotion: b
           {["SCROLL • ", "OUTLINE • ", "FILL • ", "LAB • "].map((t) => (
             <span
               key={`b-${t}`}
-              className="bg-gradient-to-r from-[#FF2E63] via-indigo-500 to-[#FF2E63] bg-clip-text px-2 text-3xl font-black uppercase text-transparent"
+              className="bg-linear-to-r from-[#FF2E63] via-indigo-500 to-[#FF2E63] bg-clip-text px-2 text-3xl font-black uppercase text-transparent"
               style={{ WebkitTextStroke: "1px rgba(100,100,100,0.35)" }}
             >
               {t}
@@ -578,7 +578,7 @@ export function LabTierCDirectionalHoverOverlay() {
         animate={hover ? { x: "0%", y: "0%" } : from}
         transition={{ type: "spring", stiffness: 380, damping: 32 }}
       />
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/50 px-2 py-1 text-[10px] text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/50 px-2 py-1 text-[10px] text-white">
         Hover — overlay slides from nearest edge
       </p>
     </div>
@@ -775,7 +775,7 @@ export function LabTierCActivityHeatmap({ reducedMotion }: { reducedMotion: bool
       {cells.map((cell) => (
         <motion.div
           key={`${cell.c}-${cell.r}`}
-          className="h-5 w-5 rounded-sm bg-[#FF2E63]"
+          className="h-5 w-5 rounded-xs bg-[#FF2E63]"
           initial={false}
           animate={{
             opacity: inView ? 0.2 + cell.level * 0.18 : 0,

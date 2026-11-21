@@ -101,7 +101,7 @@ export default async function LookbookJobPage({ params }: Params) {
               <LocalizedClientLink
                 key={i.slug}
                 href={`/industries/${i.slug}`}
-                className="inline-flex min-h-9 items-center rounded-full border border-ui-border-base bg-white px-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand-primary)]/80 hover:border-[var(--brand-secondary)]/40"
+                className="inline-flex min-h-9 items-center rounded-full border border-ui-border-base bg-white px-3 text-xs font-semibold uppercase tracking-[0.08em] text-(--brand-primary)/80 hover:border-(--brand-secondary)/40"
               >
                 {i.name}
               </LocalizedClientLink>
@@ -141,7 +141,7 @@ export default async function LookbookJobPage({ params }: Params) {
         {job.images.map((img, i) => (
           <li
             key={img.id}
-            className="relative aspect-[4/5] overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-subtle"
+            className="relative aspect-4/5 overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-subtle"
           >
             <Image
               src={img.image_url}
@@ -152,7 +152,7 @@ export default async function LookbookJobPage({ params }: Params) {
               priority={i === 0}
             />
             {img.attribution ? (
-              <span className="absolute bottom-2 left-2 rounded bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+              <span className="absolute bottom-2 left-2 rounded-sm bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
                 Photo by {img.attribution}
               </span>
             ) : null}
@@ -168,7 +168,7 @@ export default async function LookbookJobPage({ params }: Params) {
               <li key={p.handle}>
                 <LocalizedClientLink
                   href={`/products/${p.handle}`}
-                  className="group block overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-sm transition hover:border-[var(--brand-secondary)]/40 hover:shadow-md"
+                  className="group block overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-xs transition hover:border-(--brand-secondary)/40 hover:shadow-md"
                 >
                   <div className="relative aspect-square bg-ui-bg-subtle">
                     {p.thumbnail ? (

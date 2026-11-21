@@ -160,7 +160,7 @@ const LowResolutionModal = ({
           <button
             type="button"
             onClick={fireAccepted}
-            className="w-full rounded-lg bg-[var(--brand-primary)] px-4 py-3 text-sm font-medium text-white hover:opacity-90"
+            className="w-full rounded-lg bg-(--brand-primary) px-4 py-3 text-sm font-medium text-white hover:opacity-90"
           >
             Add vectorization to my order
             <span className="block text-xs font-normal text-white/85 mt-0.5">

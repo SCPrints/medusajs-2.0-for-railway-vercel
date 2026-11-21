@@ -152,7 +152,7 @@ export default async function PaginatedProducts({
   if (products.length === 0) {
     return (
       <div
-        className="flex min-h-[24rem] flex-col items-center justify-center rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-10 text-center"
+        className="flex min-h-96 flex-col items-center justify-center rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-10 text-center"
         data-testid="products-list-empty"
       >
         <p className="text-base font-semibold text-ui-fg-base">
@@ -164,7 +164,7 @@ export default async function PaginatedProducts({
         </p>
         <LocalizedClientLink
           href="/store"
-          className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+          className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
         >
           Browse all products
         </LocalizedClientLink>

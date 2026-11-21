@@ -114,11 +114,11 @@ const label = `${mono.className} text-[11px] font-semibold uppercase tracking-[0
 const h2 = `${display.className} text-4xl font-bold leading-[0.95] tracking-tight small:text-6xl`
 const container = "content-container"
 const btnInk =
-  "group inline-flex min-h-11 items-center gap-2 rounded-full bg-[#1c1917] px-6 py-3 text-sm font-semibold !text-[#efebe4] transition hover:bg-black"
+  "group inline-flex min-h-11 items-center gap-2 rounded-full bg-[#1c1917] px-6 py-3 text-sm font-semibold text-[#efebe4]! transition hover:bg-black"
 const btnLine =
   "inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-6 py-3 text-sm font-semibold transition hover:bg-black/5"
 const btnPaper =
-  "group inline-flex min-h-11 items-center gap-2 rounded-full bg-[#efebe4] px-6 py-3 text-sm font-semibold !text-[#1c1917] transition hover:bg-white"
+  "group inline-flex min-h-11 items-center gap-2 rounded-full bg-[#efebe4] px-6 py-3 text-sm font-semibold text-[#1c1917]! transition hover:bg-white"
 
 const Arrow = () => (
   <span aria-hidden className="transition-transform group-hover:translate-x-1">
@@ -224,7 +224,7 @@ export default async function ThreadLabGuidePage({ params }: Props) {
           </div>
         </div>
         <div className="tl-rise relative" style={{ ["--d" as string]: "0.2s" }}>
-          <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-[#d9d3c7]">
+          <div className="relative aspect-4/3 overflow-hidden rounded-2xl bg-[#d9d3c7]">
             {hero.videoSrc ? (
               <video
                 className="absolute inset-0 h-full w-full object-cover"
@@ -310,7 +310,7 @@ export default async function ThreadLabGuidePage({ params }: Props) {
               <Reveal key={s.handle} delay={(i % 3) * 0.08} className="h-full">
                 <LocalizedClientLink
                   href={`/products/${s.handle}`}
-                  className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#1c1917]/15 bg-[#f7f5f0] !text-[#1c1917] transition hover:border-[#1c1917]/50"
+                  className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#1c1917]/15 bg-[#f7f5f0] text-[#1c1917]! transition hover:border-[#1c1917]/50"
                 >
                   <div className="relative aspect-square overflow-hidden bg-[#efebe4]">
                     {s.front ? (
@@ -331,7 +331,7 @@ export default async function ThreadLabGuidePage({ params }: Props) {
                         className="object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                       />
                     ) : null}
-                    <span className={`${label} absolute left-3 top-3 rounded-full bg-[#1c1917] px-3 py-1 !text-[#efebe4]`}>
+                    <span className={`${label} absolute left-3 top-3 rounded-full bg-[#1c1917] px-3 py-1 text-[#efebe4]!`}>
                       {s.code}
                     </span>
                   </div>
@@ -463,7 +463,7 @@ export default async function ThreadLabGuidePage({ params }: Props) {
                 {s.colourShots.map((c, i) => (
                   <li key={c.src}>
                     <Reveal delay={(i % 6) * 0.05}>
-                      <LocalizedClientLink href={`/products/${s.handle}`} className="block !text-[#1c1917]">
+                      <LocalizedClientLink href={`/products/${s.handle}`} className="block text-[#1c1917]!">
                         <div className="relative aspect-square overflow-hidden rounded-xl bg-white">
                           <Image
                             src={c.src}
@@ -518,7 +518,7 @@ export default async function ThreadLabGuidePage({ params }: Props) {
                 <h3 className={`${display.className} mt-2 text-3xl font-bold leading-none`}>{m.name}</h3>
                 <p className="mt-4 text-sm text-[#1c1917]/75">{m.body}</p>
                 {m.href ? (
-                  <LocalizedClientLink href={m.href} className="mt-4 inline-block text-sm font-semibold !text-[#1c1917] underline underline-offset-4">
+                  <LocalizedClientLink href={m.href} className="mt-4 inline-block text-sm font-semibold text-[#1c1917]! underline underline-offset-4">
                     {m.link}
                   </LocalizedClientLink>
                 ) : null}
@@ -560,7 +560,7 @@ export default async function ThreadLabGuidePage({ params }: Props) {
               <LocalizedClientLink href="/brands/thread-lab" className={btnPaper}>
                 Shop Thread Lab <Arrow />
               </LocalizedClientLink>
-              <LocalizedClientLink href="/contact" className={`${btnLine} !text-[#efebe4] hover:!bg-white/10`}>
+              <LocalizedClientLink href="/contact" className={`${btnLine} text-[#efebe4]! hover:bg-white/10!`}>
                 Talk to us about a run
               </LocalizedClientLink>
             </div>

@@ -141,7 +141,7 @@ const StitchEstimator: React.FC<Props> = ({
             onClick={() => setTab(t)}
             className={`-mb-px border-b-2 px-4 py-2 ${
               tab === t
-                ? "border-[var(--brand-primary,#002a5c)] text-ui-fg-base"
+                ? "border-(--brand-primary,#002a5c) text-ui-fg-base"
                 : "border-transparent text-ui-fg-subtle hover:text-ui-fg-base"
             }`}
           >
@@ -497,7 +497,7 @@ const ArtworkEstimateBlock: React.FC<{
               const file = e.target.files?.[0]
               if (file) void handleFile(file)
             }}
-            className="text-xs file:mr-2 file:rounded file:border file:border-ui-border-base file:bg-ui-bg-subtle file:px-2 file:py-1 file:text-xs file:text-ui-fg-base"
+            className="text-xs file:mr-2 file:rounded-sm file:border file:border-ui-border-base file:bg-ui-bg-subtle file:px-2 file:py-1 file:text-xs file:text-ui-fg-base"
           />
           {imageFileName ? (
             <span className="break-all text-[11px] text-ui-fg-muted">

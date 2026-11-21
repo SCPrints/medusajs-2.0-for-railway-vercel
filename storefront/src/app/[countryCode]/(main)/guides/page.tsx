@@ -84,7 +84,7 @@ export default function GuidesIndexPage() {
         </p>
         <LocalizedClientLink
           href="/contact"
-          className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-brand px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
+          className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white! shadow-xs transition hover:brightness-110"
         >
           Ask us about your job
         </LocalizedClientLink>

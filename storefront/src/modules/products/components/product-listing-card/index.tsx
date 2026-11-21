@@ -115,11 +115,11 @@ function CardImage({
   return (
     <Container
       className={clx(
-        "relative w-full overflow-hidden p-4 bg-ui-bg-subtle shadow-elevation-card-rest rounded-large group-hover:shadow-elevation-card-hover transition-shadow ease-in-out duration-150 aspect-[1/1] rounded-lg"
+        "relative w-full overflow-hidden p-4 bg-ui-bg-subtle shadow-elevation-card-rest rounded-large group-hover:shadow-elevation-card-hover transition-shadow ease-in-out duration-150 aspect-square rounded-lg"
       )}
     >
       {brandLogoUrl ? (
-        <div className="pointer-events-none absolute left-2 top-2 z-10 flex h-6 max-w-[55%] items-center rounded-md bg-white/75 px-1.5 shadow-sm backdrop-blur-[2px]">
+        <div className="pointer-events-none absolute left-2 top-2 z-10 flex h-6 max-w-[55%] items-center rounded-md bg-white/75 px-1.5 shadow-xs backdrop-blur-[2px]">
           {/* Plain <img> (not next/image): brand `logo_url` can be an external
               supplier CDN host that isn't in next.config's allowlist, which
               would crash the Image component. Presentation logos are local. */}
@@ -228,7 +228,7 @@ function ListingCardContent({
                   type="button"
                   title={colorLabel}
                   aria-label={`Preview ${title} in ${colorLabel}`}
-                  className="inline-block h-5 w-5 rounded-full border border-ui-border-base transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
+                  className="inline-block h-5 w-5 rounded-full border border-ui-border-base transition-transform hover:scale-110 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
                   style={{
                     backgroundColor: resolveGarmentSwatchColor(colorLabel),
                     ...(swatchPhotosActive && swatchPhotoUrl
@@ -245,7 +245,7 @@ function ListingCardContent({
               ))}
               {totalSwatchCount > swatches.length ? (
                 <span
-                  className="inline-flex h-5 min-w-[1.25rem] max-w-[2rem] shrink-0 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-subtle px-1 text-[10px] font-semibold tabular-nums leading-none text-ui-fg-subtle"
+                  className="inline-flex h-5 min-w-5 max-w-8 shrink-0 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-subtle px-1 text-[10px] font-semibold tabular-nums leading-none text-ui-fg-subtle"
                   title={`${totalSwatchCount} colors total — see all on the product page`}
                   aria-label={`${totalSwatchCount} total colors. Fewer swatches are shown; open the product page for the full list.`}
                 >

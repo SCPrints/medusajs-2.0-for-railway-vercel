@@ -16,7 +16,7 @@ export default function HeroOverlay() {
       aria-labelledby="hero-headline"
     >
       <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent"
+        className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/75 via-black/35 to-transparent"
         aria-hidden
       />
 
@@ -52,7 +52,7 @@ export default function HeroOverlay() {
               {HERO_FROM_PRICE_LABEL}
             </span>
             <span
-              className="group/caveat pointer-events-auto relative ml-0.5 inline-block cursor-help align-baseline focus:outline-none"
+              className="group/caveat pointer-events-auto relative ml-0.5 inline-block cursor-help align-baseline focus:outline-hidden"
               tabIndex={0}
               role="note"
               aria-label={HERO_FROM_PRICE_CAVEAT}
@@ -73,13 +73,13 @@ export default function HeroOverlay() {
           <div className="mt-7 flex flex-wrap gap-3">
             <LocalizedClientLink
               href="/store"
-              className="pointer-events-auto inline-flex items-center rounded-lg border border-white/40 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              className="pointer-events-auto inline-flex items-center rounded-lg border border-white/40 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20 focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
             >
               Browse range
             </LocalizedClientLink>
             <LocalizedClientLink
               href="/contact"
-              className="pointer-events-auto inline-flex items-center rounded-lg border border-white/20 bg-transparent px-6 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
+              className="pointer-events-auto inline-flex items-center rounded-lg border border-white/20 bg-transparent px-6 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/10 focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
             >
               Get a quote
             </LocalizedClientLink>

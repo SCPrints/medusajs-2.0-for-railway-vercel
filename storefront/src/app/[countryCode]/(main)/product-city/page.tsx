@@ -34,7 +34,7 @@ export default async function ProductCityPreviewPage({
     }))
 
   return (
-    <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-[#0c0b1a]">
+    <section className="relative h-dvh min-h-[600px] w-full overflow-hidden bg-[#0c0b1a]">
       <ProductCityClient products={products} countryCode={countryCode} />
 
       {/* Minimal, non-blocking heading (pointer-events-none so every tile stays

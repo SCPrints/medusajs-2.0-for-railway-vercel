@@ -8,7 +8,7 @@ import { QuoteLines, QuoteStatusBadge } from "./index"
 import { STATUS_HELP, money, shortDate, validityLabel } from "./format"
 
 const secondaryButton =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2.5 text-sm font-semibold !text-ui-fg-base hover:bg-ui-bg-subtle"
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2.5 text-sm font-semibold text-ui-fg-base! hover:bg-ui-bg-subtle"
 const primaryButton =
   "inline-flex min-h-11 items-center justify-center rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
 
@@ -30,7 +30,7 @@ const QuoteDetail = ({
 
       <header className="flex flex-wrap items-start justify-between gap-3 border-l-4 border-brand pl-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">Quote</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">Quote</p>
           <h1 className="mt-1 text-2xl font-semibold text-ui-fg-base small:text-3xl">{quote.public_id}</h1>
           <p className="mt-1 text-sm text-ui-fg-subtle">
             {shortDate(quote.created_at)}
@@ -83,7 +83,7 @@ const QuoteDetail = ({
 
       {quote.mockups.length > 0 ? (
         <section>
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">Your proof</h2>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">Your proof</h2>
           <div className="grid grid-cols-2 gap-3 tablet:grid-cols-3">
             {quote.mockups.map((m) => (
               <a key={m.url} href={m.url} target="_blank" rel="noreferrer" className="block rounded-lg border border-gray-200 bg-white p-2">
@@ -102,7 +102,7 @@ const QuoteDetail = ({
         <JobBreakdown breakdown={quote.job_breakdown} currency={quote.currency_code} />
       ) : quote.lines.length > 0 ? (
         <section>
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">What&apos;s in the quote</h2>
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">What&apos;s in the quote</h2>
           <QuoteLines lines={quote.lines} currency={quote.currency_code} />
         </section>
       ) : null}

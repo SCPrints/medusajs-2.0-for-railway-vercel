@@ -465,7 +465,7 @@ function BulkOrderGrid({
           </p>
         </div>
       ) : null}
-      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-ui-border-base bg-white px-4 py-3 shadow-sm sm:px-6">
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-ui-border-base bg-white px-4 py-3 shadow-xs sm:px-6">
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
@@ -516,7 +516,7 @@ function BulkOrderGrid({
             type="button"
             onClick={handleSubmit}
             disabled={isAddDisabled}
-            className="rounded-md bg-ui-fg-base px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md bg-ui-fg-base px-4 py-2 text-sm font-semibold text-white shadow-xs transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isSubmitting
               ? submitCtaLabel
@@ -557,7 +557,7 @@ function BulkOrderGrid({
         </div>
 
         {/* Desktop grid */}
-        <div className="hidden overflow-hidden rounded-lg border border-ui-border-base bg-white shadow-sm md:block">
+        <div className="hidden overflow-hidden rounded-lg border border-ui-border-base bg-white shadow-xs md:block">
           <table className="w-full text-sm">
             <thead className="bg-ui-bg-subtle/60 text-[11px] uppercase tracking-wide text-ui-fg-subtle">
               <tr>
@@ -805,7 +805,7 @@ function ColourRow({
                 const next = e.target.value === "" ? 0 : Number(e.target.value)
                 onChangeQuantity(size, next)
               }}
-              className="h-11 w-14 small:h-9 rounded-md border border-ui-border-base bg-white px-2 text-center text-sm tabular-nums focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base disabled:cursor-not-allowed disabled:bg-ui-bg-disabled disabled:text-ui-fg-muted"
+              className="h-11 w-14 small:h-9 rounded-md border border-ui-border-base bg-white px-2 text-center text-sm tabular-nums focus:border-ui-fg-base focus:outline-hidden focus:ring-1 focus:ring-ui-fg-base disabled:cursor-not-allowed disabled:bg-ui-bg-disabled disabled:text-ui-fg-muted"
               aria-label={`${colour} size ${size} quantity`}
             />
           </td>
@@ -866,7 +866,7 @@ function MobileColourCard({
   )
 
   return (
-    <div className="rounded-lg border border-ui-border-base bg-white p-3 shadow-sm">
+    <div className="rounded-lg border border-ui-border-base bg-white p-3 shadow-xs">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           {thumbUrl ? (
@@ -923,7 +923,7 @@ function MobileColourCard({
                   const next = e.target.value === "" ? 0 : Number(e.target.value)
                   onChangeQuantity(size, next)
                 }}
-                className="h-10 w-full rounded-md border border-ui-border-base bg-white px-2 text-center text-sm tabular-nums focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base disabled:cursor-not-allowed disabled:bg-ui-bg-disabled disabled:text-ui-fg-muted"
+                className="h-10 w-full rounded-md border border-ui-border-base bg-white px-2 text-center text-sm tabular-nums focus:border-ui-fg-base focus:outline-hidden focus:ring-1 focus:ring-ui-fg-base disabled:cursor-not-allowed disabled:bg-ui-bg-disabled disabled:text-ui-fg-muted"
                 aria-label={`${colour} size ${size} quantity`}
               />
             </label>
@@ -997,7 +997,7 @@ function ColourPicker({
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search colours…"
-            className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base"
+            className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base focus:border-ui-fg-base focus:outline-hidden focus:ring-1 focus:ring-ui-fg-base"
           />
         </div>
 
@@ -1031,12 +1031,12 @@ function ColourPicker({
                     <img
                       src={thumbUrl}
                       alt={colour}
-                      className="h-10 w-10 shrink-0 rounded border border-ui-border-base object-cover"
+                      className="h-10 w-10 shrink-0 rounded-sm border border-ui-border-base object-cover"
                     />
                   ) : (
                     <span
                       aria-hidden
-                      className="h-10 w-10 shrink-0 rounded border border-ui-border-base"
+                      className="h-10 w-10 shrink-0 rounded-sm border border-ui-border-base"
                       style={{ backgroundColor: swatch }}
                     />
                   )}

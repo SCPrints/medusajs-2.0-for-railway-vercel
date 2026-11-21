@@ -20,7 +20,7 @@ export default function ParticleFluidPage() {
       <div className="pointer-events-none absolute left-0 top-0 z-10 px-4 py-4 sm:px-6">
         <LocalizedClientLink
           href="/sandbox"
-          className="pointer-events-auto txt-small !text-white/80 transition-colors hover:!text-white"
+          className="pointer-events-auto txt-small text-white/80! transition-colors hover:text-white!"
         >
           ← Back to sandbox
         </LocalizedClientLink>

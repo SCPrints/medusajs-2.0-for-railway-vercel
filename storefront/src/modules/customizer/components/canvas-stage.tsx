@@ -47,7 +47,7 @@ function CanvasStage({
   sizeWarning = null,
   fabricContainerRef,
   tintColor,
-  frameClassName = "aspect-[4/5] w-full rounded-2xl border border-ui-border-base bg-ui-bg-subtle",
+  frameClassName = "aspect-4/5 w-full rounded-2xl border border-ui-border-base bg-ui-bg-subtle",
   previewSize = null,
 }: CanvasStageProps) {
   // The mockup URL can be dead (supplier CDN rotated the file, R2 object GC'd).
@@ -170,7 +170,7 @@ function CanvasStage({
       */}
       {previewSize && !isSleeveView && showPhoto ? (
         <div
-          className="pointer-events-none absolute right-3 top-3 rounded-md border border-ui-border-base bg-ui-bg-base/90 px-2 py-1 text-[11px] font-medium text-ui-fg-subtle shadow-sm"
+          className="pointer-events-none absolute right-3 top-3 rounded-md border border-ui-border-base bg-ui-bg-base/90 px-2 py-1 text-[11px] font-medium text-ui-fg-subtle shadow-xs"
           aria-hidden
         >
           Preview shown on a size {previewSize}
@@ -179,7 +179,7 @@ function CanvasStage({
 
       {isSleeveView && showPhoto ? (
         <div
-          className="pointer-events-none absolute left-3 top-3 rounded-md border border-ui-border-base bg-ui-bg-base/90 px-2 py-1 text-[11px] font-medium text-ui-fg-subtle shadow-sm"
+          className="pointer-events-none absolute left-3 top-3 rounded-md border border-ui-border-base bg-ui-bg-base/90 px-2 py-1 text-[11px] font-medium text-ui-fg-subtle shadow-xs"
           aria-hidden
         >
           Generic sleeve preview · artwork prints on the real garment
@@ -196,7 +196,7 @@ function CanvasStage({
       />
 
       {(outOfBoundsWarning || dpiWarning || sizeWarning) && (
-        <div className="absolute bottom-3 left-3 right-3 space-y-1 rounded-md bg-ui-bg-base/90 p-2 text-xs shadow">
+        <div className="absolute bottom-3 left-3 right-3 space-y-1 rounded-md bg-ui-bg-base/90 p-2 text-xs shadow-sm">
           {outOfBoundsWarning && <p className="text-rose-600">{outOfBoundsWarning}</p>}
           {dpiWarning && <p className="text-amber-700">{dpiWarning}</p>}
           {sizeWarning && <p className="text-amber-700">{sizeWarning}</p>}

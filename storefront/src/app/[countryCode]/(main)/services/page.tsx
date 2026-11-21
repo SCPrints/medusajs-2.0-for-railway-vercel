@@ -172,7 +172,7 @@ export default async function ServicesPage({
         <div className="mt-7 flex flex-wrap gap-3">
           <LocalizedClientLink
             href="/contact"
-            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
           >
             Get a quote
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -201,7 +201,7 @@ export default async function ServicesPage({
           {services.map((service) => (
             <article
               key={service.slug}
-              className="group rounded-xl border border-ui-border-base bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/55 hover:shadow-md small:p-7"
+              className="group rounded-xl border border-ui-border-base bg-white p-6 shadow-xs transition-all hover:-translate-y-0.5 hover:border-(--brand-secondary)/55 hover:shadow-md small:p-7"
             >
               <div className="grid gap-5 small:grid-cols-[2fr_1fr] small:gap-7">
                 <div>
@@ -219,7 +219,7 @@ export default async function ServicesPage({
                   </ul>
                 </div>
 
-                <div className="rounded-lg border border-[var(--brand-secondary)]/35 bg-ui-bg-subtle p-4">
+                <div className="rounded-lg border border-(--brand-secondary)/35 bg-ui-bg-subtle p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
                     Best fit
                   </p>
@@ -264,7 +264,7 @@ export default async function ServicesPage({
               >
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter text-[var(--brand-secondary)]/10 transition-colors group-hover:text-[var(--brand-secondary)]/25"
+                  className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter text-(--brand-secondary)/10 transition-colors group-hover:text-(--brand-secondary)/25"
                 >
                   {step.number}
                 </span>
@@ -283,7 +283,7 @@ export default async function ServicesPage({
         <div className="mt-8 flex flex-wrap justify-center">
           <LocalizedClientLink
             href="/contact"
-            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
           >
             Get a quote
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

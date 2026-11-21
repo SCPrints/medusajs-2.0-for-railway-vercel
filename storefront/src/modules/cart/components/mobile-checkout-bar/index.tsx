@@ -47,7 +47,7 @@ export default function MobileCheckoutBar({
   return (
     <div className="small:hidden fixed inset-x-0 bottom-0 z-40 pointer-events-none">
       <div
-        className="pointer-events-auto border-t border-ui-border-base bg-white/95 backdrop-blur"
+        className="pointer-events-auto border-t border-ui-border-base bg-white/95 backdrop-blur-sm"
         style={{
           paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
         }}
@@ -66,7 +66,7 @@ export default function MobileCheckoutBar({
           </div>
           <LocalizedClientLink
             href={checkoutHref}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 text-sm font-semibold text-white shadow-sm transition active:scale-[0.99]"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 text-sm font-semibold text-white shadow-xs transition active:scale-[0.99]"
             data-testid="mobile-checkout-bar-button"
           >
             Checkout

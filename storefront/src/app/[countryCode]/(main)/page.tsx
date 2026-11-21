@@ -285,16 +285,16 @@ function FeaturedRailFallback() {
   return (
     <section className="content-container py-12" aria-hidden>
       <div className="animate-pulse">
-        <div className="h-3 w-32 rounded bg-ui-bg-subtle" />
-        <div className="mt-3 h-7 w-72 rounded bg-ui-bg-subtle" />
+        <div className="h-3 w-32 rounded-sm bg-ui-bg-subtle" />
+        <div className="mt-3 h-7 w-72 rounded-sm bg-ui-bg-subtle" />
         <ul className="mt-6 flex list-none gap-4 overflow-hidden p-0">
           {Array.from({ length: 4 }).map((_, i) => (
             <li key={i} className="w-[280px] shrink-0">
               <div className="rounded-xl border border-ui-border-base bg-white p-4">
-                <div className="aspect-[1/1] w-full rounded-lg bg-ui-bg-subtle" />
-                <div className="mt-4 h-5 w-3/4 rounded bg-ui-bg-subtle" />
-                <div className="mt-2 h-4 w-1/2 rounded bg-ui-bg-subtle" />
-                <div className="mt-4 h-3 w-24 rounded bg-ui-bg-subtle" />
+                <div className="aspect-square w-full rounded-lg bg-ui-bg-subtle" />
+                <div className="mt-4 h-5 w-3/4 rounded-sm bg-ui-bg-subtle" />
+                <div className="mt-2 h-4 w-1/2 rounded-sm bg-ui-bg-subtle" />
+                <div className="mt-4 h-3 w-24 rounded-sm bg-ui-bg-subtle" />
                 <div className="mt-2 flex gap-2">
                   {Array.from({ length: 5 }).map((_, j) => (
                     <span
@@ -326,15 +326,15 @@ function LookbookRailFallback() {
       aria-hidden
     >
       <div className="content-container animate-pulse">
-        <div className="h-3 w-36 rounded bg-ui-bg-base" />
-        <div className="mt-3 h-7 w-64 rounded bg-ui-bg-base" />
+        <div className="h-3 w-36 rounded-sm bg-ui-bg-base" />
+        <div className="mt-3 h-7 w-64 rounded-sm bg-ui-bg-base" />
         <ul className="mt-2 grid list-none grid-cols-2 gap-3 p-0 phone:gap-4 tablet:grid-cols-3 small:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <li key={i}>
               <div className="overflow-hidden rounded-lg border border-ui-border-base bg-white">
-                <div className="aspect-[4/5] bg-ui-bg-base" />
+                <div className="aspect-4/5 bg-ui-bg-base" />
                 <div className="p-3">
-                  <div className="h-4 w-2/3 rounded bg-ui-bg-base" />
+                  <div className="h-4 w-2/3 rounded-sm bg-ui-bg-base" />
                 </div>
               </div>
             </li>
@@ -467,9 +467,9 @@ export default async function Home({
               return (
                 <li
                   key={stat.label}
-                  className="group flex flex-col items-center rounded-lg border border-ui-border-base bg-white p-6 text-center transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm"
+                  className="group flex flex-col items-center rounded-lg border border-ui-border-base bg-white p-6 text-center transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs"
                 >
-                  <Icon className="text-[var(--brand-secondary)]/70 transition-colors group-hover:text-brand" />
+                  <Icon className="text-(--brand-secondary)/70 transition-colors group-hover:text-brand" />
                   <p className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl">
                     {stat.value}
                   </p>
@@ -495,7 +495,7 @@ export default async function Home({
                   catalogue, so this is "talk to us", not "get a quote". */}
               <LocalizedClientLink
                 href="/contact"
-                className="group inline-flex min-h-12 items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                className="group inline-flex min-h-12 items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
               >
                 Get in touch
                 <svg

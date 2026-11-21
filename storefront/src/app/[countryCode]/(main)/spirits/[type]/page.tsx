@@ -83,7 +83,7 @@ export default async function SpiritTypePage({
      */
     return (
       <div className="content-container py-16">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
           {spirit.name}
         </p>
         <h1 className="mt-3 text-3xl font-semibold text-ui-fg-base">

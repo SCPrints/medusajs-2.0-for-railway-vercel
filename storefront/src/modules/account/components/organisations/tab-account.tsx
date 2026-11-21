@@ -20,7 +20,7 @@ const day = (iso: string | null) =>
 
 const card = "rounded-2xl border border-ui-border-base bg-white p-5"
 const input =
-  "min-h-11 w-full rounded-md border border-ui-border-base bg-white px-3 text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40"
+  "min-h-11 w-full rounded-md border border-ui-border-base bg-white px-3 text-base focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
 const button =
   "min-h-11 rounded-md bg-ink px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
 const linkButton = "min-h-11 px-2 text-sm font-medium text-ui-fg-interactive hover:underline disabled:opacity-50"

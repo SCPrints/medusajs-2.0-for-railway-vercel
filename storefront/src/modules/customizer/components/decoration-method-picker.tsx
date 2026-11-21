@@ -60,7 +60,7 @@ const DecorationMethodPicker: React.FC<Props> = ({
               aria-pressed={selected}
               className={`flex flex-col items-start gap-0.5 rounded-lg border-2 px-3 py-2.5 text-left transition ${
                 selected
-                  ? "border-[var(--brand-primary,#002a5c)] bg-[var(--brand-primary,#002a5c)] text-white shadow-sm"
+                  ? "border-(--brand-primary,#002a5c) bg-(--brand-primary,#002a5c) text-white shadow-xs"
                   : "border-ui-border-base bg-ui-bg-base text-ui-fg-base hover:border-ui-border-strong hover:bg-ui-bg-subtle"
               }`}
             >

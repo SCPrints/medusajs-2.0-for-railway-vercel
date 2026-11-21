@@ -98,7 +98,7 @@ const JoinForm = ({
           id="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
           placeholder="Player or recipient name"
         />
       </div>
@@ -118,7 +118,7 @@ const JoinForm = ({
                 onChange={(e) =>
                   setBundleSizes((prev) => ({ ...prev, [item.bundle_item_id]: e.target.value }))
                 }
-                className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+                className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
               >
                 <option value="" disabled>
                   Choose a size
@@ -143,7 +143,7 @@ const JoinForm = ({
             id="size"
             value={size}
             onChange={(e) => setSize(e.target.value)}
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
           >
             {sizes.map((s) => (
               <option key={s} value={s}>{s}</option>
@@ -161,7 +161,7 @@ const JoinForm = ({
             min={1}
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
           />
         </div>
         <div>
@@ -172,7 +172,7 @@ const JoinForm = ({
             id="player_number"
             value={playerNumber}
             onChange={(e) => setPlayerNumber(e.target.value)}
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
             placeholder="Player or jersey #"
           />
         </div>
@@ -186,7 +186,7 @@ const JoinForm = ({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
           placeholder="e.g. Tall fit preferred"
         />
       </div>
@@ -199,7 +199,7 @@ const JoinForm = ({
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
           placeholder="So the coach can chase if needed"
         />
       </div>
@@ -208,7 +208,7 @@ const JoinForm = ({
         <button
           type="button"
           onClick={submit}
-          className="inline-flex w-full min-h-12 items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 tablet:w-auto tablet:py-2 tablet:text-sm"
+          className="inline-flex w-full min-h-12 items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-xs hover:opacity-95 tablet:w-auto tablet:py-2 tablet:text-sm"
         >
           {isBundle ? "Submit my sizes" : "Submit my size"}
         </button>

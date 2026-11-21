@@ -1204,33 +1204,33 @@ export default function SphereGalleryClient({
 
           <LocalizedClientLink
             href="/contact"
-            className="pointer-events-auto rounded-full bg-white px-6 py-3 text-sm font-semibold !text-black transition-transform duration-300 hover:scale-105"
+            className="pointer-events-auto rounded-full bg-white px-6 py-3 text-sm font-semibold text-black! transition-transform duration-300 hover:scale-105"
           >
             Let&apos;s Talk
           </LocalizedClientLink>
         </div>
 
         {/* bottom-centre nav pills */}
-        <nav className="pointer-events-auto absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center rounded-full bg-white/10 p-1.5 backdrop-blur-sm small:bottom-7">
+        <nav className="pointer-events-auto absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center rounded-full bg-white/10 p-1.5 backdrop-blur-xs small:bottom-7">
           {/* !text-black: globals.css paints [class*=rounded-full][class*=text-xs] chips brand-pink */}
-          <span className="rounded-full bg-white px-3.5 py-2 text-xs font-semibold !text-black phone:px-5 phone:py-2.5 phone:text-sm">
+          <span className="rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-black! phone:px-5 phone:py-2.5 phone:text-sm">
             Work
           </span>
           <LocalizedClientLink
             href="/lookbook-cube"
-            className="rounded-full px-3.5 py-2 text-xs font-medium !text-white/80 transition-colors hover:!text-white phone:px-5 phone:py-2.5 phone:text-sm"
+            className="rounded-full px-3.5 py-2 text-xs font-medium text-white/80! transition-colors hover:text-white! phone:px-5 phone:py-2.5 phone:text-sm"
           >
             Cube
           </LocalizedClientLink>
           <LocalizedClientLink
             href="/lookbook"
-            className="rounded-full px-3.5 py-2 text-xs font-medium !text-white/80 transition-colors hover:!text-white phone:px-5 phone:py-2.5 phone:text-sm"
+            className="rounded-full px-3.5 py-2 text-xs font-medium text-white/80! transition-colors hover:text-white! phone:px-5 phone:py-2.5 phone:text-sm"
           >
             Lookbook
           </LocalizedClientLink>
           <LocalizedClientLink
             href="/contact"
-            className="rounded-full px-3.5 py-2 text-xs font-medium !text-white/80 transition-colors hover:!text-white phone:px-5 phone:py-2.5 phone:text-sm"
+            className="rounded-full px-3.5 py-2 text-xs font-medium text-white/80! transition-colors hover:text-white! phone:px-5 phone:py-2.5 phone:text-sm"
           >
             Contact
           </LocalizedClientLink>
@@ -1264,7 +1264,7 @@ export default function SphereGalleryClient({
                   aspect ratios and cover-cropping cut the artwork off */}
               <div
                 data-detail-item
-                className="flex items-center justify-center overflow-hidden rounded-sm bg-[#161616]"
+                className="flex items-center justify-center overflow-hidden rounded-xs bg-[#161616]"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -1293,7 +1293,7 @@ export default function SphereGalleryClient({
                 {selected.tags.map((t) => (
                   <span
                     key={t}
-                    className="rounded-full bg-white/10 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/70"
+                    className="rounded-full bg-white/10 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-widest text-white/70"
                   >
                     {t}
                   </span>
@@ -1320,7 +1320,7 @@ export default function SphereGalleryClient({
                       ? `/products/${selected.productHandle}`
                       : "/contact"
                   }
-                  className="inline-flex items-center gap-3 rounded-full bg-white px-7 py-3.5 text-sm font-semibold !text-black transition-transform duration-300 hover:scale-105"
+                  className="inline-flex items-center gap-3 rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-black! transition-transform duration-300 hover:scale-105"
                 >
                   Start a job like this →
                 </LocalizedClientLink>

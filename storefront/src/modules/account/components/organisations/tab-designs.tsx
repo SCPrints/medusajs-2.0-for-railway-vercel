@@ -38,7 +38,7 @@ export default function DesignsTab({ designs, inventory }: Props) {
               key={d.id}
               type="button"
               onClick={() => setActive(d)}
-              className="group flex flex-col overflow-hidden rounded-2xl border border-ui-border-base bg-white text-left transition hover:border-[var(--brand-secondary)]/40 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40"
+              className="group flex flex-col overflow-hidden rounded-2xl border border-ui-border-base bg-white text-left transition hover:border-(--brand-secondary)/40 hover:shadow-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
             >
               <div className="relative aspect-square w-full bg-ui-bg-subtle">
                 {d.thumbnail_url ? (
@@ -94,13 +94,13 @@ function DesignModal({
       role="dialog"
       aria-modal="true"
       aria-label={design.name}
-      className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+      className="fixed inset-0 z-80 flex items-center justify-center p-4"
     >
       <button
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-xs"
       />
       <div className="relative z-10 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-ui-border-base px-5 py-3">
@@ -150,7 +150,7 @@ function DesignModal({
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                       r.fulfillment_mode === "held_stock"
-                        ? "bg-[var(--brand-accent)]/15 text-ink"
+                        ? "bg-(--brand-accent)/15 text-ink"
                         : "bg-ui-bg-subtle text-ui-fg-subtle"
                     }`}
                   >

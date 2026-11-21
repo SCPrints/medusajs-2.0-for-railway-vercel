@@ -98,7 +98,7 @@ function SkeletonRow({ delay, reducedMotion }: { delay: number; reducedMotion: b
     <div className="flex items-center gap-3 rounded-lg border border-ui-border-base p-3">
       <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-ui-bg-subtle">
         <motion.div
-          className="h-full w-full bg-gradient-to-r from-transparent via-white/50 to-transparent"
+          className="h-full w-full bg-linear-to-r from-transparent via-white/50 to-transparent"
           animate={
             reducedMotion ? {} : { x: ["-100%", "100%"] }
           }
@@ -111,16 +111,16 @@ function SkeletonRow({ delay, reducedMotion }: { delay: number; reducedMotion: b
         />
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">
-        <div className="h-2 overflow-hidden rounded bg-ui-bg-subtle">
+        <div className="h-2 overflow-hidden rounded-sm bg-ui-bg-subtle">
           <motion.div
-            className="h-full w-full bg-gradient-to-r from-transparent via-white/40 to-transparent"
+            className="h-full w-full bg-linear-to-r from-transparent via-white/40 to-transparent"
             animate={reducedMotion ? {} : { x: ["-100%", "100%"] }}
             transition={{ duration: 1.2, repeat: Infinity, ease: "linear", delay: delay + 0.05 }}
           />
         </div>
-        <div className="h-2 w-2/3 overflow-hidden rounded bg-ui-bg-subtle">
+        <div className="h-2 w-2/3 overflow-hidden rounded-sm bg-ui-bg-subtle">
           <motion.div
-            className="h-full w-full bg-gradient-to-r from-transparent via-white/40 to-transparent"
+            className="h-full w-full bg-linear-to-r from-transparent via-white/40 to-transparent"
             animate={reducedMotion ? {} : { x: ["-100%", "100%"] }}
             transition={{ duration: 1.2, repeat: Infinity, ease: "linear", delay: delay + 0.1 }}
           />
@@ -152,7 +152,7 @@ export function LabTierDFocusRingMorph({ reducedMotion }: { reducedMotion: boole
         <button
           type="button"
           onClick={() => setMode("btn")}
-          className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF2E63] ${
+          className={`focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#FF2E63] ${
             reducedMotion ? "" : "transition-[border-radius] duration-300"
           } rounded-md px-4 py-2 ${mode === "btn" ? "border-2 border-ui-border-base" : "border border-transparent"}`}
         >
@@ -163,7 +163,7 @@ export function LabTierDFocusRingMorph({ reducedMotion }: { reducedMotion: boole
           aria-label="Demo input"
           onFocus={() => setMode("input")}
           placeholder="Email"
-          className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF2E63] ${
+          className={`focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#FF2E63] ${
             reducedMotion ? "" : "transition-[border-radius] duration-300"
           } rounded-full border border-ui-border-base px-4 py-2 text-sm`}
         />

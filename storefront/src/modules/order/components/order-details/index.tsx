@@ -97,7 +97,7 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
           <a
             href={`/api/orders/${encodeURIComponent(order.id)}/download-pack`}
             download
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ui-border-base bg-white px-5 py-2.5 text-sm font-semibold !text-ink hover:bg-ui-bg-subtle"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-ui-border-base bg-white px-5 py-2.5 text-sm font-semibold text-ink! hover:bg-ui-bg-subtle"
             data-testid="order-download-pack"
           >
             Download everything (.zip)

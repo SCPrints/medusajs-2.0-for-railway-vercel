@@ -80,13 +80,13 @@ export default function CancelOrderButton({
           role="dialog"
           aria-modal="true"
           aria-label="Cancel order"
-          className="fixed inset-0 z-[85] flex items-center justify-center p-4"
+          className="fixed inset-0 z-85 flex items-center justify-center p-4"
         >
           <button
             type="button"
             aria-label="Close"
             onClick={() => !submitting && setOpen(false)}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50 backdrop-blur-xs"
           />
           <div className="relative z-10 flex w-full max-w-md flex-col rounded-2xl bg-white shadow-2xl">
             <div className="px-5 pt-5">

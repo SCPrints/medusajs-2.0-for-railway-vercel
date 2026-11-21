@@ -117,7 +117,7 @@ export const RING_COLOR = "rgba(197, 198, 199, 0.08)"
  * link/chip repaints (navy text, magenta pills) can't bleed onto the dark panel.
  */
 export const HUD_SURFACE =
-  "rounded-xl border border-[#45A29E]/30 bg-[#0B0C10]/75 !text-[#C5C6C7] shadow-[0_0_24px_rgba(69,162,158,0.12)] backdrop-blur"
-export const HUD_LABEL = "text-[0.65rem] uppercase tracking-widest !text-[#45A29E]"
+  "rounded-xl border border-[#45A29E]/30 bg-[#0B0C10]/75 text-[#C5C6C7]! shadow-[0_0_24px_rgba(69,162,158,0.12)] backdrop-blur-sm"
+export const HUD_LABEL = "text-[0.65rem] uppercase tracking-widest text-[#45A29E]!"
 export const HUD_BUTTON =
-  "min-h-11 rounded-md border border-[#45A29E]/40 bg-[#1F2833]/80 px-3 text-left text-small-regular !text-[#C5C6C7] hover:bg-[#1F2833] hover:!text-white disabled:opacity-60"
+  "min-h-11 rounded-md border border-[#45A29E]/40 bg-[#1F2833]/80 px-3 text-left text-small-regular text-[#C5C6C7]! hover:bg-[#1F2833] hover:text-white! disabled:opacity-60"

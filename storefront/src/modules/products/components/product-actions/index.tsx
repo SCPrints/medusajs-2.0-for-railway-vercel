@@ -281,7 +281,7 @@ export default function ProductActions({
                 max={999}
                 value={quantity}
                 onChange={(event) => updateQuantity(Number.parseInt(event.target.value, 10))}
-                className="w-16 border-x border-ui-border-base py-2 text-center text-sm outline-none"
+                className="w-16 border-x border-ui-border-base py-2 text-center text-sm outline-hidden"
                 disabled={isAdding || !!disabled}
               />
               <button
@@ -359,7 +359,7 @@ export default function ProductActions({
                   setSelectionPrintSize(activeSelectionId, event.target.value as ScpPrintSizeId)
                 }}
                 disabled={isAdding || !!disabled || !activeSelectionId}
-                className="w-full rounded-rounded border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base outline-none focus:border-ui-border-interactive"
+                className="w-full rounded-rounded border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base outline-hidden focus:border-ui-border-interactive"
               >
                 {SCP_PRINT_SIZE_OPTIONS.map((opt) => (
                   <option key={opt.id} value={opt.id}>

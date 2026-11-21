@@ -4,7 +4,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import { money, shortDate } from "../quotes/format"
 
 const downloadButton =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2.5 text-sm font-semibold !text-ui-fg-base hover:bg-ui-bg-subtle"
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2.5 text-sm font-semibold text-ui-fg-base! hover:bg-ui-bg-subtle"
 
 const range = (r: PriceRange) => (r == null ? "—" : r.max > r.min ? `${money(r.min)} – ${money(r.max)}` : money(r.min))
 
@@ -39,7 +39,7 @@ const PriceListView = ({ list }: { list: PriceList }) => (
         </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-ui-border-base bg-white">
-          <table className="w-full min-w-[40rem] text-left text-sm">
+          <table className="w-full min-w-160 text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-ui-fg-subtle">
               <tr className="border-b border-gray-200">
                 <th className="px-3 py-3 font-semibold">Garment</th>
@@ -55,7 +55,7 @@ const PriceListView = ({ list }: { list: PriceList }) => (
                     <div className="flex items-center gap-3">
                       {g.thumbnail ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={g.thumbnail} alt="" className="h-10 w-10 flex-none rounded border border-gray-200 bg-white object-contain" />
+                        <img src={g.thumbnail} alt="" className="h-10 w-10 flex-none rounded-sm border border-gray-200 bg-white object-contain" />
                       ) : null}
                       {g.handle ? (
                         <LocalizedClientLink href={`/products/${g.handle}`} className="font-medium text-ui-fg-base underline">
@@ -82,7 +82,7 @@ const PriceListView = ({ list }: { list: PriceList }) => (
         <h2 className="mb-1 text-lg font-semibold text-ui-fg-base">{t.title}</h2>
         <p className="mb-3 text-sm text-ui-fg-subtle">{t.note}</p>
         <div className="overflow-x-auto rounded-xl border border-ui-border-base bg-white">
-          <table className="w-full min-w-[36rem] text-left text-sm">
+          <table className="w-full min-w-xl text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-ui-fg-subtle">
               <tr className="border-b border-gray-200">
                 <th className="px-3 py-3 font-semibold">Size</th>

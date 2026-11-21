@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function BlockHeroPreviewPage() {
   return (
-    <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-[#0c0b1a]">
+    <section className="relative h-dvh min-h-[600px] w-full overflow-hidden bg-[#0c0b1a]">
       <BlockHeroClient />
       <HeroOverlay />
     </section>

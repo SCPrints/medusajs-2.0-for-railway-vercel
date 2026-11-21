@@ -668,7 +668,7 @@ function FlyToCartButton({
     createPortal(
       <motion.div
         key={fly.id}
-        className="pointer-events-none fixed z-[200] overflow-hidden drop-shadow-md"
+        className="pointer-events-none fixed z-200 overflow-hidden drop-shadow-md"
         style={{
           left: 0,
           top: 0,
@@ -863,7 +863,7 @@ function FlyConfettiSquishSlotComboButton({
       <motion.div
         ref={flyItemRef}
         key={fly.id}
-        className="pointer-events-none fixed z-[200] overflow-visible drop-shadow-md"
+        className="pointer-events-none fixed z-200 overflow-visible drop-shadow-md"
         style={{
           left: 0,
           top: 0,
@@ -899,7 +899,7 @@ function FlyConfettiSquishSlotComboButton({
           onFlyComplete()
         }}
       >
-        <div className="pointer-events-none absolute left-1/2 top-1/2 z-[2] h-0 w-0 -translate-x-1/2 -translate-y-1/2">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-2 h-0 w-0 -translate-x-1/2 -translate-y-1/2">
           {trailPulse > 0 ? (
             <TrailingLaserBurst
               key={trailPulse}
@@ -908,7 +908,7 @@ function FlyConfettiSquishSlotComboButton({
             />
           ) : null}
         </div>
-        <FlyingHeartLogo className="relative z-[1]" />
+        <FlyingHeartLogo className="relative z-1" />
       </motion.div>,
       document.body
     )
@@ -918,7 +918,7 @@ function FlyConfettiSquishSlotComboButton({
     megaLaserFinale &&
     createPortal(
       <div
-        className="pointer-events-none fixed inset-0 z-[240]"
+        className="pointer-events-none fixed inset-0 z-240"
         aria-hidden
         key={megaLaserFinale.id}
       >
@@ -1088,7 +1088,7 @@ function RippleAddButton() {
           }}
         />
       ))}
-      <span className="relative z-[1]">Add to cart</span>
+      <span className="relative z-1">Add to cart</span>
     </button>
   )
 }
@@ -1137,7 +1137,7 @@ function CoinFlip3DButton() {
           setFlipped(true)
           window.setTimeout(() => setFlipped(false), 2200)
         }}
-        className="relative h-11 w-[200px] cursor-pointer select-none border-0 p-0 [transform-style:preserve-3d] rounded-md outline-none"
+        className="relative h-11 w-[200px] cursor-pointer select-none border-0 p-0 transform-3d rounded-md outline-hidden"
         style={{ transformStyle: "preserve-3d" }}
         animate={{ rotateX: flipped ? 180 : 0 }}
         transition={{ type: "spring", stiffness: 95, damping: 16, mass: 0.6 }}
@@ -1153,7 +1153,7 @@ function CoinFlip3DButton() {
           Add to cart
         </span>
         <span
-          className="absolute inset-0 z-0 flex items-center justify-center gap-1.5 rounded-md bg-emerald-600 text-sm font-medium text-white [transform:rotateX(180deg)]"
+          className="absolute inset-0 z-0 flex items-center justify-center gap-1.5 rounded-md bg-emerald-600 text-sm font-medium text-white transform-[rotateX(180deg)]"
           style={{
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
@@ -1235,7 +1235,7 @@ function ProgressFillButton() {
       {phase === "success" && (
         <div className="absolute inset-0 z-0 bg-rose-800/50" aria-hidden />
       )}
-      <span className="relative z-[1]">
+      <span className="relative z-1">
         {phase === "success" ? "Added!" : "Add to cart"}
       </span>
     </button>
@@ -1248,9 +1248,9 @@ function ShimmerSweepButton() {
     <button
       type="button"
       onClick={() => setN((c) => c + 1)}
-      className="relative min-w-[200px] overflow-hidden rounded-md border border-zinc-400 bg-gradient-to-b from-zinc-100 to-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-900 shadow-sm hover:from-zinc-50 hover:to-zinc-200"
+      className="relative min-w-[200px] overflow-hidden rounded-md border border-zinc-400 bg-linear-to-b from-zinc-100 to-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-900 shadow-xs hover:from-zinc-50 hover:to-zinc-200"
     >
-      <span className="relative z-[1]">Add to cart</span>
+      <span className="relative z-1">Add to cart</span>
       {n > 0 && (
         <motion.span
           key={n}
@@ -1258,7 +1258,7 @@ function ShimmerSweepButton() {
           aria-hidden
         >
           <motion.span
-            className="absolute top-0 h-full w-2/3 bg-gradient-to-r from-transparent via-white/50 to-transparent"
+            className="absolute top-0 h-full w-2/3 bg-linear-to-r from-transparent via-white/50 to-transparent"
             style={{ transform: "skewX(-18deg) translateX(-20%)" }}
             initial={{ left: "-50%" }}
             animate={{ left: "130%" }}
@@ -1320,7 +1320,7 @@ export function useButtonAnimationsLabSections(
         <button
           type="button"
           ref={demoCartRef}
-          className="rounded border border-ui-border-base bg-ui-bg-base px-3 py-1.5 text-sm font-medium text-ui-fg-base"
+          className="rounded-sm border border-ui-border-base bg-ui-bg-base px-3 py-1.5 text-sm font-medium text-ui-fg-base"
           aria-label="Demo shopping cart"
         >
           Cart (0)
@@ -1452,7 +1452,7 @@ export function useButtonAnimationsLabSections(
 
       <LabSection key="lab-6"
           title="5. Material-style ripple"
-          description="Click coordinates seed an expanding ring inside an overflow-hidden button. Uses Framer Motion for the ripple (pure CSS is another valid approach)."
+          description="Click coordinates seed an expanding ring-3 inside an overflow-hidden button. Uses Framer Motion for the ripple (pure CSS is another valid approach)."
         >
           <RippleAddButton />
         </LabSection>,

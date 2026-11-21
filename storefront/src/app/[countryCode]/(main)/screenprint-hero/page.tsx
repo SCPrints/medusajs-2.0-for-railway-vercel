@@ -39,7 +39,7 @@ export default function ScreenprintHeroPage() {
     // Paper-white animation, so the wrapper + back link go dark-on-light to
     // contrast the off-white press stock the canvas paints.
     <div className="relative min-h-screen bg-[#fbfbf8] text-[#1a1a2e]">
-      <div className="pointer-events-none fixed left-0 top-0 z-[40] w-full px-4 py-4 sm:px-6">
+      <div className="pointer-events-none fixed left-0 top-0 z-40 w-full px-4 py-4 sm:px-6">
         <div className="pointer-events-auto inline-flex">
           <LocalizedClientLink
             href="/"
@@ -52,7 +52,7 @@ export default function ScreenprintHeroPage() {
       {/* CMYK screen-print registration: the SC PRINTS mark builds up from four
           halftone colour separations on press stock, then resolves to a clean
           solid fill before looping. */}
-      <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-[#fbfbf8]">
+      <section className="relative h-dvh min-h-[600px] w-full overflow-hidden bg-[#fbfbf8]">
         <ScreenprintCmykHero style={{ position: "absolute", inset: 0, height: "100%" }} />
       </section>
     </div>

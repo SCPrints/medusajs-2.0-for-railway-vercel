@@ -19,4 +19,4 @@ export const LISTING_CARD_INNER_IMAGE_HOVER_CLASSES =
 
 /** Shell + catalogue shadow stack (beyond `shadow-elevation-card-hover`). */
 export const LISTING_CARD_SHELL_HOVER_SURFACE_CLASSES =
-  "hover:border-[var(--brand-secondary)]/80 hover:shadow-[0_28px_55px_-12px_rgba(0,0,0,0.38)] hover:shadow-elevation-card-hover"
+  "hover:border-(--brand-secondary)/80 hover:shadow-[0_28px_55px_-12px_rgba(0,0,0,0.38)] hover:shadow-elevation-card-hover"

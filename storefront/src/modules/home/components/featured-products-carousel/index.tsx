@@ -141,7 +141,7 @@ function ArrowButton({
       aria-label={dir === "left" ? "Scroll products left" : "Scroll products right"}
       onClick={onClick}
       disabled={disabled}
-      className="flex h-10 w-10 items-center justify-center rounded-full border border-ui-border-base bg-white text-ui-fg-base shadow-sm transition hover:border-[var(--brand-secondary)]/50 hover:bg-ui-bg-subtle disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-ui-border-base disabled:hover:bg-white"
+      className="flex h-10 w-10 items-center justify-center rounded-full border border-ui-border-base bg-white text-ui-fg-base shadow-xs transition hover:border-(--brand-secondary)/50 hover:bg-ui-bg-subtle disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-ui-border-base disabled:hover:bg-white"
     >
       <svg
         width="18"

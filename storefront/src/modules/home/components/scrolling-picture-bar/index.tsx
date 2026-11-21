@@ -234,7 +234,7 @@ const ScrollingPictureBar = () => {
   }
 
   const arrowClass =
-    "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white/85 text-ui-fg-base shadow-elevation-card-rest backdrop-blur transition hover:bg-white hover:border-[var(--brand-secondary)]/60 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/50 small:h-12 small:w-12"
+    "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white/85 text-ui-fg-base shadow-elevation-card-rest backdrop-blur-sm transition hover:bg-white hover:border-(--brand-secondary)/60 hover:text-brand focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/50 small:h-12 small:w-12"
 
   return (
     <section className="w-full bg-ui-bg-base py-8 small:py-10">
@@ -271,7 +271,7 @@ const ScrollingPictureBar = () => {
                   href={brandImage.href}
                   aria-hidden={isClone}
                   tabIndex={isClone ? -1 : undefined}
-                  className="group relative h-[30vh] w-[60vw] shrink-0 overflow-hidden rounded-2xl border border-ui-border-base shadow-elevation-card-rest transition-all hover:border-[var(--brand-secondary)]/60 small:h-[36vh] small:w-[42vw]"
+                  className="group relative h-[30vh] w-[60vw] shrink-0 overflow-hidden rounded-2xl border border-ui-border-base shadow-elevation-card-rest transition-all hover:border-(--brand-secondary)/60 small:h-[36vh] small:w-[42vw]"
                 >
                   <Image
                     src={brandImage.imageSrc}
@@ -280,8 +280,8 @@ const ScrollingPictureBar = () => {
                     sizes="(max-width: 1024px) 60vw, 42vw"
                     className="object-cover"
                   />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
-                  <div className="pointer-events-none absolute bottom-4 left-4 rounded-md border border-white/25 bg-black/45 px-3 py-2 backdrop-blur-sm">
+                  <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/70 via-black/25 to-transparent" />
+                  <div className="pointer-events-none absolute bottom-4 left-4 rounded-md border border-white/25 bg-black/45 px-3 py-2 backdrop-blur-xs">
                     <p className="text-sm font-semibold uppercase tracking-[0.08em] text-white small:text-base">
                       {brandImage.name}
                     </p>

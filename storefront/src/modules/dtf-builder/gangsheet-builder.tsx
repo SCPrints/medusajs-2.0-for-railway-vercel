@@ -590,7 +590,7 @@ export default function GangsheetBuilder({
                 type="file"
                 accept="image/png"
                 multiple
-                className="text-small text-ui-fg-base file:mr-3 file:rounded file:border file:border-ui-border-base file:bg-ui-bg-base file:px-3 file:py-1"
+                className="text-small text-ui-fg-base file:mr-3 file:rounded-sm file:border file:border-ui-border-base file:bg-ui-bg-base file:px-3 file:py-1"
                 onChange={(e) => void handleUpload(e.target.files)}
               />
             </label>
@@ -685,7 +685,7 @@ export default function GangsheetBuilder({
               ref={htmlCanvasRef}
               width={widthPx > 0 ? widthPx : undefined}
               height={heightPx > 0 ? heightPx : undefined}
-              className="block shadow-sm touch-none"
+              className="block shadow-xs touch-none"
             />
           </div>
         </div>

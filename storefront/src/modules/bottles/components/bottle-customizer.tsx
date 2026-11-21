@@ -327,7 +327,7 @@ export default function BottleCustomizer({
     <div className="grid grid-cols-1 gap-8 medium:grid-cols-12">
       {/* Bottle preview + canvas overlay */}
       <div className="medium:col-span-7">
-        <div className="relative mx-auto aspect-[3/4] max-w-md overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle">
+        <div className="relative mx-auto aspect-3/4 max-w-md overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle">
           {productImage ? (
             <img
               src={productImage}
@@ -353,7 +353,7 @@ export default function BottleCustomizer({
               ref={htmlCanvasRef}
               width={labelPx.width}
               height={labelPx.height}
-              className="rounded shadow-md ring-1 ring-[var(--brand-primary)]/20"
+              className="rounded-sm shadow-md ring-1 ring-(--brand-primary)/20"
               style={{ background: "rgba(255,255,255,0.85)" }}
             />
           </div>
@@ -368,7 +368,7 @@ export default function BottleCustomizer({
       <div className="medium:col-span-5">
         <div className="flex flex-col gap-y-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               {bottleSpec.spiritType ?? "Custom bottle"}
               {bottleSpec.capacityMl ? ` · ${bottleSpec.capacityMl}ml` : ""}
             </p>
@@ -392,7 +392,7 @@ export default function BottleCustomizer({
                   className={
                     "rounded-full border px-4 py-1.5 text-sm transition " +
                     (activeSide === side
-                      ? "border-[var(--brand-secondary)] bg-[var(--brand-secondary)] text-white"
+                      ? "border-(--brand-secondary) bg-(--brand-secondary) text-white"
                       : "border-ui-border-base text-ui-fg-base hover:bg-ui-bg-subtle")
                   }
                 >
@@ -499,7 +499,7 @@ export default function BottleCustomizer({
             type="button"
             onClick={handleAddToCart}
             disabled={adding || !selectedVariantId}
-            className="rounded-full bg-[var(--brand-secondary)] px-6 py-3 text-sm font-medium text-white hover:opacity-90 transition disabled:opacity-50"
+            className="rounded-full bg-(--brand-secondary) px-6 py-3 text-sm font-medium text-white hover:opacity-90 transition disabled:opacity-50"
           >
             {adding ? "Adding…" : "Add bottle to cart"}
           </button>

@@ -77,7 +77,7 @@ export function LabTierDScrollbarGutterDemo({ reducedMotion: _rm }: { reducedMot
         <code className="text-[10px]">scroll-padding-top</code> so in-panel anchors respect a sticky sub-header.
       </p>
       <div
-        className="max-h-44 overflow-auto rounded-xl border border-ui-border-base [scrollbar-gutter:stable]"
+        className="max-h-44 overflow-auto rounded-xl border border-ui-border-base scrollbar-gutter-stable"
         style={{ scrollPaddingTop: 40 }}
       >
         <div className="sticky top-0 z-10 border-b border-ui-border-base bg-ui-bg-base px-3 py-2 text-xs font-medium">

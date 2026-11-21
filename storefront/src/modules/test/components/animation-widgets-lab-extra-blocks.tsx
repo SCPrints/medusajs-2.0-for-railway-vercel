@@ -134,14 +134,14 @@ export function LabSkeletonShimmer() {
     <div className="space-y-4">
       <div className="relative h-36 overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base">
         <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent"
+          className="absolute inset-0 bg-linear-to-r from-transparent via-white/25 to-transparent"
           animate={{ x: ["-100%", "100%"] }}
           transition={{ duration: 1.35, repeat: Infinity, ease: "linear" }}
         />
       </div>
       <div className="space-y-2">
-        <div className="h-3 w-2/3 rounded bg-ui-bg-subtle" />
-        <div className="h-3 w-1/2 rounded bg-ui-bg-subtle" />
+        <div className="h-3 w-2/3 rounded-sm bg-ui-bg-subtle" />
+        <div className="h-3 w-1/2 rounded-sm bg-ui-bg-subtle" />
       </div>
       <p className="text-xs text-ui-fg-muted">Shimmer overlay + static bars (placeholder layout).</p>
     </div>
@@ -154,8 +154,8 @@ export function LabSkeletonShimmerReduced({ reducedMotion }: { reducedMotion: bo
       <div className="space-y-4">
         <div className="h-36 rounded-xl border border-ui-border-base bg-ui-bg-subtle" />
         <div className="space-y-2">
-          <div className="h-3 w-2/3 rounded bg-ui-bg-subtle" />
-          <div className="h-3 w-1/2 rounded bg-ui-bg-subtle" />
+          <div className="h-3 w-2/3 rounded-sm bg-ui-bg-subtle" />
+          <div className="h-3 w-1/2 rounded-sm bg-ui-bg-subtle" />
         </div>
         <p className="text-xs text-ui-fg-muted">Reduced motion: no traveling highlight.</p>
       </div>
@@ -227,7 +227,7 @@ export function LabParallaxScrollBox({ reducedMotion }: { reducedMotion: boolean
       className="relative h-64 overflow-y-auto overflow-x-hidden rounded-xl border border-ui-border-base bg-ui-bg-base"
     >
       <motion.div style={{ y }} className="pointer-events-none absolute -left-8 right-0 top-0 h-40 opacity-40">
-        <div className="h-full rounded-full bg-gradient-to-br from-[#FF2E63]/40 to-indigo-500/30 blur-2xl" />
+        <div className="h-full rounded-full bg-linear-to-br from-[#FF2E63]/40 to-indigo-500/30 blur-2xl" />
       </motion.div>
       <div className="relative space-y-4 p-6">
         {Array.from({ length: 8 }, (_, i) => (
@@ -260,7 +260,7 @@ export function LabSpotlightGlow() {
           background: `radial-gradient(circle 120px at ${pos.x}% ${pos.y}%, rgba(255,46,99,0.45), transparent 55%)`,
         }}
       />
-      <p className="relative z-[1] flex h-full items-center justify-center px-6 text-center text-sm text-ui-bg-base">
+      <p className="relative z-1 flex h-full items-center justify-center px-6 text-center text-sm text-ui-bg-base">
         Move the pointer — soft spotlight follows (no custom cursor needed).
       </p>
     </div>
@@ -424,7 +424,7 @@ export function LabTabsUnderline() {
               type="button"
               role="tab"
               aria-selected={tab === i}
-              className="relative z-[1] px-4 py-2 pb-3 text-sm font-medium text-ui-fg-muted data-[active=true]:text-ui-fg-base"
+              className="relative z-1 px-4 py-2 pb-3 text-sm font-medium text-ui-fg-muted data-[active=true]:text-ui-fg-base"
               data-active={tab === i}
               onClick={() => setTab(i)}
             >
@@ -456,7 +456,7 @@ export function LabScrollSnapStrip() {
         {DEMO_ITEMS.map((label) => (
           <div
             key={label}
-            className="h-24 w-40 flex-shrink-0 snap-center rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4 text-sm font-medium text-ui-fg-base"
+            className="h-24 w-40 shrink-0 snap-center rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4 text-sm font-medium text-ui-fg-base"
           >
             {label}
           </div>
@@ -477,7 +477,7 @@ export function LabDocumentScrollProgress() {
         Fixed to the viewport top while you scroll this page (pink bar). Resize the window and scroll the lab to see it move.
       </p>
       <motion.div
-        className="fixed left-0 top-0 z-[150] h-1 origin-left bg-[#FF2E63]"
+        className="fixed left-0 top-0 z-150 h-1 origin-left bg-[#FF2E63]"
         style={{ scaleX }}
       />
     </div>
@@ -494,7 +494,7 @@ export function LabStepper() {
           <li key={n} className="flex flex-1 items-center gap-2">
             <button
               type="button"
-              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
                 step >= n ? "bg-ui-fg-base text-ui-bg-base" : "border border-ui-border-base bg-ui-bg-base text-ui-fg-muted"
               }`}
               onClick={() => setStep(n)}
@@ -571,7 +571,7 @@ export function LabCopyMorph() {
       <button
         type="button"
         onClick={onCopy}
-        className="inline-flex min-w-[10rem] items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-base px-4 py-2 text-sm font-medium text-ui-fg-base"
+        className="inline-flex min-w-40 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-base px-4 py-2 text-sm font-medium text-ui-fg-base"
       >
         <AnimatePresence mode="wait" initial={false}>
           {copied ? (
@@ -616,7 +616,7 @@ export function LabSwitch({ reducedMotion }: { reducedMotion: boolean }) {
       className={`relative h-8 w-14 rounded-full border border-ui-border-base ${on ? "bg-[#FF2E63]/90" : "bg-ui-bg-subtle"}`}
     >
       <motion.span
-        className="absolute top-1 left-1 h-6 w-6 rounded-full bg-ui-bg-base shadow"
+        className="absolute top-1 left-1 h-6 w-6 rounded-full bg-ui-bg-base shadow-sm"
         animate={{ x: on ? 24 : 0 }}
         transition={reducedMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 32 }}
       />
@@ -842,7 +842,7 @@ export function LabImageZoomHover() {
         whileHover={{ scale: 1.06 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
       />
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
         Hover to zoom
       </p>
     </div>
@@ -882,16 +882,16 @@ export function LabCrossfadePosters({ reducedMotion }: { reducedMotion: boolean 
   }, [reducedMotion])
 
   return (
-    <div className="relative mx-auto aspect-[5/3] max-w-md overflow-hidden rounded-xl border border-ui-border-base">
+    <div className="relative mx-auto aspect-5/3 max-w-md overflow-hidden rounded-xl border border-ui-border-base">
       <img
         src="https://picsum.photos/seed/crossA/640/384"
         alt=""
-        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ${a ? "opacity-100" : "opacity-0"}`}
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1200 ${a ? "opacity-100" : "opacity-0"}`}
       />
       <img
         src="https://picsum.photos/seed/crossB/640/384"
         alt=""
-        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ${a ? "opacity-0" : "opacity-100"}`}
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1200 ${a ? "opacity-0" : "opacity-100"}`}
       />
     </div>
   )
@@ -941,14 +941,14 @@ export function LabFakeVideoPoster({ reducedMotion }: { reducedMotion: boolean }
 
 export function LabFilmGrain() {
   return (
-    <div className="relative h-40 overflow-hidden rounded-xl border border-ui-border-base bg-gradient-to-br from-ui-fg-base to-ui-fg-subtle">
+    <div className="relative h-40 overflow-hidden rounded-xl border border-ui-border-base bg-linear-to-br from-ui-fg-base to-ui-fg-subtle">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.18] mix-blend-overlay"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
         }}
       />
-      <p className="relative z-[1] flex h-full items-center justify-center px-4 text-center text-sm text-ui-bg-base">
+      <p className="relative z-1 flex h-full items-center justify-center px-4 text-center text-sm text-ui-bg-base">
         SVG noise overlay — tune opacity for dark sections.
       </p>
     </div>
@@ -958,7 +958,7 @@ export function LabFilmGrain() {
 export function LabAuroraMesh({ reducedMotion }: { reducedMotion: boolean }) {
   if (reducedMotion) {
     return (
-      <div className="h-44 rounded-xl border border-ui-border-base bg-gradient-to-br from-indigo-900/30 via-[#FF2E63]/20 to-emerald-700/25" />
+      <div className="h-44 rounded-xl border border-ui-border-base bg-linear-to-br from-indigo-900/30 via-[#FF2E63]/20 to-emerald-700/25" />
     )
   }
 
@@ -994,7 +994,7 @@ export function LabDashedBorderCard() {
             transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
           />
         </svg>
-        <div className="relative z-[1] min-w-[280px] rounded-2xl bg-ui-bg-subtle px-8 py-6 text-center text-sm text-ui-fg-base">
+        <div className="relative z-1 min-w-[280px] rounded-2xl bg-ui-bg-subtle px-8 py-6 text-center text-sm text-ui-fg-base">
           Limited run — dashed frame
         </div>
       </div>
@@ -1007,12 +1007,12 @@ export function LabGlassSheen({ reducedMotion }: { reducedMotion: boolean }) {
     <div className="relative overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-subtle p-8 backdrop-blur-md">
       {!reducedMotion ? (
         <motion.div
-          className="pointer-events-none absolute -inset-1 -skew-x-12 bg-gradient-to-r from-transparent via-white/25 to-transparent"
+          className="pointer-events-none absolute -inset-1 -skew-x-12 bg-linear-to-r from-transparent via-white/25 to-transparent"
           animate={{ x: ["-120%", "120%"] }}
           transition={{ duration: 2.8, repeat: Infinity, repeatDelay: 1.2, ease: "easeInOut" }}
         />
       ) : null}
-      <p className="relative z-[1] text-sm text-ui-fg-base">Glass-style panel with occasional sheen sweep.</p>
+      <p className="relative z-1 text-sm text-ui-fg-base">Glass-style panel with occasional sheen sweep.</p>
     </div>
   )
 }
@@ -1125,7 +1125,7 @@ export function LabDragCarousel() {
         {DEMO_ITEMS.map((label) => (
           <div
             key={label}
-            className="flex h-28 flex-shrink-0 items-center justify-center rounded-xl border border-ui-border-base bg-ui-bg-base text-sm font-medium text-ui-fg-base"
+            className="flex h-28 shrink-0 items-center justify-center rounded-xl border border-ui-border-base bg-ui-bg-base text-sm font-medium text-ui-fg-base"
             style={{ width: CAROUSEL_CARD_W }}
           >
             {label}
@@ -1195,7 +1195,7 @@ export function LabBottomSheet() {
             <motion.button
               type="button"
               aria-label="Close"
-              className="fixed inset-0 z-[190] bg-ui-fg-base/40"
+              className="fixed inset-0 z-190 bg-ui-fg-base/40"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1204,7 +1204,7 @@ export function LabBottomSheet() {
             <motion.div
               role="dialog"
               aria-modal="true"
-              className="fixed bottom-0 left-0 right-0 z-[200] rounded-t-2xl border-t border-ui-border-base bg-ui-bg-base p-6 shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 z-200 rounded-t-2xl border-t border-ui-border-base bg-ui-bg-base p-6 shadow-2xl"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -1251,7 +1251,7 @@ export function LabToastStack() {
             animate={{ opacity: 1, y: 0, x: "-50%" }}
             exit={{ opacity: 0, y: 12, x: "-50%" }}
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className="fixed bottom-24 left-1/2 z-[180] max-w-sm rounded-xl border border-ui-border-base bg-ui-bg-base px-4 py-3 text-sm text-ui-fg-base shadow-lg"
+            className="fixed bottom-24 left-1/2 z-180 max-w-sm rounded-xl border border-ui-border-base bg-ui-bg-base px-4 py-3 text-sm text-ui-fg-base shadow-lg"
           >
             Saved to cart (demo toast)
           </motion.div>

@@ -283,21 +283,21 @@ export default function InvadersInternal({
     size === "xl"
       ? "min-w-[18rem]"
       : size === "lg"
-      ? "min-w-[15rem]"
-      : "min-w-[10rem]"
+      ? "min-w-60"
+      : "min-w-40"
   /** Match Tetris's playfield width tier: xl ≈ 22rem wide; lg ≈ 18rem. */
   const playWidth =
     size === "xl"
-      ? "w-[22rem] small:w-[26rem]"
+      ? "w-88 small:w-104"
       : size === "lg"
-      ? "w-[18rem] small:w-[22rem]"
-      : "w-[14rem]"
+      ? "w-[18rem] small:w-88"
+      : "w-56"
 
   return (
     <div className={`text-white ${wrapPad}`}>
       <div className={`flex flex-col small:flex-row ${colGap} small:items-start`}>
         <div
-          className="inline-block outline-none"
+          className="inline-block outline-hidden"
           tabIndex={0}
           role="application"
           aria-label="Mini Space Invaders. Focus this area to use the keyboard."
@@ -394,7 +394,7 @@ export default function InvadersInternal({
           <button
             type="button"
             onClick={restart}
-            className="w-fit mt-1 rounded-md border border-white/25 bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-1 focus:ring-offset-ui-fg-base"
+            className="w-fit mt-1 rounded-md border border-white/25 bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/15 focus:outline-hidden focus:ring-2 focus:ring-white/40 focus:ring-offset-1 focus:ring-offset-ui-fg-base"
           >
             {gameOverUI ? "Play again" : "Restart"}
           </button>

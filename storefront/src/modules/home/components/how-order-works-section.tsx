@@ -126,7 +126,7 @@ export default function HowOrderWorksSection() {
               >
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter text-[var(--brand-secondary)]/10 transition-colors group-hover:text-[var(--brand-secondary)]/25"
+                  className="pointer-events-none absolute -right-1 -top-3 select-none text-[5rem] font-semibold leading-none tracking-tighter text-(--brand-secondary)/10 transition-colors group-hover:text-(--brand-secondary)/25"
                 >
                   {step.number}
                 </span>

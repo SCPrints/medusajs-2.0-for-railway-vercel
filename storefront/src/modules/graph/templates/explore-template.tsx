@@ -90,15 +90,15 @@ export function ExploreTemplate({ initialPayload }: Props) {
       <p className={HUD_LABEL}>Catalog map</p>
       {selectedNode ? (
         <p>
-          Orbiting <strong className="!text-white">{selectedNode.label}</strong>
+          Orbiting <strong className="text-white!">{selectedNode.label}</strong>
           {selectedInfo ? ` · ${selectedInfo.loaded}/${selectedInfo.total} products` : ""}
         </p>
       ) : (
-        <p className="!text-[#C5C6C7]/70">Click a planet or moon to see its products.</p>
+        <p className="text-[#C5C6C7]/70!">Click a planet or moon to see its products.</p>
       )}
-      {state === "loading" ? <p className="!text-[#66FCF1]">Scanning…</p> : null}
-      {state === "error" && error ? <p className="!text-rose-400">{error}</p> : null}
-      {emptySelection ? <p className="!text-[#C5C6C7]/70">No products assigned here yet.</p> : null}
+      {state === "loading" ? <p className="text-[#66FCF1]!">Scanning…</p> : null}
+      {state === "error" && error ? <p className="text-rose-400!">{error}</p> : null}
+      {emptySelection ? <p className="text-[#C5C6C7]/70!">No products assigned here yet.</p> : null}
       <div className="flex gap-2">
         <button type="button" onClick={() => mapRef.current?.zoomBy(1.4)} className={`${HUD_BUTTON} flex-1 text-center`} aria-label="Zoom in">
           +
@@ -106,7 +106,7 @@ export function ExploreTemplate({ initialPayload }: Props) {
         <button type="button" onClick={() => mapRef.current?.zoomBy(1 / 1.4)} className={`${HUD_BUTTON} flex-1 text-center`} aria-label="Zoom out">
           −
         </button>
-        <button type="button" onClick={() => mapRef.current?.fit()} className={`${HUD_BUTTON} flex-[2]`}>
+        <button type="button" onClick={() => mapRef.current?.fit()} className={`${HUD_BUTTON} flex-2`}>
           Fit view
         </button>
       </div>

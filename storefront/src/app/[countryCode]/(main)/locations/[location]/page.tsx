@@ -190,13 +190,13 @@ export default async function LocationPage({ params }: Props) {
         <div className="mt-5 flex flex-wrap gap-4 text-sm">
           <a
             href={`tel:${SEO.contactPhone}`}
-            className="font-medium !text-brand hover:underline"
+            className="font-medium text-brand! hover:underline"
           >
             {SEO.contactPhone}
           </a>
           <a
             href={`mailto:${SEO.contactEmail}`}
-            className="font-medium !text-brand hover:underline"
+            className="font-medium text-brand! hover:underline"
           >
             {SEO.contactEmail}
           </a>

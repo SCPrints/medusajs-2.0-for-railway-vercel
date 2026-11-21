@@ -254,7 +254,7 @@ function PricingPanel({
             void onAddToCart()
           }}
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-ui-fg-base px-4 py-3.5 text-base font-semibold text-ui-bg-base shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-xl bg-ui-fg-base px-4 py-3.5 text-base font-semibold text-ui-bg-base shadow-xs transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? ctaLoadingLabel : ctaLabel}
         </button>
@@ -606,7 +606,7 @@ function PricingPanel({
                                 event.target.value as ScpPrintSizeId
                               )
                             }
-                            className="rounded border border-ui-border-base bg-ui-bg-base px-1 py-0.5 text-[11px]"
+                            className="rounded-sm border border-ui-border-base bg-ui-bg-base px-1 py-0.5 text-[11px]"
                             title={
                               print.manualSize
                                 ? "Manually chosen — click 'Auto' to restore auto-snap"
@@ -731,7 +731,7 @@ function PricingPanel({
           }}
           disabled={isSubmitting || quantity <= 0}
           isLoading={isSubmitting}
-          className="w-full rounded-xl px-4 py-3.5 text-base font-semibold shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-xl px-4 py-3.5 text-base font-semibold shadow-xs transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
           flyImageSrc={flyImageSrc}
         >
           {isSubmitting ? ctaLoadingLabel : ctaLabel}
@@ -744,7 +744,7 @@ function PricingPanel({
           }}
           disabled={isSubmitting || quantity <= 0}
           title={quantity <= 0 ? "Enter a quantity for at least one size first" : undefined}
-          className="w-full rounded-xl bg-ui-fg-base px-4 py-3.5 text-base font-semibold text-ui-bg-base shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-xl bg-ui-fg-base px-4 py-3.5 text-base font-semibold text-ui-bg-base shadow-xs transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? ctaLoadingLabel : ctaLabel}
         </button>

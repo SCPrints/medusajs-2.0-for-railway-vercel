@@ -236,7 +236,7 @@ const ScreenSideConfig: React.FC<Props> = ({
           <img
             src={preview.url}
             alt={`Screen print preview, ${preview.colours} colours`}
-            className="max-h-48 w-auto self-start rounded border border-ui-border-base bg-white"
+            className="max-h-48 w-auto self-start rounded-sm border border-ui-border-base bg-white"
           />
           <span className="flex items-center gap-1.5 text-[11px] text-ui-fg-subtle">
             Inks:

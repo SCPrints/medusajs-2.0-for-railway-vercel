@@ -34,7 +34,7 @@ const fmtMoney = (
 }
 
 const FIELD =
-  "mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+  "mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
 
 const AU_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"]
 
@@ -85,7 +85,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
         {placed.pay_url ? (
           <a
             href={placed.pay_url}
-            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 tablet:w-auto tablet:py-2 tablet:text-sm"
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-xs hover:opacity-95 tablet:w-auto tablet:py-2 tablet:text-sm"
           >
             Pay now by card
           </a>
@@ -147,7 +147,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
           }))
 
   return (
-    <div className="rounded-2xl border border-ink/[0.1] bg-white/95 p-6 shadow-[0_4px_40px_rgb(var(--ink)/0.08)]">
+    <div className="rounded-2xl border border-ink/10 bg-white/95 p-6 shadow-[0_4px_40px_rgb(var(--ink)/0.08)]">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
         Quote {quote.public_id}
       </p>
@@ -160,7 +160,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
         </p>
       ) : null}
 
-      <hr className="my-6 border-ink/[0.08]" />
+      <hr className="my-6 border-ink/8" />
 
       {/* Large design preview — every print position (front, back, sleeves…) so
           the customer can clearly see what they're agreeing to. */}
@@ -178,7 +178,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
               <img
                 src={img.url}
                 alt={img.side_label ?? img.side}
-                className="w-full max-h-[480px] rounded-xl border border-ink/[0.08] bg-white object-contain"
+                className="w-full max-h-[480px] rounded-xl border border-ink/8 bg-white object-contain"
               />
               {img.side_label ? (
                 <figcaption className="mt-1.5 text-center text-xs font-medium uppercase tracking-wide text-ui-fg-subtle">
@@ -199,10 +199,10 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
       {/* With a job breakdown the per-size ledger is detail, not the story — tuck it away. */}
       {quote.line_items.length > 0 && quote.job_breakdown ? (
         <details className="mb-2">
-          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">
             Itemised lines ({quote.line_items.length})
           </summary>
-          <ul className="mt-2 divide-y divide-ink/[0.06]">
+          <ul className="mt-2 divide-y divide-ink/6">
             {quote.line_items.map((li, idx) => (
               <li key={idx} className="py-2 flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -217,7 +217,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
           </ul>
         </details>
       ) : quote.line_items.length > 0 ? (
-        <ul className="divide-y divide-ink/[0.06]">
+        <ul className="divide-y divide-ink/6">
           {quote.line_items.map((li, idx) => (
             <li
               key={idx}
@@ -254,7 +254,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
         </p>
       ) : null}
 
-      <hr className="my-6 border-ink/[0.08]" />
+      <hr className="my-6 border-ink/8" />
 
       <label
         htmlFor="approver"
@@ -266,7 +266,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
         id="approver"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+        className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
         placeholder="e.g. Alex Smith"
       />
 
@@ -277,7 +277,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
             type="checkbox"
             checked={pickup}
             onChange={(e) => setPickup(e.target.checked)}
-            className="h-4 w-4 rounded border-ui-border-base"
+            className="h-4 w-4 rounded-sm border-ui-border-base"
           />
           I&apos;ll pick it up from the studio
         </label>
@@ -326,7 +326,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
           type="button"
           onClick={accept}
           disabled={pending}
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-xs hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
         >
           {pending ? "Placing your order…" : "Accept and place order"}
         </button>

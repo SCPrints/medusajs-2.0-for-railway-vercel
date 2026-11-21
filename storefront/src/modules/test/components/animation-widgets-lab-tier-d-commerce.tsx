@@ -86,7 +86,7 @@ export function LabTierDQtyStepper({ reducedMotion }: { reducedMotion: boolean }
         >
           −
         </motion.button>
-        <span className="min-w-[2rem] text-center text-sm font-semibold tabular-nums">{n}</span>
+        <span className="min-w-8 text-center text-sm font-semibold tabular-nums">{n}</span>
         <motion.button
           type="button"
           className="px-3 py-2 text-lg"
@@ -364,7 +364,7 @@ export function LabTierDReviewCarouselDrag({ reducedMotion }: { reducedMotion: b
         className="flex w-max cursor-grab active:cursor-grabbing"
       >
         {QUOTES.map((q) => (
-          <div key={q.a} style={{ width: block }} className="flex-shrink-0 p-6">
+          <div key={q.a} style={{ width: block }} className="shrink-0 p-6">
             <p className="text-sm text-ui-fg-base">{q.t}</p>
             <p className="mt-2 text-xs text-ui-fg-muted">{q.a}</p>
           </div>

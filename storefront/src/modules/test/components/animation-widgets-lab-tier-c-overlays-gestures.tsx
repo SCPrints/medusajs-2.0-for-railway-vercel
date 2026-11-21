@@ -46,7 +46,7 @@ export function LabTierCPinchZoomBox({ reducedMotion }: { reducedMotion: boolean
           className="h-full w-full object-cover"
         />
       </motion.div>
-      <p className="pointer-events-none absolute bottom-2 left-2 right-2 rounded bg-black/55 px-2 py-1 text-[10px] text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 right-2 rounded-sm bg-black/55 px-2 py-1 text-[10px] text-white">
         {reducedMotion
           ? "Reduced motion: zoom disabled."
           : "Pinch on trackpad (⌃ scroll) or Ctrl+wheel to zoom — lab simulation."}
@@ -101,13 +101,13 @@ export function LabTierCCommandPalette({ reducedMotion }: { reducedMotion: boole
   return (
     <div className="space-y-2">
       <p className="text-xs text-ui-fg-muted">
-        Press <kbd className="rounded border px-1">⌘</kbd>/<kbd className="rounded border px-1">Ctrl</kbd>+
-        <kbd className="rounded border px-1">K</kbd> (global within this page).
+        Press <kbd className="rounded-sm border px-1">⌘</kbd>/<kbd className="rounded-sm border px-1">Ctrl</kbd>+
+        <kbd className="rounded-sm border px-1">K</kbd> (global within this page).
       </p>
       <AnimatePresence>
         {open ? (
           <motion.div
-            className="fixed inset-0 z-[240] flex items-start justify-center bg-ui-fg-base/40 pt-[15vh] backdrop-blur-sm"
+            className="fixed inset-0 z-240 flex items-start justify-center bg-ui-fg-base/40 pt-[15vh] backdrop-blur-xs"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -132,7 +132,7 @@ export function LabTierCCommandPalette({ reducedMotion }: { reducedMotion: boole
                 ref={inputRef}
                 type="search"
                 placeholder="Search commands…"
-                className="w-full rounded-xl border border-ui-border-base bg-ui-bg-subtle px-3 py-2 text-sm outline-none focus:border-[#FF2E63]"
+                className="w-full rounded-xl border border-ui-border-base bg-ui-bg-subtle px-3 py-2 text-sm outline-hidden focus:border-[#FF2E63]"
               />
               <ul className="mt-3 space-y-1 text-sm text-ui-fg-muted">
                 <li>Open store</li>
@@ -163,7 +163,7 @@ export function LabTierCCascadingContextMenu() {
       <AnimatePresence>
         {open ? (
           <motion.ul
-            className="absolute left-0 z-30 mt-2 min-w-[10rem] overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base py-1 shadow-xl"
+            className="absolute left-0 z-30 mt-2 min-w-40 overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base py-1 shadow-xl"
             initial={{ opacity: 0, scale: 0.97, y: -4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: -4 }}
@@ -205,14 +205,14 @@ export function LabTierCNotificationDrawer({ reducedMotion }: { reducedMotion: b
         {open ? (
           <>
             <motion.div
-              className="fixed inset-0 z-[220] bg-ui-fg-base/35"
+              className="fixed inset-0 z-220 bg-ui-fg-base/35"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setOpen(false)}
             />
             <motion.aside
-              className="fixed bottom-0 right-0 top-0 z-[230] w-[min(100vw-1rem,20rem)] border-l border-ui-border-base bg-ui-bg-base shadow-2xl"
+              className="fixed bottom-0 right-0 top-0 z-230 w-[min(100vw-1rem,20rem)] border-l border-ui-border-base bg-ui-bg-base shadow-2xl"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}

@@ -645,14 +645,14 @@ export default function ThreeTunerPanel({ tuning, onChange }: Props) {
           <button
             type="button"
             onClick={reset}
-            className="rounded border border-white/20 px-2 py-0.5 text-[10px] uppercase tracking-wide hover:border-white/50 hover:bg-white/10"
+            className="rounded-sm border border-white/20 px-2 py-0.5 text-[10px] uppercase tracking-wide hover:border-white/50 hover:bg-white/10"
           >
             Reset
           </button>
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className="rounded border border-white/20 px-2 py-0.5 text-[10px] uppercase tracking-wide hover:border-white/50 hover:bg-white/10"
+            className="rounded-sm border border-white/20 px-2 py-0.5 text-[10px] uppercase tracking-wide hover:border-white/50 hover:bg-white/10"
           >
             {open ? "Hide" : "Show"}
           </button>
@@ -660,7 +660,7 @@ export default function ThreeTunerPanel({ tuning, onChange }: Props) {
       </div>
       {open ? (
         <div className="flex max-h-[80vh] flex-col gap-2.5 overflow-y-auto pr-1">
-          <div className="rounded border border-white/15 bg-white/5 p-2">
+          <div className="rounded-sm border border-white/15 bg-white/5 p-2">
             <div className="mb-1 flex items-baseline justify-between">
               <span className="text-[11px] font-semibold text-white/90">
                 Preset history
@@ -669,7 +669,7 @@ export default function ThreeTunerPanel({ tuning, onChange }: Props) {
                 <button
                   type="button"
                   onClick={handleSaveCurrent}
-                  className="rounded border border-white/20 px-1.5 py-0.5 text-[9px] uppercase tracking-wide hover:border-white/50 hover:bg-white/10"
+                  className="rounded-sm border border-white/20 px-1.5 py-0.5 text-[9px] uppercase tracking-wide hover:border-white/50 hover:bg-white/10"
                   title="Save current sliders as a new preset"
                 >
                   Save
@@ -678,7 +678,7 @@ export default function ThreeTunerPanel({ tuning, onChange }: Props) {
                   type="button"
                   onClick={handleDeleteSelected}
                   disabled={!canDelete}
-                  className="rounded border border-white/20 px-1.5 py-0.5 text-[9px] uppercase tracking-wide hover:border-white/50 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+                  className="rounded-sm border border-white/20 px-1.5 py-0.5 text-[9px] uppercase tracking-wide hover:border-white/50 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
                   title="Delete the selected user-saved preset"
                 >
                   Del
@@ -688,7 +688,7 @@ export default function ThreeTunerPanel({ tuning, onChange }: Props) {
             <select
               value={selectedPresetId}
               onChange={(e) => handleSelectPreset(e.target.value)}
-              className="w-full rounded border border-white/15 bg-black/60 px-1.5 py-1 text-[11px] text-white/90 outline-none focus:border-white/40"
+              className="w-full rounded-sm border border-white/15 bg-black/60 px-1.5 py-1 text-[11px] text-white/90 outline-hidden focus:border-white/40"
             >
               <option value="">— pick a preset —</option>
               <optgroup label="Curated (git history)">
@@ -723,7 +723,7 @@ export default function ThreeTunerPanel({ tuning, onChange }: Props) {
             ) : null}
           </div>
 
-          <label className="flex items-center justify-between rounded border border-white/15 bg-white/5 px-2 py-1.5">
+          <label className="flex items-center justify-between rounded-sm border border-white/15 bg-white/5 px-2 py-1.5">
             <span className="text-[11px] font-semibold text-white/90">
               Field mode (fluid sim)
             </span>
@@ -737,7 +737,7 @@ export default function ThreeTunerPanel({ tuning, onChange }: Props) {
             />
           </label>
 
-          <label className="flex items-center justify-between rounded border border-white/15 bg-white/5 px-2 py-1.5">
+          <label className="flex items-center justify-between rounded-sm border border-white/15 bg-white/5 px-2 py-1.5">
             <span className="text-[11px] font-semibold text-white/90">
               Debug overlay
             </span>

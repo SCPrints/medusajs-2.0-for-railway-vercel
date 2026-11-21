@@ -98,7 +98,7 @@ export default function FitFinder({
               <li key={s.handle}>
                 <LocalizedClientLink
                   href={`/products/${s.handle}`}
-                  className="group flex min-h-11 items-center gap-3 border border-white/20 p-2 !text-white transition hover:border-white"
+                  className="group flex min-h-11 items-center gap-3 border border-white/20 p-2 text-white! transition hover:border-white"
                 >
                   <span className="relative h-16 w-16 shrink-0 bg-white">
                     {s.image ? (

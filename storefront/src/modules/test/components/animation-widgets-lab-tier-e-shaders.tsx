@@ -294,12 +294,12 @@ export function LabTierELensDistortion({
 
   return (
     <div
-      className="relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
+      className="relative aspect-16/10 w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
       onPointerMove={reducedMotion ? undefined : onPointerMove}
       onPointerLeave={() => setPointer({ x: 0.5, y: 0.5 })}
     >
       <canvas ref={ref} className="block h-full w-full" />
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
         Move pointer — fragment shader bulges + chromatic-aberration ring.
       </p>
     </div>
@@ -377,11 +377,11 @@ export function LabTierERippleShader({
 
   return (
     <div
-      className="relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
+      className="relative aspect-16/10 w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
       onPointerDown={trigger}
     >
       <canvas ref={ref} className="block h-full w-full" />
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
         Click anywhere — GSAP tweens a single <code>u_progress</code> uniform 0→1.
       </p>
     </div>
@@ -466,9 +466,9 @@ export function LabTierEAsciiFilter({
   })
 
   return (
-    <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-ui-border-base bg-black">
+    <div className="relative aspect-16/10 w-full overflow-hidden rounded-xl border border-ui-border-base bg-black">
       <canvas ref={ref} className="block h-full w-full" />
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
         Per-cell luminance → glyph bucket (space, dot, dash, plus, hash). Inline GLSL.
       </p>
     </div>
@@ -551,7 +551,7 @@ export function LabTierEDitherShader({
 
   return (
     <div className="space-y-3">
-      <div className="aspect-[16/10] w-full overflow-hidden rounded-xl border border-ui-border-base bg-black">
+      <div className="aspect-16/10 w-full overflow-hidden rounded-xl border border-ui-border-base bg-black">
         <canvas ref={ref} className="block h-full w-full" />
       </div>
       <label className="flex flex-wrap items-center gap-3 text-xs text-ui-fg-muted">
@@ -622,12 +622,12 @@ export function LabTierELiquidMetal({
 
   return (
     <div
-      className="relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
+      className="relative aspect-16/10 w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
       onPointerMove={reducedMotion ? undefined : onPointerMove}
       onPointerLeave={() => setPointer({ x: 0.5, y: 0.5 })}
     >
       <canvas ref={ref} className="block h-full w-full" />
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
         SDF metaballs in a single fragment shader — no model, no library.
       </p>
     </div>
@@ -703,7 +703,7 @@ export function LabTierETwistedWaveCard({
 
   return (
     <div
-      className="relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
+      className="relative aspect-16/10 w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
       onPointerEnter={() => animateHover(1)}
       onPointerLeave={() => {
         animateHover(0)
@@ -712,7 +712,7 @@ export function LabTierETwistedWaveCard({
       onPointerMove={reducedMotion ? undefined : onPointerMove}
     >
       <canvas ref={ref} className="block h-full w-full" />
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
         Hover — sine wave + radial pull crossfade in via <code>u_progress</code>.
       </p>
     </div>
@@ -792,12 +792,12 @@ export function LabTierEHeroTextDistortion({
 
   return (
     <div
-      className="relative aspect-[8/3] w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
+      className="relative aspect-8/3 w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
       onPointerMove={reducedMotion ? undefined : onPointerMove}
       onPointerLeave={() => setPointer({ x: 0.5, y: 0.5 })}
     >
       <canvas ref={ref} className="block h-full w-full" />
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
         Headline → 2D canvas → texture → fragment displacement. Pointer-driven.
       </p>
     </div>
@@ -852,12 +852,12 @@ export function LabTierERadialFlow({
 
   return (
     <div
-      className="relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
+      className="relative aspect-16/10 w-full overflow-hidden rounded-xl border border-ui-border-base bg-black"
       onPointerMove={reducedMotion ? undefined : onPointerMove}
       onPointerLeave={() => setPointer({ x: 0.5, y: 0.5 })}
     >
       <canvas ref={ref} className="block h-full w-full" />
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
         Polar-coord value-noise around the cursor — pure GLSL, ~50 lines, no Three.
       </p>
     </div>

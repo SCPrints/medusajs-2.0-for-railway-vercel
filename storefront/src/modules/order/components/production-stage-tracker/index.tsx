@@ -57,7 +57,7 @@ const MiniTrack = <T extends string>({
             isComplete
               ? "bg-ink text-white"
               : isCurrent
-              ? "bg-ink text-white ring-2 ring-[var(--brand-primary)]/20"
+              ? "bg-ink text-white ring-2 ring-(--brand-primary)/20"
               : "bg-ui-bg-component text-ui-fg-subtle border border-ui-border-base",
           ].join(" ")
           const connectorClasses = [
@@ -132,7 +132,7 @@ const ProductionStageTracker = ({ order }: Props) => {
             isComplete
               ? "bg-ink text-white"
               : isCurrent
-              ? "bg-ink text-white ring-4 ring-[var(--brand-primary)]/20"
+              ? "bg-ink text-white ring-4 ring-(--brand-primary)/20"
               : "bg-ui-bg-component text-ui-fg-subtle border border-ui-border-base",
           ].join(" ")
 

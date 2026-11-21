@@ -86,7 +86,7 @@ export default function HomeHero() {
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-hero-overlay/80 via-hero-overlay/20 to-transparent tablet:hidden"
+        className="pointer-events-none absolute inset-0 bg-linear-to-t from-hero-overlay/80 via-hero-overlay/20 to-transparent tablet:hidden"
       />
 
       {/* Seasonal decorations (lazy, theme-gated; renders nothing for classic). */}
@@ -104,7 +104,7 @@ export default function HomeHero() {
             Happy Halloween from the SC Prints studio.
           </p>
 
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-(--brand-primary)/80">
             Custom apparel &amp; branded merch · Villawood, Sydney
           </p>
 
@@ -123,7 +123,7 @@ export default function HomeHero() {
             <span className="relative inline-flex w-fit">
               <LocalizedClientLink
                 href="/store"
-                className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
               >
                 Shop the range
                 <ArrowIcon className="transition-transform group-hover:translate-x-0.5" />

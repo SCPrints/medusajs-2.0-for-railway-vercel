@@ -53,7 +53,7 @@ const PoNumber = ({ initial }: { initial: string }) => {
           }}
           placeholder="e.g. PO-12345"
           autoComplete="off"
-          className="min-h-11 w-full max-w-sm rounded-md border border-ui-border-base bg-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-ink"
+          className="min-h-11 w-full max-w-sm rounded-md border border-ui-border-base bg-white px-3 text-base focus:outline-hidden focus:ring-2 focus:ring-ink"
           data-testid="po-number-input"
         />
         <span className="text-xs text-ui-fg-subtle" aria-live="polite">

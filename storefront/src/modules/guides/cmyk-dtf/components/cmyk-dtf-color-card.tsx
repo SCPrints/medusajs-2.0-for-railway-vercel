@@ -32,7 +32,7 @@ export default function CmykDtfColorCard({
 
   return (
     <motion.article
-      className="flex flex-col overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-sm"
+      className="flex flex-col overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-xs"
       initial={
         prefersReducedMotion ? false : { opacity: 0, y: 14 }
       }

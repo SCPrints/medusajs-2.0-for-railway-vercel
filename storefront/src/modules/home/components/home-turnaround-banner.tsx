@@ -12,7 +12,7 @@ export default function HomeTurnaroundBanner({
   eta: ProductionEta | null
 }) {
   return (
-    <section className="border-b border-ui-border-base bg-[var(--brand-secondary)]/[0.06]">
+    <section className="border-b border-ui-border-base bg-(--brand-secondary)/6">
       <div className="content-container flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 px-4 py-2.5 text-center">
         <NoMinimumBadge />
         <p className="flex items-center gap-2.5 text-xs font-medium text-ui-fg-base phone:text-sm">

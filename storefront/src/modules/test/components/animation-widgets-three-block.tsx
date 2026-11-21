@@ -31,7 +31,7 @@ export default function AnimationWidgetsThreeBlock({ reducedMotion }: Props) {
   const spin = !reducedMotion
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-ui-border-base bg-ui-fg-base/[0.06]">
+    <div className="w-full overflow-hidden rounded-xl border border-ui-border-base bg-ui-fg-base/6">
       <div className="h-[200px] w-full">
         <Canvas camera={{ position: [0, 0, 3.6], fov: 45 }} dpr={[1, 2]}>
           <ambientLight intensity={0.55} />

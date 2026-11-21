@@ -7,19 +7,19 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
  * satellite dot orbiting it — so the button literally previews the sphere.
  *
  * The motion is declarative SVG/SMIL + CSS hover only, so this stays a server
- * component (no client JS) and animates even before hydration. `!text-white`
+ * component (no client JS) and animates even before hydration. `text-white!`
  * opts out of the globals.css anchor repaint (links get painted brand-pink).
  */
 const EnterSphereButton = () => (
   <LocalizedClientLink
     href="/lookbook-sphere"
     aria-label="Enter the immersive sphere lookbook"
-    className="group relative mt-8 inline-flex items-center gap-3 overflow-hidden rounded-full bg-brand px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] !text-white shadow-sm transition-transform duration-300 hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/50 focus-visible:ring-offset-2"
+    className="group relative mt-8 inline-flex items-center gap-3 overflow-hidden rounded-full bg-brand px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-white! shadow-xs transition-transform duration-300 hover:scale-[1.03] focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/50 focus-visible:ring-offset-2"
   >
     {/* Hover sheen sweep */}
     <span
       aria-hidden
-      className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"
+      className="pointer-events-none absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"
     />
 
     {/* Rotating wireframe globe */}

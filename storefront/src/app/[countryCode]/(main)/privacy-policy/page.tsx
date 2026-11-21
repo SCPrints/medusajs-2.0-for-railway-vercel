@@ -23,7 +23,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="content-container py-14 small:py-20">
       <header className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
           Policy &middot; Privacy
         </p>
         <h1 className="page-title-marketing mt-3 tracking-tight">Privacy Policy</h1>
@@ -39,7 +39,7 @@ export default function PrivacyPolicyPage() {
 
       <div className="mx-auto mt-10 max-w-3xl space-y-5">
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Section 01
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Section 02
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -89,7 +89,7 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Section 03
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -134,7 +134,7 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Section 04
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -173,7 +173,7 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Section 05
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">

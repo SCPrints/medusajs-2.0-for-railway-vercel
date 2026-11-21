@@ -119,7 +119,7 @@ const Shipping: React.FC<ShippingProps> = ({
       {isOpen ? (
         <div data-testid="delivery-options-container">
           {typeof totalWeightGrams === "number" && totalWeightGrams > 0 && (
-            <p className="text-small-regular mb-4 rounded-lg border border-accent/[0.35] bg-accent/[0.1] px-3 py-2.5 text-ui-fg-subtle">
+            <p className="text-small-regular mb-4 rounded-lg border border-accent/35 bg-accent/10 px-3 py-2.5 text-ui-fg-subtle">
               {`Shipping is calculated by total weight — your cart is ${formatKg(
                 totalWeightGrams
               )}.`}
@@ -142,10 +142,10 @@ const Shipping: React.FC<ShippingProps> = ({
                     className={clx(
                       "mb-2 flex items-center justify-between rounded-rounded border border-[rgb(var(--ink)/0.14)] bg-[rgba(255,255,255,0.6)] px-6 py-4 text-small-regular transition-shadow small:px-8",
                       {
-                        "cursor-pointer hover:border-ink/[0.22] hover:shadow-md":
+                        "cursor-pointer hover:border-ink/22 hover:shadow-md":
                           hasPrice,
                         "cursor-not-allowed opacity-50": !hasPrice,
-                        "border-brand ring-1 ring-[var(--brand-secondary)]/30":
+                        "border-brand ring-1 ring-(--brand-secondary)/30":
                           option.id === selectedShippingMethod?.id,
                       }
                     )}

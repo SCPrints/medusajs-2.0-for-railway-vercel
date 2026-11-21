@@ -124,10 +124,10 @@ const h2 = "text-4xl font-medium leading-[1.02] tracking-[-0.03em] small:text-6x
 const lead = "mt-6 max-w-xl text-base leading-relaxed text-[#4d4d49] small:text-lg"
 const rule = "border-[#e6e6e1]"
 const btnDark =
-  "inline-flex min-h-11 items-center bg-[#1a1a1a] px-7 py-3 text-sm font-medium !text-white transition hover:bg-[#3a3a36]"
+  "inline-flex min-h-11 items-center bg-[#1a1a1a] px-7 py-3 text-sm font-medium text-white! transition hover:bg-[#3a3a36]"
 const btnLight =
-  "inline-flex min-h-11 items-center border border-[#1a1a1a] px-7 py-3 text-sm font-medium !text-[#1a1a1a] transition hover:bg-[#1a1a1a] hover:!text-white"
-const textLink = "!text-[#1a1a1a] underline underline-offset-4 hover:no-underline"
+  "inline-flex min-h-11 items-center border border-[#1a1a1a] px-7 py-3 text-sm font-medium text-[#1a1a1a]! transition hover:bg-[#1a1a1a] hover:text-white!"
+const textLink = "text-[#1a1a1a]! underline underline-offset-4 hover:no-underline"
 const delay = (s: number) => ({ ["--d" as string]: `${s}s` })
 
 export default async function AsColourGuidePage() {
@@ -294,9 +294,9 @@ export default async function AsColourGuidePage() {
               <Reveal key={t.label} delay={(i % 3) * 0.08}>
                 <LocalizedClientLink
                   href={t.p?.typeId ? `/brands/as-colour?typeId=${t.p.typeId}` : "/brands/as-colour"}
-                  className="group block !text-[#1a1a1a]"
+                  className="group block text-[#1a1a1a]!"
                 >
-                  <div className="relative aspect-[4/5] overflow-hidden bg-[#f4f3f0]">
+                  <div className="relative aspect-4/5 overflow-hidden bg-[#f4f3f0]">
                     {t.p?.thumbnail ? (
                       <Image
                         src={t.p.thumbnail}
@@ -341,7 +341,7 @@ export default async function AsColourGuidePage() {
                   <li key={s.handle} className={`border-b ${rule}`}>
                     <LocalizedClientLink
                       href={`/products/${s.handle}`}
-                      className="group grid min-h-11 grid-cols-[1fr_auto] items-baseline gap-x-6 py-5 !text-[#1a1a1a]"
+                      className="group grid min-h-11 grid-cols-[1fr_auto] items-baseline gap-x-6 py-5 text-[#1a1a1a]!"
                     >
                       <span className="text-2xl font-medium tracking-[-0.02em] group-hover:underline group-hover:underline-offset-4">
                         {s.title}
@@ -383,7 +383,7 @@ export default async function AsColourGuidePage() {
       {/* FLEECE */}
       <section>
         <div className={`${container} grid gap-12 py-20 small:grid-cols-2 small:py-28`}>
-          <Reveal className="relative aspect-[4/5] overflow-hidden bg-[#2a2a2a] small:aspect-auto small:min-h-[640px]">
+          <Reveal className="relative aspect-4/5 overflow-hidden bg-[#2a2a2a] small:aspect-auto small:min-h-[640px]">
             <Image
               src={`${BRAND}/as-colour/ugc/ugc-5.png`}
               alt="Model in a charcoal AS Colour hood and a yellow trucker cap against a dark backdrop."
@@ -453,7 +453,7 @@ export default async function AsColourGuidePage() {
               <ul className="grid grid-cols-3 gap-x-3 gap-y-6 phone:grid-cols-4 tablet:grid-cols-6 medium:grid-cols-10">
                 {wallColours.map((c) => (
                   <li key={c.name}>
-                    <div className="relative aspect-[4/5] bg-white">
+                    <div className="relative aspect-4/5 bg-white">
                       <Image
                         src={c.src}
                         alt={`AS Colour Staple Tee in ${c.name}`}
@@ -462,7 +462,7 @@ export default async function AsColourGuidePage() {
                         className="object-contain p-1.5"
                       />
                     </div>
-                    <p className="mt-2 text-[11px] uppercase tracking-[0.1em] text-[#6b6b66]">{c.name}</p>
+                    <p className="mt-2 text-[11px] uppercase tracking-widest text-[#6b6b66]">{c.name}</p>
                   </li>
                 ))}
               </ul>
@@ -507,7 +507,7 @@ export default async function AsColourGuidePage() {
           { src: "ugc-3.png", alt: "Model in a cream AS Colour half zip crew." },
           { src: "ugc-6.png", alt: "Model in a white AS Colour hood and a pink beanie." },
         ].map((photo, i) => (
-          <Reveal key={photo.src} delay={i * 0.08} className="relative aspect-[4/5] overflow-hidden bg-[#2a2a2a]">
+          <Reveal key={photo.src} delay={i * 0.08} className="relative aspect-4/5 overflow-hidden bg-[#2a2a2a]">
             <Image
               src={`${BRAND}/as-colour/ugc/${photo.src}`}
               alt={photo.alt}
@@ -603,13 +603,13 @@ export default async function AsColourGuidePage() {
             <div className="mt-9 flex flex-wrap gap-4">
               <LocalizedClientLink
                 href="/brands/as-colour"
-                className="inline-flex min-h-11 items-center bg-white px-7 py-3 text-sm font-medium !text-[#1a1a1a] transition hover:bg-[#e6e6e1]"
+                className="inline-flex min-h-11 items-center bg-white px-7 py-3 text-sm font-medium text-[#1a1a1a]! transition hover:bg-[#e6e6e1]"
               >
                 Shop AS Colour
               </LocalizedClientLink>
               <LocalizedClientLink
                 href="/contact"
-                className="inline-flex min-h-11 items-center border border-white/40 px-7 py-3 text-sm font-medium !text-white transition hover:border-white"
+                className="inline-flex min-h-11 items-center border border-white/40 px-7 py-3 text-sm font-medium text-white! transition hover:border-white"
               >
                 Talk to us about a range
               </LocalizedClientLink>

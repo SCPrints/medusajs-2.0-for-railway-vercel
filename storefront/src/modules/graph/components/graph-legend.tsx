@@ -30,7 +30,7 @@ export function GraphLegend({ className }: { className?: string }) {
                 }}
               />
               <span className="text-small-regular">
-                {item.label} <span className="!text-[#C5C6C7]/60">· {item.hint}</span>
+                {item.label} <span className="text-[#C5C6C7]/60!">· {item.hint}</span>
               </span>
             </li>
           )

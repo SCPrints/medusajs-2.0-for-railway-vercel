@@ -573,8 +573,8 @@ const TETRIS_SIZES = {
     nextPx: 14,
   },
   lg: {
-    cellEmpty: "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6",
-    cellFilled: "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 box-border",
+    cellEmpty: "w-5.25 h-5.25 small:w-6 small:h-6",
+    cellFilled: "w-5.25 h-5.25 small:w-6 small:h-6 box-border",
     nextPx: 20,
   },
   xl: {
@@ -1060,8 +1060,8 @@ export default function MiniTetris({
     size === "xl"
       ? "min-w-[18rem]"
       : size === "lg"
-      ? "min-w-[15rem]"
-      : "min-w-[10rem]"
+      ? "min-w-60"
+      : "min-w-40"
 
   const scoreFontSize =
     size === "xl" ? "2.75rem" : size === "lg" ? "2.25rem" : "1.625rem"
@@ -1088,7 +1088,7 @@ export default function MiniTetris({
         className={`flex flex-col small:flex-row ${colGap} small:items-start`}
       >
         <div
-          className="inline-block outline-none"
+          className="inline-block outline-hidden"
           onKeyDown={onKeyDown}
           role="application"
           aria-label="Mini Tetris. Focus this area to use the keyboard."
@@ -1287,7 +1287,7 @@ export default function MiniTetris({
           <button
             type="button"
             onClick={restart}
-            className="w-fit mt-1 rounded-md border border-white/25 bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-1 focus:ring-offset-ui-fg-base"
+            className="w-fit mt-1 rounded-md border border-white/25 bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/15 focus:outline-hidden focus:ring-2 focus:ring-white/40 focus:ring-offset-1 focus:ring-offset-ui-fg-base"
           >
             {state.phase === "over" ? "Play again" : "Restart"}
           </button>
@@ -1477,7 +1477,7 @@ function GameOverOverlay({
                   },
                 }
           }
-          className="mt-6 rounded-md border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-1 focus:ring-offset-black"
+          className="mt-6 rounded-md border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white hover:bg-white/20 focus:outline-hidden focus:ring-2 focus:ring-white/50 focus:ring-offset-1 focus:ring-offset-black"
         >
           Play again
         </motion.button>

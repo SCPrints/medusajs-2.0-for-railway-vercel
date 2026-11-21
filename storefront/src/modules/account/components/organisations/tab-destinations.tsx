@@ -96,13 +96,13 @@ function DestModal({
       role="dialog"
       aria-modal="true"
       aria-label={destination.name}
-      className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+      className="fixed inset-0 z-80 flex items-center justify-center p-4"
     >
       <button
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-xs"
       />
       <div className="relative z-10 flex w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-ui-border-base px-5 py-3">

@@ -41,7 +41,7 @@ export function GraphFilters({ value, onChange, className }: Props) {
               onChange={() => onChange({ ...value, [item.key]: !value[item.key] })}
               className={`${
                 value[item.key] ? "bg-[#45A29E]" : "bg-[#1F2833]"
-              } relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border border-[#45A29E]/40 transition-colors duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#66FCF1]`}
+              } relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border border-[#45A29E]/40 transition-colors duration-150 ease-in-out focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#66FCF1]`}
               aria-label={`Toggle ${item.label}`}
             >
               <span

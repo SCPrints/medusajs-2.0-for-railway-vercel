@@ -154,9 +154,9 @@ const ArtworkLibrary = ({ artwork, organisations }: Props) => {
           void uploadFiles(Array.from(e.dataTransfer.files))
         }}
         className={[
-          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ink",
+          "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ink",
           dragging
-            ? "border-brand bg-[var(--brand-primary)]/5"
+            ? "border-brand bg-(--brand-primary)/5"
             : "border-ui-border-base bg-white hover:border-ink/40",
         ].join(" ")}
         data-testid="artwork-dropzone"
@@ -235,12 +235,12 @@ const ArtworkLibrary = ({ artwork, organisations }: Props) => {
                   />
                   <span className="absolute left-2 top-2 flex flex-col items-start gap-1">
                     {item.source === "order" ? (
-                      <span className="rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-ui-fg-base shadow-sm">
+                      <span className="rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-ui-fg-base shadow-xs">
                         From order
                       </span>
                     ) : null}
                     {item.shared_from ? (
-                      <span className="rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-ui-fg-base shadow-sm">
+                      <span className="rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-medium text-ui-fg-base shadow-xs">
                         Shared by {item.shared_from.organisation_name}
                       </span>
                     ) : null}
@@ -262,7 +262,7 @@ const ArtworkLibrary = ({ artwork, organisations }: Props) => {
                       }}
                       maxLength={120}
                       aria-label="Artwork name"
-                      className="min-h-11 rounded border border-ui-border-base px-2 text-base focus:outline-none focus:ring-2 focus:ring-ink"
+                      className="min-h-11 rounded-sm border border-ui-border-base px-2 text-base focus:outline-hidden focus:ring-2 focus:ring-ink"
                     />
                   ) : canEdit ? (
                     <button

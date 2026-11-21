@@ -137,11 +137,11 @@ const label = "text-xs font-bold uppercase tracking-[0.14em]"
 const h2 = `${display.className} text-5xl uppercase leading-[0.9] tracking-tight small:text-7xl`
 const container = "content-container"
 const btnLight =
-  "group inline-flex min-h-11 items-center gap-2 border border-white bg-white px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] !text-black transition hover:bg-transparent hover:!text-white"
+  "group inline-flex min-h-11 items-center gap-2 border border-white bg-white px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] text-black! transition hover:bg-transparent hover:text-white!"
 const btnGhost =
-  "inline-flex min-h-11 items-center gap-2 border border-white/40 px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] !text-white transition hover:border-white"
+  "inline-flex min-h-11 items-center gap-2 border border-white/40 px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] text-white! transition hover:border-white"
 const btnDark =
-  "inline-flex min-h-11 items-center gap-2 border border-black bg-black px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] !text-white transition hover:bg-white hover:!text-black"
+  "inline-flex min-h-11 items-center gap-2 border border-black bg-black px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] text-white! transition hover:bg-white hover:text-black!"
 
 const Arrow = () => (
   <span aria-hidden className="transition-transform group-hover:translate-x-1">
@@ -222,7 +222,7 @@ export default async function ShakaWearGuidePage({ params }: Props) {
           playsInline
           aria-hidden
         />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black via-black/60 to-black/30" />
+        <div className="absolute inset-0 -z-10 bg-linear-to-t from-black via-black/60 to-black/30" />
         <div className={`${container} pb-14 pt-32 small:pb-20`}>
           <p className={`${label} sw-rise text-white/70`}>Guide · Streetwear essentials</p>
           <h1 className={`${display.className} mt-4 uppercase leading-[0.85] tracking-tight`}>
@@ -320,7 +320,7 @@ export default async function ShakaWearGuidePage({ params }: Props) {
               <Reveal key={s.handle} delay={(i % 3) * 0.08} className="h-full bg-white">
                 <LocalizedClientLink
                   href={`/products/${s.handle}`}
-                  className="group flex h-full flex-col !text-black"
+                  className="group flex h-full flex-col text-black!"
                 >
                   <div className="relative aspect-square overflow-hidden border-b border-black bg-white">
                     {s.front ? (
@@ -341,7 +341,7 @@ export default async function ShakaWearGuidePage({ params }: Props) {
                         className="object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                       />
                     ) : null}
-                    <span className={`${label} absolute left-3 top-3 bg-black px-2 py-1 !text-white`}>
+                    <span className={`${label} absolute left-3 top-3 bg-black px-2 py-1 text-white!`}>
                       {s.fitLabel}
                     </span>
                   </div>
@@ -598,7 +598,7 @@ export default async function ShakaWearGuidePage({ params }: Props) {
                 {m.href ? (
                   <LocalizedClientLink
                     href={m.href}
-                    className="mt-4 inline-block text-sm font-semibold !text-white underline underline-offset-4"
+                    className="mt-4 inline-block text-sm font-semibold text-white! underline underline-offset-4"
                   >
                     {m.link}
                   </LocalizedClientLink>

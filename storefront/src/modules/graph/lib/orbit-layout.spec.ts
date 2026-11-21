@@ -25,7 +25,7 @@ const payload: GraphPayload = {
 }
 
 describe("layoutOrbits", () => {
-  it("puts the sun at the origin and planets on the brand ring", () => {
+  it("puts the sun at the origin and planets on the brand ring-3", () => {
     const l = layoutOrbits(payload, null)
     expect(l.byId.get("root")).toMatchObject({ x: 0, y: 0 })
     for (const id of ["brand:A", "brand:B"]) {

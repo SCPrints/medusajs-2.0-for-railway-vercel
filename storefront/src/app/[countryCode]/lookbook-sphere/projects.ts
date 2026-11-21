@@ -60,7 +60,7 @@ export const FALLBACK_PROJECTS: SphereProject[] = [
     year: "2026",
     image: "/images/services/embroidery/gundam-mecha-polo.png",
     blurb:
-      "A 38k-stitch mecha chest hit on a performance polo. Digitised from line art, with a satin-stitch outline pass to keep the panel lines crisp at distance.",
+      "A 38k-stitch mecha chest hit on a performance polo. Digitised from line art, with a satin-stitch outline-solid pass to keep the panel lines crisp at distance.",
   },
   {
     id: "anime-grid",

@@ -37,7 +37,7 @@ export default async function Footer() {
                 className="h-10 w-auto"
               />
             </LocalizedClientLink>
-            <p className="text-small-regular text-ui-fg-subtle max-w-[22rem]">
+            <p className="text-small-regular text-ui-fg-subtle max-w-88">
               Premium decorated apparel and merchandise for teams, brands, and events across
               Australia.
             </p>

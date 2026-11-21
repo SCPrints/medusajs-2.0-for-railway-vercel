@@ -104,7 +104,7 @@ const AskUsToReorder = ({ orderId, lines }: { orderId: string; lines: AnyLineIte
             rows={2}
             maxLength={2000}
             placeholder="e.g. same again but 20 more, and add a size 3XL"
-            className="mt-1 w-full rounded-md border border-ui-border-base px-3 py-2 text-base tablet:text-sm focus:outline-none focus:ring-2 focus:ring-ink"
+            className="mt-1 w-full rounded-md border border-ui-border-base px-3 py-2 text-base tablet:text-sm focus:outline-hidden focus:ring-2 focus:ring-ink"
           />
           {error ? (
             <p role="alert" className="mt-2 text-xs text-red-600">
@@ -171,7 +171,7 @@ const ReorderActions = ({ order }: Props) => {
               data-testid="reorder-design-card"
             >
               <div className="flex flex-col gap-4 p-4 tablet:flex-row tablet:items-start">
-                <div className="w-full tablet:w-32 tablet:flex-shrink-0">
+                <div className="w-full tablet:w-32 tablet:shrink-0">
                   <LineItemMockupPreview
                     mockups={getCustomizerMockupArtifacts(line)}
                     mockupUrls={getCustomizerMockupUrls(line)}

@@ -64,11 +64,11 @@ export default function HomeLookbookRail({
                 href="/lookbook-sphere"
                 className="group block overflow-hidden rounded-lg border border-ui-border-base bg-white"
               >
-                <div className="relative aspect-[4/5] overflow-hidden bg-ui-bg-subtle">
+                <div className="relative aspect-4/5 overflow-hidden bg-ui-bg-subtle">
                   {/* next/image resamples server-side to the tile size (R2 host
                       is allowlisted in next.config.js), which removes the
                       downscaling moiré a raw full-res <img> showed and cuts
-                      payload. Fixed aspect-[4/5] box → fill + object-cover. */}
+                      payload. Fixed aspect-4/5 box → fill + object-cover. */}
                   <Image
                     src={item.image_url}
                     alt={item.title}

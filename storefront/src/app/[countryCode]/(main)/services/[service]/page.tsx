@@ -202,7 +202,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
           <div className="mt-7 flex flex-wrap gap-3">
             <LocalizedClientLink
               href="/contact"
-              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
             >
               Get a quote
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -346,7 +346,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
 
       <section className="mt-12 grid gap-6 large:grid-cols-[2fr_1fr]">
         <div className="rounded-xl border border-ui-border-base bg-white p-6 small:p-7">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Why choose this method
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base">
@@ -363,7 +363,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
         </div>
 
         <aside className="rounded-xl border border-ui-border-base bg-ui-bg-subtle p-6 small:p-7">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Not sure?
           </p>
           <h3 className="mt-2 text-xl font-semibold text-ui-fg-base">
@@ -376,14 +376,14 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
           </p>
           <LocalizedClientLink
             href="/contact"
-            className="group mt-5 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="group mt-5 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
           >
             Request service quote
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
           </LocalizedClientLink>
           <LocalizedClientLink
             href="/guides/dtf-vs-screen-printing-vs-embroidery"
-            className="mt-4 flex min-h-11 items-center text-sm font-semibold !text-brand underline underline-offset-4"
+            className="mt-4 flex min-h-11 items-center text-sm font-semibold text-brand! underline underline-offset-4"
           >
             Compare DTF, screen printing and embroidery
           </LocalizedClientLink>
@@ -391,25 +391,25 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
       </section>
 
       <section className="mt-12 grid gap-4 small:grid-cols-3">
-        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm">
+        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs">
           <ThumbsUpIcon className="text-accent transition-colors group-hover:text-brand" />
-          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Best for
           </p>
           <p className="mt-2 text-sm text-ui-fg-subtle">{service.bestFor}</p>
         </article>
 
-        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm">
+        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs">
           <ThumbsDownIcon className="text-ui-fg-muted transition-colors group-hover:text-brand" />
-          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Not ideal for
           </p>
           <p className="mt-2 text-sm text-ui-fg-subtle">{service.notIdealFor}</p>
         </article>
 
-        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm">
+        <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-(--brand-secondary)/40 hover:shadow-xs">
           <ClockIcon className="text-accent transition-colors group-hover:text-brand" />
-          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Typical turnaround
           </p>
           <p className="mt-2 text-sm text-ui-fg-subtle">{service.typicalTurnaround}</p>
@@ -421,7 +421,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
           Wondering about setup fees?{" "}
           <LocalizedClientLink
             href="/guides/screen-printing-cost"
-            className="font-semibold !text-brand underline underline-offset-4"
+            className="font-semibold text-brand! underline underline-offset-4"
           >
             Why screen printing has setup costs and a minimum order
           </LocalizedClientLink>

@@ -50,7 +50,7 @@ const ContactMap = () => {
   return (
     <div
       ref={mapContainerRef}
-      className="relative h-[400px] w-full overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle shadow-sm group"
+      className="relative h-[400px] w-full overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle shadow-xs group"
     >
       {isMapLoaded ? (
         <iframe

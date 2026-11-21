@@ -105,7 +105,7 @@ const ProductInfo = ({ product, hideTitle = false }: ProductInfoProps) => {
       {brand?.handle && brand.name ? (
         <LocalizedClientLink
           href={`/brands/${brand.handle}`}
-          className="inline-flex min-h-11 items-center text-sm font-semibold !text-ui-fg-base underline underline-offset-4 hover:!text-brand"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-ui-fg-base! underline underline-offset-4 hover:text-brand!"
           data-testid="product-brand-link"
         >
           Shop all {brand.name} →

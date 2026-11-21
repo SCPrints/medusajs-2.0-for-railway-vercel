@@ -172,7 +172,7 @@ export default function ContactForm() {
 
   if (success) {
     return (
-      <div className="text-center py-12 bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+      <div className="text-center py-12 bg-white p-8 rounded-2xl border border-gray-100 shadow-xs">
         <div className="flex justify-center mb-6">
           <svg
             className="w-16 h-16 text-gray-900"
@@ -201,7 +201,7 @@ export default function ContactForm() {
   }
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+    <div className="bg-white p-8 rounded-2xl shadow-xs border border-gray-100">
       <form onSubmit={handleSubmit} className="space-y-6">
         <HoneypotField />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -217,7 +217,7 @@ export default function ContactForm() {
               name="first-name"
               type="text"
               autoComplete="given-name"
-              className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-gray-900"
             />
           </div>
           <div>
@@ -232,7 +232,7 @@ export default function ContactForm() {
               name="last-name"
               type="text"
               autoComplete="family-name"
-              className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-gray-900"
             />
           </div>
         </div>
@@ -250,7 +250,7 @@ export default function ContactForm() {
             type="email"
             autoComplete="email"
             required
-            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-gray-900"
           />
         </div>
 
@@ -274,7 +274,7 @@ export default function ContactForm() {
             pattern="[0-9+\(\)\s.\-]{8,20}"
             title="Please enter a valid phone number (at least 8 digits)"
             placeholder="04XX XXX XXX"
-            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-gray-900"
           />
         </div>
 
@@ -289,7 +289,7 @@ export default function ContactForm() {
             id="subject"
             name="subject"
             type="text"
-            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-gray-900"
           />
         </div>
 
@@ -305,7 +305,7 @@ export default function ContactForm() {
             name="message"
             rows={6}
             required
-            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-gray-900 resize-y"
           />
         </div>
 

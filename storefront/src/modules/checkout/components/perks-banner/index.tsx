@@ -13,7 +13,7 @@ const PerksBanner = ({ perks }: { perks: ActivePerk[] }) => {
   if (!perks || perks.length === 0) return null
 
   return (
-    <div className="mb-6 rounded-xl border border-brand/[0.25] bg-brand/[0.06] px-5 py-4 small:px-6 small:py-5">
+    <div className="mb-6 rounded-xl border border-brand/25 bg-brand/6 px-5 py-4 small:px-6 small:py-5">
       <div className="flex flex-col gap-y-2 small:flex-row small:items-center small:justify-between small:gap-x-6">
         <div className="flex flex-col">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">

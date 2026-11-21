@@ -921,7 +921,7 @@ export default function MiniBubblePop() {
             aria-label="Bubble shooter. Move the mouse to aim, click to shoot."
           />
         </div>
-        <div className="text-sm text-ui-fg-base space-y-3 min-w-[8rem]">
+        <div className="text-sm text-ui-fg-base space-y-3 min-w-32">
           <div>
             <p className="text-xs font-medium text-ui-fg-muted uppercase tracking-wide">
               Score
@@ -933,7 +933,7 @@ export default function MiniBubblePop() {
               Next
             </p>
             <div
-              className="w-8 h-8 mt-1 rounded-full border border-ui-border-base shadow-sm"
+              className="w-8 h-8 mt-1 rounded-full border border-ui-border-base shadow-xs"
               style={{ background: BUBBLE_COLORS[nextIdx] }}
               aria-hidden
             />
@@ -955,7 +955,7 @@ export default function MiniBubblePop() {
           <button
             type="button"
             onClick={newGame}
-            className="rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm font-medium text-ui-fg-base hover:bg-ui-bg-subtle focus:outline-none focus:ring-2 focus:ring-ui-fg-base focus:ring-offset-1 focus:ring-offset-ui-bg-subtle"
+            className="rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm font-medium text-ui-fg-base hover:bg-ui-bg-subtle focus:outline-hidden focus:ring-2 focus:ring-ui-fg-base focus:ring-offset-1 focus:ring-offset-ui-bg-subtle"
           >
             New game
           </button>

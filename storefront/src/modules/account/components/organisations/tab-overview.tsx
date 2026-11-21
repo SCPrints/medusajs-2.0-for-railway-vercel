@@ -55,7 +55,7 @@ export default function OverviewTab({
     <div className="flex flex-col gap-8">
       {/* Quick stats */}
       <section>
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
           Quick stats
         </h2>
         <div className="mt-3 grid grid-cols-1 gap-3 phone:grid-cols-3">
@@ -63,19 +63,19 @@ export default function OverviewTab({
             <p className="text-3xl font-semibold text-ui-fg-base">
               {designCount}
             </p>
-            <p className="mt-1 text-xs uppercase tracking-[0.1em] text-ui-fg-muted">
+            <p className="mt-1 text-xs uppercase tracking-widest text-ui-fg-muted">
               {designCount === 1 ? "Design" : "Designs"}
             </p>
           </div>
           <div className="rounded-2xl border border-ui-border-base bg-white p-5">
             <p className="text-3xl font-semibold text-ui-fg-base">{destCount}</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.1em] text-ui-fg-muted">
+            <p className="mt-1 text-xs uppercase tracking-widest text-ui-fg-muted">
               {destCount === 1 ? "Destination" : "Destinations"}
             </p>
           </div>
           <div className="rounded-2xl border border-ui-border-base bg-white p-5">
             <p className="text-3xl font-semibold text-ui-fg-base">{skuCount}</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.1em] text-ui-fg-muted">
+            <p className="mt-1 text-xs uppercase tracking-widest text-ui-fg-muted">
               SKUs
             </p>
           </div>
@@ -85,7 +85,7 @@ export default function OverviewTab({
       {/* Recent orders */}
       <section>
         <div className="flex items-baseline justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Recent orders
           </h2>
           {recentOrders.length > 0 ? (
@@ -152,14 +152,14 @@ export default function OverviewTab({
 
       {/* Need to restock? CTA */}
       <section>
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
           Need to restock?
         </h2>
         <div className="mt-3 rounded-2xl border border-ui-border-base bg-white p-5">
           {canPlace ? (
             <LocalizedClientLink
               href={`/account/organisations/${orgId}/orders/new`}
-              className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 min-h-11"
+              className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-(--brand-secondary)/90 min-h-11"
             >
               <span aria-hidden>+</span>
               Place new order

@@ -39,7 +39,7 @@ export async function generateMetadata({
 export default function DigitalRainHeroPage() {
   return (
     <div className="relative min-h-screen bg-black text-white">
-      <div className="pointer-events-none fixed left-0 top-0 z-[40] w-full px-4 py-4 sm:px-6">
+      <div className="pointer-events-none fixed left-0 top-0 z-40 w-full px-4 py-4 sm:px-6">
         <div className="pointer-events-auto inline-flex">
           <LocalizedClientLink
             href="/"
@@ -51,7 +51,7 @@ export default function DigitalRainHeroPage() {
       </div>
       {/* Faithful copy of the previous home hero: neon digital-rain canvas with
           the marketing overlay (headline + pricing hook + CTAs) on top. */}
-      <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-[#0B0C10]">
+      <section className="relative h-dvh min-h-[600px] w-full overflow-hidden bg-[#0B0C10]">
         <DigitalRainHero style={{ position: "absolute", inset: 0, height: "100%" }} />
         <HeroOverlay />
       </section>

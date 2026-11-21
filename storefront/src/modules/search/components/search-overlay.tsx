@@ -213,7 +213,7 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
   }
 
   return (
-    <div className="relative z-[75]">
+    <div className="relative z-75">
       <div className="fixed inset-0 bg-opacity-75 backdrop-blur-md opacity-100 h-screen w-screen" />
       <div
         className="fixed inset-0 px-5 sm:p-0"
@@ -241,7 +241,7 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                className="txt-compact-large h-6 placeholder:text-ui-fg-on-color placeholder:transition-colors focus:outline-none flex-1 bg-transparent"
+                className="txt-compact-large h-6 placeholder:text-ui-fg-on-color placeholder:transition-colors focus:outline-hidden flex-1 bg-transparent"
               />
               {trimmedQuery && (
                 <button
@@ -251,7 +251,7 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
                     inputRef.current?.focus()
                   }}
                   aria-label="Clear search"
-                  className="items-center justify-center text-ui-fg-on-color focus:outline-none gap-x-1 px-1 txt-compact-large flex"
+                  className="items-center justify-center text-ui-fg-on-color focus:outline-hidden gap-x-1 px-1 txt-compact-large flex"
                 >
                   <XMarkMini />
                 </button>
@@ -260,7 +260,7 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
                 type="button"
                 onClick={onClose}
                 aria-label="Close search"
-                className="items-center justify-center text-ui-fg-on-color focus:outline-none gap-x-2 px-2 txt-compact-large flex"
+                className="items-center justify-center text-ui-fg-on-color focus:outline-hidden gap-x-2 px-2 txt-compact-large flex"
               >
                 Cancel
               </button>

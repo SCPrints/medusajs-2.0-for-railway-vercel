@@ -140,7 +140,7 @@ const CATEGORIES: Category[] = [
         href: "/city-hero",
         label: "Block city hero",
         description:
-          "Extruded rounded blocks with visible walls seen from above, bobbing toward the viewer with the wordmark laid over the top.",
+          "Extruded rounded-sm blocks with visible walls seen from above, bobbing toward the viewer with the wordmark laid over the top.",
         status: "candidate",
         tech: "Three.js",
       },
@@ -204,7 +204,7 @@ export default function SandboxPage() {
   return (
     <div className="content-container py-14 small:py-20">
       <header className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
           Internal
         </p>
         <h1 className="page-title-marketing mt-3 tracking-tight">
@@ -219,7 +219,7 @@ export default function SandboxPage() {
       <div className="mx-auto mt-12 max-w-3xl space-y-10">
         {CATEGORIES.map((category) => (
           <section key={category.title}>
-            <div className="mb-4 border-l-4 border-[var(--brand-secondary)]/40 pl-4">
+            <div className="mb-4 border-l-4 border-(--brand-secondary)/40 pl-4">
               <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-ui-fg-base">
                 {category.title}
               </h2>
@@ -237,7 +237,7 @@ export default function SandboxPage() {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-ui-fg-base transition-colors group-hover:text-[var(--brand-primary)]">
+                        <span className="text-sm font-semibold text-ui-fg-base transition-colors group-hover:text-(--brand-primary)">
                           {item.label}
                         </span>
                         {item.status && (
@@ -248,7 +248,7 @@ export default function SandboxPage() {
                           </span>
                         )}
                         {item.tech && (
-                          <span className="inline-block rounded bg-ui-bg-subtle px-1.5 py-0.5 text-[10px] font-medium leading-none text-ui-fg-muted ring-1 ring-ui-border-base">
+                          <span className="inline-block rounded-sm bg-ui-bg-subtle px-1.5 py-0.5 text-[10px] font-medium leading-none text-ui-fg-muted ring-1 ring-ui-border-base">
                             {item.tech}
                           </span>
                         )}

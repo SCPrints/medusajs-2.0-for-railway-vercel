@@ -44,7 +44,7 @@ export default async function Checkout(){const cart = await fetchCart()
     <div className="content-container py-8 small:py-10 pb-14">
       <BeginCheckoutTracker cart={cart} />
       <header className="mb-8 max-w-2xl border-l-4 border-brand pl-4 small:mb-10">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
           Secure checkout
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ui-fg-base small:text-4xl">
@@ -59,7 +59,7 @@ export default async function Checkout(){const cart = await fetchCart()
       <PerksBanner perks={perks.perks} />
 
       <div className="mt-6 grid grid-cols-1 gap-8 small:grid-cols-[1fr_min(100%,400px)] small:items-start small:gap-x-10">
-        <div className="rounded-2xl border border-ui-border-base bg-white p-5 shadow-sm small:p-8">
+        <div className="rounded-2xl border border-ui-border-base bg-white p-5 shadow-xs small:p-8">
           <Wrapper cart={cart}>
             <CheckoutForm cart={cart} customer={customer} />
           </Wrapper>

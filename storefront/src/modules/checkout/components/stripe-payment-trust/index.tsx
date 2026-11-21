@@ -57,7 +57,7 @@ export function StripeAcceptedCardMarks() {
           height={32}
           className="h-5 w-auto"
         />
-        <span className="inline-flex rounded-sm border border-[#016fd0]/20 bg-[#016fd0]/[0.06] px-2 py-0.5 text-[11px] font-semibold uppercase leading-none tracking-wide text-[#016fd0]">
+        <span className="inline-flex rounded-xs border border-[#016fd0]/20 bg-[#016fd0]/6 px-2 py-0.5 text-[11px] font-semibold uppercase leading-none tracking-wide text-[#016fd0]">
           AmEx
         </span>
       </div>

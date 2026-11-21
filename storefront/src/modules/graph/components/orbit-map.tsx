@@ -307,7 +307,7 @@ type BodyProps = {
 }
 
 /** Labels keep a constant on-screen size by counter-scaling with the camera. */
-const LABEL = "pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap font-medium text-[length:calc(12px/var(--k))] leading-none drop-shadow-[0_1px_2px_rgba(11,12,16,0.95)]"
+const LABEL = "pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap font-medium text-[calc(12px/var(--k))] leading-none drop-shadow-[0_1px_2px_rgba(11,12,16,0.95)]"
 
 function Body({ placed: p, logo, isSelected, isHovered, dimClass, countryCode, onHover, onSelect }: BodyProps) {
   const { node, x, y, r } = p
@@ -341,7 +341,7 @@ function Body({ placed: p, logo, isSelected, isHovered, dimClass, countryCode, o
         >
           {node.thumbnail ? <img src={node.thumbnail} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : null}
         </span>
-        <span className={`${LABEL} max-w-[calc(180px/var(--k))] truncate !text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100`}>
+        <span className={`${LABEL} max-w-[calc(180px/var(--k))] truncate text-white! opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100`}>
           {node.label}
         </span>
       </Link>
@@ -374,7 +374,7 @@ function Body({ placed: p, logo, isSelected, isHovered, dimClass, countryCode, o
           boxShadow: `0 0 ${lit ? r * 1.4 : r * 0.7}px ${lit ? r * 0.5 : r * 0.2}px rgba(69,162,158,${lit ? 0.6 : 0.35})`,
         }}
       >
-        {logo ? <img src={logo} alt="" className="h-[70%] w-[70%] object-contain" draggable={false} /> : <span className="text-[length:calc(10px/var(--k))] font-semibold text-[#0B0C10]">{node.label.slice(0, 2)}</span>}
+        {logo ? <img src={logo} alt="" className="h-[70%] w-[70%] object-contain" draggable={false} /> : <span className="text-[calc(10px/var(--k))] font-semibold text-[#0B0C10]">{node.label.slice(0, 2)}</span>}
       </span>
     )
   } else if (node.kind === "type") {
@@ -404,19 +404,19 @@ function Body({ placed: p, logo, isSelected, isHovered, dimClass, countryCode, o
       {...common}
       type={isHub ? "button" : undefined}
       onClick={isHub ? (e) => { e.stopPropagation(); onSelect(node) } : undefined}
-      className={`group absolute left-0 top-0 block rounded-full p-0 ${isHub ? "cursor-pointer focus-visible:outline-none" : ""} ${sub ? "explore-pop" : ""} ${dimClass}`}
+      className={`group absolute left-0 top-0 block rounded-full p-0 ${isHub ? "cursor-pointer focus-visible:outline-hidden" : ""} ${sub ? "explore-pop" : ""} ${dimClass}`}
       style={positioned}
       aria-label={isHub ? `${node.label}: show products` : node.label}
       aria-pressed={isHub ? isSelected : undefined}
     >
       {disc}
       <span
-        className={`${LABEL} ${lit ? "!text-white" : node.kind === "type" ? "!text-[#66FCF1]" : node.kind === "root" ? "!text-[#FFE680]" : "!text-[#C5C6C7]"} ${
+        className={`${LABEL} ${lit ? "text-white!" : node.kind === "type" ? "text-[#66FCF1]!" : node.kind === "root" ? "text-[#FFE680]!" : "text-[#C5C6C7]!"} ${
           labelAlways ? "" : "opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
         } ${lit ? "font-semibold" : ""}`}
       >
         {node.label}
-        {isHub && node.productCount ? <span className="ml-1 !text-[#C5C6C7]/60">{node.productCount}</span> : null}
+        {isHub && node.productCount ? <span className="ml-1 text-[#C5C6C7]/60!">{node.productCount}</span> : null}
       </span>
     </Tag>
   )

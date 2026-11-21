@@ -89,7 +89,7 @@ const SortProducts = ({
           aria-label="Sort products"
           aria-busy={pending}
           data-testid={dataTestId}
-          className="min-h-11 w-full appearance-none truncate bg-transparent px-3 pr-8 text-sm font-medium text-ui-fg-base outline-none"
+          className="min-h-11 w-full appearance-none truncate bg-transparent px-3 pr-8 text-sm font-medium text-ui-fg-base outline-hidden"
         >
           {sortOptions.map((option) => (
             <option key={option.value} value={option.value}>

@@ -91,12 +91,12 @@ export default function PoaQuoteModal({
     })
   }
 
-  // z-[230]: must sit above the PDP studio overlay (z-200) and the
+  // z-230: must sit above the PDP studio overlay (z-200) and the
   // fly-to-cart thumb (z-210) — the modal portals to <body>, so it needs to
   // out-stack them explicitly.
   return createPortal(
     <div
-      className="fixed inset-0 z-[230] flex items-center justify-center p-4"
+      className="fixed inset-0 z-230 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label={isQuote ? "Email me this quote" : "Request an embroidery quote"}
@@ -159,7 +159,7 @@ export default function PoaQuoteModal({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               autoComplete="email"
-              className="mt-1 w-full rounded-lg border border-ui-border-base px-3 py-2 text-sm focus:border-ui-fg-base focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-ui-border-base px-3 py-2 text-sm focus:border-ui-fg-base focus:outline-hidden"
             />
           </div>
           <div>
@@ -176,7 +176,7 @@ export default function PoaQuoteModal({
               onChange={(e) => setPhone(e.target.value)}
               placeholder="0412 345 678"
               autoComplete="tel"
-              className="mt-1 w-full rounded-lg border border-ui-border-base px-3 py-2 text-sm focus:border-ui-fg-base focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-ui-border-base px-3 py-2 text-sm focus:border-ui-fg-base focus:outline-hidden"
             />
           </div>
           <div>
@@ -192,7 +192,7 @@ export default function PoaQuoteModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
-              className="mt-1 w-full rounded-lg border border-ui-border-base px-3 py-2 text-sm focus:border-ui-fg-base focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-ui-border-base px-3 py-2 text-sm focus:border-ui-fg-base focus:outline-hidden"
             />
           </div>
           <div>
@@ -209,7 +209,7 @@ export default function PoaQuoteModal({
               rows={2}
               maxLength={2000}
               placeholder="Deadline, budget, thread colours…"
-              className="mt-1 w-full rounded-lg border border-ui-border-base px-3 py-2 text-sm focus:border-ui-fg-base focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-ui-border-base px-3 py-2 text-sm focus:border-ui-fg-base focus:outline-hidden"
             />
           </div>
         </div>

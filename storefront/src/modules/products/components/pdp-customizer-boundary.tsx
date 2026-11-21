@@ -70,7 +70,7 @@ class PdpCustomizerBoundary extends React.Component<Props, State> {
             </button>
           </div>
           {this.state.showDetails && err && (
-            <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-amber-100 p-2 text-[11px] leading-snug text-amber-950">
+            <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap wrap-break-word rounded-md bg-amber-100 p-2 text-[11px] leading-snug text-amber-950">
               {err.name}: {err.message}
               {err.stack ? `\n\n${err.stack}` : ""}
             </pre>

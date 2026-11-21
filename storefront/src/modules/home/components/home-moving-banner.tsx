@@ -80,16 +80,16 @@ export default function HomeMovingBanner() {
   }
 
   return (
-    <div className="fixed inset-x-0 top-[5.5rem] z-40 pointer-events-none small:inset-x-auto small:right-5 small:top-[8.5rem]">
+    <div className="fixed inset-x-0 top-22 z-40 pointer-events-none small:inset-x-auto small:right-5 small:top-34">
       <div className="pointer-events-auto mx-auto max-w-lg px-3 small:mx-0 small:max-w-md small:px-0">
         <div
-          className={`rounded-2xl border-2 border-[var(--brand-secondary)]/20 bg-white p-5 shadow-2xl transition-all duration-300 ease-out ${
+          className={`rounded-2xl border-2 border-(--brand-secondary)/20 bg-white p-5 shadow-2xl transition-all duration-300 ease-out ${
             animateIn ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
           }`}
         >
           <style>{MOVING_BOX_CSS}</style>
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-secondary)]/[0.08]">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-(--brand-secondary)/8">
               <svg
                 width="26"
                 height="26"
@@ -125,7 +125,7 @@ export default function HomeMovingBanner() {
               <LocalizedClientLink
                 href={MOVE.newAddressHref}
                 onClick={dismiss}
-                className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm active:scale-[0.99]"
+                className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-xs active:scale-[0.99]"
               >
                 See our new address
               </LocalizedClientLink>

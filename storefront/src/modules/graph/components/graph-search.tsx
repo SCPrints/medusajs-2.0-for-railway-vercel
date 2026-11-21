@@ -49,7 +49,7 @@ export function GraphSearch({
         value={local}
         onChange={(event) => setLocal(event.target.value)}
         placeholder={placeholder}
-        className="min-h-11 w-full rounded-xl border border-[#45A29E]/30 bg-[#0B0C10]/75 px-3 text-small-regular !text-[#C5C6C7] placeholder:text-[#C5C6C7]/50 shadow-[0_0_24px_rgba(69,162,158,0.12)] backdrop-blur focus:outline-none focus:ring-2 focus:ring-[#66FCF1]"
+        className="min-h-11 w-full rounded-xl border border-[#45A29E]/30 bg-[#0B0C10]/75 px-3 text-small-regular text-[#C5C6C7]! placeholder:text-[#C5C6C7]/50 shadow-[0_0_24px_rgba(69,162,158,0.12)] backdrop-blur-sm focus:outline-hidden focus:ring-2 focus:ring-[#66FCF1]"
         autoComplete="off"
       />
     </form>

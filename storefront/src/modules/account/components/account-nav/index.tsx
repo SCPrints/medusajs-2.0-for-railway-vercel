@@ -54,7 +54,7 @@ const NAV_GROUPS: Array<{ title: string; links: NavLink[] }> = [
   },
 ]
 
-const groupHeading = "text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-muted"
+const groupHeading = "text-xs font-semibold uppercase tracking-widest text-ui-fg-muted"
 
 const AccountNav = ({
   customer,

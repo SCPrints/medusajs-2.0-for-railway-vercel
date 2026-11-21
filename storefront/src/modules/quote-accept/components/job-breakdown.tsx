@@ -15,16 +15,16 @@ const JobBreakdown = ({ breakdown, currency }: { breakdown: QuoteJobBreakdown; c
   const designs = breakdown.designs.filter((d) => d.image_url)
   return (
     <div className="mb-6">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">
         How your quote was built
       </p>
-      <div className="rounded-lg border border-ink/[0.08] divide-y divide-ink/[0.06]">
+      <div className="rounded-lg border border-ink/8 divide-y divide-ink/6">
         {breakdown.groups.map((g, i) => (
           <div key={i} className="px-3 py-3">
             <div className="flex items-start gap-3">
               {g.thumbnail ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={g.thumbnail} alt="" className="h-12 w-12 flex-none rounded-md border border-ink/[0.08] bg-white object-contain" />
+                <img src={g.thumbnail} alt="" className="h-12 w-12 flex-none rounded-md border border-ink/8 bg-white object-contain" />
               ) : null}
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-3">
@@ -77,7 +77,7 @@ const JobBreakdown = ({ breakdown, currency }: { breakdown: QuoteJobBreakdown; c
           {designs.map((d) => (
             <figure key={d.label} className="m-0 flex items-center gap-1.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={d.image_url!} alt={`Design ${d.label}`} className="h-10 w-10 rounded border border-ink/[0.08] bg-white object-contain" />
+              <img src={d.image_url!} alt={`Design ${d.label}`} className="h-10 w-10 rounded-sm border border-ink/8 bg-white object-contain" />
               <figcaption className="text-xs text-ui-fg-muted">Design {d.label}</figcaption>
             </figure>
           ))}

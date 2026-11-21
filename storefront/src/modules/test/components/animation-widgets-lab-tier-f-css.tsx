@@ -409,7 +409,7 @@ export function LabTierFViewTimeline() {
           {Array.from({ length: 8 }, (_, i) => (
             <div
               key={i}
-              className={`lab-view-card-${id} rounded-xl bg-ui-bg-base p-4 text-sm text-ui-fg-base shadow`}
+              className={`lab-view-card-${id} rounded-xl bg-ui-bg-base p-4 text-sm text-ui-fg-base shadow-sm`}
             >
               <p className="font-semibold">Card {i + 1}</p>
               <p className="text-xs text-ui-fg-muted">
@@ -457,7 +457,7 @@ export function LabTierFFieldSizing() {
         <SupportPill supported={supported} />
       </div>
       <textarea
-        className={`lab-fs-${id} w-full rounded-xl border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base focus:border-[#FF2E63] focus:outline-none`}
+        className={`lab-fs-${id} w-full rounded-xl border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base focus:border-[#FF2E63] focus:outline-hidden`}
         placeholder="Type a few lines — the textarea grows with content (no JS, no rows attribute hack)."
       />
       <p className="text-xs text-ui-fg-muted">

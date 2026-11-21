@@ -180,10 +180,10 @@ const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, ba
 
       {open && mounted && createPortal(
         <div
-          // z-[300] sits ABOVE the full-screen Studio overlay (z-[200] in
-          // studio-launcher) — at z-[100] the picker opened behind the Studio
+          // z-300 sits ABOVE the full-screen Studio overlay (z-[200] in
+          // studio-launcher) — at z-100 the picker opened behind the Studio
           // and looked like "Change product" did nothing.
-          className="fixed inset-0 z-[300] flex items-start justify-center bg-black/50 px-4 py-12 sm:py-20"
+          className="fixed inset-0 z-300 flex items-start justify-center bg-black/50 px-4 py-12 sm:py-20"
           role="dialog"
           aria-modal="true"
           aria-labelledby="customizer-product-picker-title"
@@ -223,7 +223,7 @@ const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, ba
                   placeholder="Search products by name or code (e.g. 5001)…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+                  className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 pr-10 text-sm focus:outline-hidden focus:ring-2 focus:ring-(--brand-primary)"
                   autoFocus
                 />
                 {isSearching ? (
@@ -257,8 +257,8 @@ const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, ba
                           className={[
                             "group flex w-full flex-col overflow-hidden rounded-xl border bg-white text-left transition",
                             isCurrent
-                              ? "cursor-default border-[var(--brand-primary)] ring-2 ring-[var(--brand-primary)]/30"
-                              : "border-ui-border-base hover:border-[var(--brand-primary)] hover:shadow-sm",
+                              ? "cursor-default border-(--brand-primary) ring-2 ring-(--brand-primary)/30"
+                              : "border-ui-border-base hover:border-(--brand-primary) hover:shadow-xs",
                           ].join(" ")}
                         >
                           <div className="aspect-square w-full bg-ui-bg-subtle">
@@ -280,7 +280,7 @@ const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, ba
                               {p.title}
                             </p>
                             {isCurrent ? (
-                              <p className="mt-0.5 text-[11px] font-semibold text-[var(--brand-primary)]">
+                              <p className="mt-0.5 text-[11px] font-semibold text-(--brand-primary)">
                                 Currently selected
                               </p>
                             ) : null}

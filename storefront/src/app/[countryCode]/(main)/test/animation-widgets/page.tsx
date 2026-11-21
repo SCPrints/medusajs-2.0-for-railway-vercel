@@ -43,8 +43,8 @@ function AnimationWidgetsDemoFallback() {
       <div className="space-y-10">
         {[1, 2, 3].map((k) => (
           <div key={k} className="animate-pulse space-y-4 border-b border-ui-border-base pb-12">
-            <div className="h-7 w-56 rounded bg-ui-bg-subtle" />
-            <div className="h-4 w-full max-w-2xl rounded bg-ui-bg-subtle" />
+            <div className="h-7 w-56 rounded-sm bg-ui-bg-subtle" />
+            <div className="h-4 w-full max-w-2xl rounded-sm bg-ui-bg-subtle" />
             <div className="h-48 rounded-xl bg-ui-bg-subtle" />
           </div>
         ))}

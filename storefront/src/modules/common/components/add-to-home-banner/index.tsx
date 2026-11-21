@@ -123,7 +123,7 @@ export default function AddToHomeBanner() {
       >
         <div className="rounded-2xl border border-ui-border-base bg-white p-4 shadow-2xl">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-primary)]/5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-(--brand-primary)/5">
               <svg
                 width="22"
                 height="22"
@@ -177,7 +177,7 @@ export default function AddToHomeBanner() {
             <button
               type="button"
               onClick={install}
-              className="mt-3 inline-flex w-full min-h-11 items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm active:scale-[0.99]"
+              className="mt-3 inline-flex w-full min-h-11 items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-xs active:scale-[0.99]"
             >
               Install
             </button>

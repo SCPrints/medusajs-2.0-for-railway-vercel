@@ -26,17 +26,17 @@ const METHOD: Record<Method, { name: string; inline: string; href: string }> = {
 const VERDICT: Record<Verdict, { label: string; badge: string; row: string }> = {
   best: {
     label: "Best match",
-    badge: "bg-brand !text-white",
-    row: "border-brand bg-white shadow-sm",
+    badge: "bg-brand text-white!",
+    row: "border-brand bg-white shadow-xs",
   },
   works: {
     label: "Also works",
-    badge: "bg-accent/[0.2] !text-[#147a71]",
+    badge: "bg-accent/20 text-[#147a71]!",
     row: "border-ui-border-base bg-white",
   },
   avoid: {
     label: "Not for this job",
-    badge: "bg-ui-bg-subtle !text-ui-fg-muted",
+    badge: "bg-ui-bg-subtle text-ui-fg-muted!",
     row: "border-ui-border-base bg-ui-bg-subtle opacity-70",
   },
 }
@@ -115,7 +115,7 @@ export default function MethodPicker() {
                 {r.verdict === "best" ? (
                   <LocalizedClientLink
                     href={m.href}
-                    className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold !text-brand underline underline-offset-4"
+                    className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-brand! underline underline-offset-4"
                   >
                     More about {m.inline}
                   </LocalizedClientLink>

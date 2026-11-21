@@ -49,7 +49,7 @@ const EmptyCartMessage = () => {
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-ui-border-base bg-white text-brand">
           <CartIcon />
         </div>
-        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
           Your cart
         </p>
         <h1 className="page-title-marketing mt-3 tracking-tight">
@@ -62,7 +62,7 @@ const EmptyCartMessage = () => {
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <LocalizedClientLink
             href="/store"
-            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
           >
             Browse the store
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

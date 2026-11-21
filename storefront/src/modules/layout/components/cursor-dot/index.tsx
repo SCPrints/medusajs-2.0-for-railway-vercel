@@ -170,7 +170,7 @@ const CursorDot = () => {
     return () => {
       window.cancelAnimationFrame(frameId)
       window.removeEventListener("pointermove", handlePointerMove)
-      window.removeEventListener("blur", hideTrail)
+      window.removeEventListener("blur-sm", hideTrail)
       document.removeEventListener("mouseleave", hideTrail)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }

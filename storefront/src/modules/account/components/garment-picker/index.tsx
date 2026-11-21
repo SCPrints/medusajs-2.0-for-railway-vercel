@@ -163,7 +163,7 @@ const GarmentPicker = ({ open, onClose, onPick, title = "Choose a garment" }: Pr
       <button
         type="button"
         onClick={() => onPick(hit)}
-        className="group flex h-full w-full flex-col overflow-hidden rounded-xl border border-ui-border-base bg-white text-left transition hover:border-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+        className="group flex h-full w-full flex-col overflow-hidden rounded-xl border border-ui-border-base bg-white text-left transition hover:border-ink focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ink"
       >
         <span className="flex aspect-square w-full items-center justify-center bg-ui-bg-subtle">
           {hit.thumbnail ? (
@@ -188,7 +188,7 @@ const GarmentPicker = ({ open, onClose, onPick, title = "Choose a garment" }: Pr
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[300] flex items-end justify-center bg-black/50 tablet:items-center tablet:p-6"
+      className="fixed inset-0 z-300 flex items-end justify-center bg-black/50 tablet:items-center tablet:p-6"
       data-studio-sublayer
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose()
@@ -225,7 +225,7 @@ const GarmentPicker = ({ open, onClose, onPick, title = "Choose a garment" }: Pr
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search tees, hoodies, polos, caps…"
             aria-label="Search garments"
-            className="min-h-11 w-full rounded-lg border border-ui-border-base px-3 text-base focus:outline-none focus:ring-2 focus:ring-ink"
+            className="min-h-11 w-full rounded-lg border border-ui-border-base px-3 text-base focus:outline-hidden focus:ring-2 focus:ring-ink"
           />
           <p className="mt-2 text-xs text-ui-fg-subtle" aria-live="polite">
             {error

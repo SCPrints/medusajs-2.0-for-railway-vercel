@@ -402,7 +402,7 @@ const EmbroideryPanel: React.FC<EmbroideryPanelProps> = ({
             onClick={handleAddToCart}
             disabled={addToCartDisabled}
             title={disabledReason || undefined}
-            className="w-full rounded-xl bg-ui-fg-base px-4 py-3 text-base font-semibold text-ui-bg-base shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-xl bg-ui-fg-base px-4 py-3 text-base font-semibold text-ui-bg-base shadow-xs transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "Adding to cart..." : "Add embroidery to cart"}
           </button>

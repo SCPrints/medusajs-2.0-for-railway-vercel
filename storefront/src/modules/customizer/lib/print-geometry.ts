@@ -12,7 +12,7 @@ import type { ScpPrintSizeId } from "./scp-dtf-print-pricing"
 export const PRINT_AREA_W_RATIO = 0.68
 export const PRINT_AREA_H_RATIO = 0.72
 
-/** Every Studio frame is `aspect-[4/5]`: canvas height = width × 5/4. */
+/** Every Studio frame is `aspect-4/5`: canvas height = width × 5/4. */
 export const FRAME_ASPECT = 1.25
 
 /**

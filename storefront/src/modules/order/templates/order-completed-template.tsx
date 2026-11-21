@@ -29,13 +29,13 @@ export default async function OrderCompletedTemplate({
         {isOnboarding && <OnboardingCta orderId={order.id} />}
 
         <div
-          className="relative bg-white rounded-2xl border border-ui-border-base shadow-sm p-8 sm:p-10"
+          className="relative bg-white rounded-2xl border border-ui-border-base shadow-xs p-8 sm:p-10"
           data-testid="order-complete-container"
         >
           {/* Seasonal: a fresh tee held up for the new order (Halloween only). */}
           <SeasonalMarginMascot name="zombie-hand" size={100} className="right-6 top-4" />
           <div className="border-l-4 border-brand pl-4 mb-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               Order #{order.display_id} &middot; Confirmed
             </p>
             <h1 className="mt-2 text-3xl sm:text-4xl font-semibold text-ink leading-tight">
@@ -75,7 +75,7 @@ export default async function OrderCompletedTemplate({
           <div className="mt-10 flex flex-col sm:flex-row gap-3">
             <LocalizedClientLink
               href="/store"
-              className="group inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
             >
               Continue shopping
               <svg

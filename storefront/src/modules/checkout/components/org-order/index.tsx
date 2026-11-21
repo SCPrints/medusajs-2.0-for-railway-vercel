@@ -9,7 +9,7 @@ const aud = (n: number) =>
   new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(n)
 
 const field =
-  "min-h-11 w-full rounded-md border border-ui-border-base bg-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-ink"
+  "min-h-11 w-full rounded-md border border-ui-border-base bg-white px-3 text-base focus:outline-hidden focus:ring-2 focus:ring-ink"
 
 /** The blanket POs a buyer can still draw on. */
 export const usablePurchaseOrders = (org: OrgAccount | null) =>

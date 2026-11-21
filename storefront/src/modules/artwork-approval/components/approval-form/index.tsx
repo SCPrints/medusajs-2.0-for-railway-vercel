@@ -61,7 +61,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
   }
 
   return (
-    <div className="rounded-2xl border border-ink/[0.1] bg-white/95 p-6 shadow-[0_4px_40px_rgb(var(--ink)/0.08)]">
+    <div className="rounded-2xl border border-ink/10 bg-white/95 p-6 shadow-[0_4px_40px_rgb(var(--ink)/0.08)]">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
         Order
         {initial.order_display_id ? ` #${initial.order_display_id}` : ""}
@@ -79,7 +79,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
           {initial.mockup_urls.map((img) => (
             <div key={`${img.side}:${img.url}`}>
               {img.side_label ? (
-                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">
                   {img.side_label}
                 </p>
               ) : null}
@@ -87,14 +87,14 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
                 type="button"
                 onClick={() => setZoomSrc(img.url)}
                 aria-label={`Enlarge ${img.side_label ?? img.side} mockup`}
-                className="group relative block w-full cursor-zoom-in overflow-hidden rounded-lg border border-ink/[0.08]"
+                className="group relative block w-full cursor-zoom-in overflow-hidden rounded-lg border border-ink/8"
               >
                 <img
                   src={img.url}
                   alt={img.side_label ?? img.side}
                   className="w-full transition-transform duration-200 group-hover:scale-[1.02]"
                 />
-                <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white opacity-90 backdrop-blur-sm">
+                <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white opacity-90 backdrop-blur-xs">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <circle cx="11" cy="11" r="7" />
                     <path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
@@ -124,14 +124,14 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
             type="button"
             onClick={() => setZoomSrc(initial.latest_photo_url)}
             aria-label="Enlarge proof preview"
-            className="group relative block w-full cursor-zoom-in overflow-hidden rounded-md border border-ink/[0.08]"
+            className="group relative block w-full cursor-zoom-in overflow-hidden rounded-md border border-ink/8"
           >
             <img
               src={initial.latest_photo_url}
               alt="Proof preview"
               className="w-full transition-transform duration-200 group-hover:scale-[1.02]"
             />
-            <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white opacity-90 backdrop-blur-sm">
+            <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white opacity-90 backdrop-blur-xs">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="11" cy="11" r="7" />
                 <path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
@@ -176,7 +176,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
         </div>
       ) : (
         <>
-          <hr className="my-6 border-ink/[0.08]" />
+          <hr className="my-6 border-ink/8" />
 
           <label
             htmlFor="approver"
@@ -189,7 +189,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="So we can record who signed it off"
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
           />
 
           <label
@@ -204,7 +204,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
             onChange={(e) => setComment(e.target.value)}
             rows={3}
             maxLength={2000}
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
             placeholder="Anything we should know? Colour tweaks, placement notes, etc."
           />
 
@@ -225,7 +225,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
               type="button"
               onClick={() => submit(true)}
               disabled={pending}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-xs hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
             >
               Approve and send to print
             </button>
@@ -247,7 +247,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
           aria-modal="true"
           aria-label="Enlarged artwork preview"
           onClick={() => setZoomSrc(null)}
-          className="fixed inset-0 z-[200] flex cursor-zoom-out items-center justify-center bg-black/85 p-4"
+          className="fixed inset-0 z-200 flex cursor-zoom-out items-center justify-center bg-black/85 p-4"
         >
           <button
             type="button"
@@ -256,7 +256,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
               setZoomSrc(null)
             }}
             aria-label="Close enlarged view"
-            className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition hover:bg-white/25"
+            className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-xs transition hover:bg-white/25"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M18 6 6 18M6 6l12 12" />

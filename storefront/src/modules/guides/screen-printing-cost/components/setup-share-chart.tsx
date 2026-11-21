@@ -10,7 +10,7 @@ const ROWS = [
 export default function SetupShareChart() {
   return (
     <figure className="m-0 rounded-2xl border border-ui-border-base bg-white p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
         Cost of each garment
       </p>
       <div className="mt-4 space-y-4">
@@ -31,10 +31,10 @@ export default function SetupShareChart() {
       </div>
       <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ui-fg-subtle">
         <span className="inline-flex items-center gap-2">
-          <span className="h-3 w-3 rounded-sm bg-brand" /> Its share of the setup
+          <span className="h-3 w-3 rounded-xs bg-brand" /> Its share of the setup
         </span>
         <span className="inline-flex items-center gap-2">
-          <span className="h-3 w-3 rounded-sm bg-ink" /> Printing it
+          <span className="h-3 w-3 rounded-xs bg-ink" /> Printing it
         </span>
       </div>
       <figcaption className="mt-3 text-xs text-ui-fg-muted">

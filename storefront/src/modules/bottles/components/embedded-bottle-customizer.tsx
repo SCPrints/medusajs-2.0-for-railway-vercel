@@ -51,7 +51,7 @@ export default function EmbeddedBottleCustomizer({
                   className={
                     "rounded-full border px-4 py-1.5 text-sm transition " +
                     (active
-                      ? "border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white"
+                      ? "border-(--brand-primary) bg-(--brand-primary) text-white"
                       : "border-ui-border-base hover:bg-ui-bg-subtle disabled:opacity-50")
                   }
                   title={opt.isInStock ? undefined : "Out of stock"}

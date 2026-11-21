@@ -147,7 +147,7 @@ export default function NewOrderForm({
         <select
           value={destinationId}
           onChange={(e) => setDestinationId(e.target.value)}
-          className="mt-3 w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40 min-h-11 phone:max-w-md"
+          className="mt-3 w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 min-h-11 phone:max-w-md"
           required
         >
           <option value="">Select a destination…</option>
@@ -174,7 +174,7 @@ export default function NewOrderForm({
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="rounded-full border border-[var(--brand-secondary)]/40 px-3 py-1.5 text-xs font-semibold text-brand transition hover:bg-[var(--brand-secondary)]/10 min-h-11"
+            className="rounded-full border border-(--brand-secondary)/40 px-3 py-1.5 text-xs font-semibold text-brand transition hover:bg-(--brand-secondary)/10 min-h-11"
           >
             + Add item
           </button>
@@ -238,7 +238,7 @@ export default function NewOrderForm({
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                             inv.fulfillment_mode === "held_stock"
-                              ? "bg-[var(--brand-accent)]/15 text-ink"
+                              ? "bg-(--brand-accent)/15 text-ink"
                               : "bg-ui-bg-subtle text-ui-fg-subtle"
                           }`}
                         >
@@ -263,7 +263,7 @@ export default function NewOrderForm({
                               Number(e.target.value.replace(/[^\d]/g, "")) || 0
                             )
                           }
-                          className="w-20 rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-right text-sm tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40"
+                          className="w-20 rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-right text-sm tabular-nums focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
                         />
                         {overAllocated ? (
                           <p className="mt-1 text-[11px] text-amber-700">
@@ -311,7 +311,7 @@ export default function NewOrderForm({
               value={externalRef}
               onChange={(e) => setExternalRef(e.target.value.slice(0, 120))}
               placeholder="PO#, internal ref, etc."
-              className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40 min-h-11"
+              className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 min-h-11"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -322,7 +322,7 @@ export default function NewOrderForm({
               type="date"
               value={requiredBy}
               onChange={(e) => setRequiredBy(e.target.value)}
-              className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40 min-h-11"
+              className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 min-h-11"
             />
           </label>
         </div>
@@ -335,7 +335,7 @@ export default function NewOrderForm({
             onChange={(e) => setNotes(e.target.value.slice(0, 2000))}
             rows={3}
             placeholder="Any special instructions for our production team."
-            className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40"
+            className="rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
           />
         </label>
       </section>
@@ -355,7 +355,7 @@ export default function NewOrderForm({
         style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
       >
         <div className="flex items-baseline gap-3">
-          <span className="text-xs uppercase tracking-[0.1em] text-ui-fg-muted">
+          <span className="text-xs uppercase tracking-widest text-ui-fg-muted">
             Total
           </span>
           <span className="text-xl font-semibold tabular-nums text-ui-fg-base">
@@ -376,7 +376,7 @@ export default function NewOrderForm({
             type="button"
             disabled={!canSubmit}
             onClick={() => setConfirmOpen(true)}
-            className="inline-flex flex-1 items-center justify-center rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11 small:flex-none"
+            className="inline-flex flex-1 items-center justify-center rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-(--brand-secondary)/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11 small:flex-none"
           >
             Submit order
           </button>
@@ -454,13 +454,13 @@ function AddItemPicker({
       role="dialog"
       aria-modal="true"
       aria-label="Add item"
-      className="fixed inset-0 z-[80] flex items-end justify-center small:items-center small:p-4"
+      className="fixed inset-0 z-80 flex items-end justify-center small:items-center small:p-4"
     >
       <button
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-xs"
       />
       <div
         className="relative z-10 flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl small:max-w-3xl small:rounded-2xl"
@@ -499,7 +499,7 @@ function AddItemPicker({
                         setChosenDesign(d)
                         setStep("sku")
                       }}
-                      className="group flex flex-col overflow-hidden rounded-2xl border border-ui-border-base bg-white text-left transition hover:border-[var(--brand-secondary)]/40 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40"
+                      className="group flex flex-col overflow-hidden rounded-2xl border border-ui-border-base bg-white text-left transition hover:border-(--brand-secondary)/40 hover:shadow-xs focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
                     >
                       <div className="relative aspect-square w-full bg-ui-bg-subtle">
                         {d.thumbnail_url ? (
@@ -610,7 +610,7 @@ function SkuPicker({
                       ),
                     }))
                   }
-                  className="w-20 rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-right text-sm tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40 min-h-11"
+                  className="w-20 rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-right text-sm tabular-nums focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 min-h-11"
                 />
                 <button
                   type="button"
@@ -618,7 +618,7 @@ function SkuPicker({
                   onClick={() => {
                     onAdd(r.id, current)
                   }}
-                  className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
+                  className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-(--brand-secondary)/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
                 >
                   Add
                 </button>
@@ -651,13 +651,13 @@ function ConfirmModal({
       role="dialog"
       aria-modal="true"
       aria-label="Confirm order"
-      className="fixed inset-0 z-[85] flex items-center justify-center p-4"
+      className="fixed inset-0 z-85 flex items-center justify-center p-4"
     >
       <button
         type="button"
         aria-label="Cancel"
         onClick={onCancel}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-xs"
       />
       <div className="relative z-10 flex w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="px-5 pt-5">
@@ -692,7 +692,7 @@ function ConfirmModal({
             type="button"
             onClick={onConfirm}
             disabled={submitting}
-            className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:opacity-60 min-h-11"
+            className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white transition hover:bg-(--brand-secondary)/90 disabled:opacity-60 min-h-11"
           >
             {submitting ? "Placing…" : "Place order"}
           </button>

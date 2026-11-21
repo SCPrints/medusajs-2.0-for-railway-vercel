@@ -973,7 +973,7 @@ function ArtworkStep({
           onChange={(e) => onNotesChange(e.target.value)}
           rows={4}
           placeholder="e.g. Left chest embroidery on polos, front print on t-shirts, cap front embroidery. Logo should be max 80mm wide."
-          className="rounded-xl border border-ui-border-base bg-ui-bg-base px-4 py-3 text-sm text-ui-fg-base placeholder:text-ui-fg-muted resize-none focus:outline-none focus:ring-1 focus:ring-ui-border-interactive"
+          className="rounded-xl border border-ui-border-base bg-ui-bg-base px-4 py-3 text-sm text-ui-fg-base placeholder:text-ui-fg-muted resize-none focus:outline-hidden focus:ring-1 focus:ring-ui-border-interactive"
         />
         <p className="text-xs text-ui-fg-muted">
           Tell us where you&apos;d like each decoration placed and any size or colour preferences.

@@ -102,7 +102,7 @@ export default function TeeFinder({ tees }: { tees: FinderTee[] }) {
               <li key={t.handle}>
                 <LocalizedClientLink
                   href={`/products/${t.handle}`}
-                  className="group flex min-h-11 items-center gap-4 border-b border-[#e6e6e1] py-3 !text-[#1a1a1a]"
+                  className="group flex min-h-11 items-center gap-4 border-b border-[#e6e6e1] py-3 text-[#1a1a1a]!"
                 >
                   <span className="relative h-16 w-14 shrink-0 bg-[#f4f3f0]">
                     {t.image ? (

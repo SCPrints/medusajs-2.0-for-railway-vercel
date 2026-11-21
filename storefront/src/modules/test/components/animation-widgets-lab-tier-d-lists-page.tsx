@@ -104,7 +104,7 @@ export function LabTierDFilterChips({ reducedMotion }: { reducedMotion: boolean 
           </motion.button>
         ))}
       </div>
-      <div className="mt-4 flex min-h-[2rem] flex-wrap gap-2">
+      <div className="mt-4 flex min-h-8 flex-wrap gap-2">
         <AnimatePresence mode="popLayout">
           {chips.map((c) => (
             <motion.span
@@ -216,7 +216,7 @@ export function LabTierDSectionDividerSweep({ reducedMotion }: { reducedMotion: 
   return (
     <div ref={ref} className="py-8">
       <motion.div
-        className="h-0.5 rounded-full bg-gradient-to-r from-[#FF2E63] to-transparent"
+        className="h-0.5 rounded-full bg-linear-to-r from-[#FF2E63] to-transparent"
         initial={{ width: reducedMotion ? "100%" : "0%" }}
         animate={{ width: inView ? "100%" : reducedMotion ? "100%" : "0%" }}
         transition={reducedMotion ? { duration: 0 } : { duration: 0.9, ease: [0.22, 1, 0.36, 1] }}

@@ -26,7 +26,7 @@ export default function ThemeToggle({ className }: { className?: string }) {
       aria-checked={on}
       onClick={() => setTheme(on ? "classic" : seasonal.name)}
       className={
-        "inline-flex min-h-11 items-center gap-3 rounded-full px-1 text-sm font-medium text-ui-fg-subtle transition-colors hover:text-ui-fg-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand-secondary)]" +
+        "inline-flex min-h-11 items-center gap-3 rounded-full px-1 text-sm font-medium text-ui-fg-subtle transition-colors hover:text-ui-fg-base focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--brand-secondary)" +
         (className ? ` ${className}` : "")
       }
       data-testid="theme-toggle"
@@ -37,12 +37,12 @@ export default function ThemeToggle({ className }: { className?: string }) {
         aria-hidden
         className={
           "relative h-6 w-11 shrink-0 rounded-full transition-colors " +
-          (on ? "bg-[var(--brand-secondary)]" : "bg-ui-fg-subtle")
+          (on ? "bg-(--brand-secondary)" : "bg-ui-fg-subtle")
         }
       >
         <span
           className={
-            "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform motion-reduce:transition-none " +
+            "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none " +
             (on ? "translate-x-5" : "translate-x-0")
           }
         />

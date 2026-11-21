@@ -115,7 +115,7 @@ export function LabTierCMaskImageWipe({ reducedMotion }: { reducedMotion: boolea
         `,
         }}
       />
-      <div className={`lab-tier-c-mask-box max-w-md ${reducedMotion ? "!animate-none" : ""}`} />
+      <div className={`lab-tier-c-mask-box max-w-md ${reducedMotion ? "animate-none!" : ""}`} />
       <p className="text-xs text-ui-fg-muted">Gradient revealed by animated radial mask-position.</p>
     </div>
   )

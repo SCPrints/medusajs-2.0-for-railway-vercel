@@ -85,7 +85,7 @@ export default async function LookbookPage({ searchParams }: Params) {
   return (
     <div className="content-container py-14 small:py-20">
       <header className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
           See what we make
         </p>
         <h1 className="page-title-marketing mt-3 tracking-tight">Lookbook</h1>
@@ -103,7 +103,7 @@ export default async function LookbookPage({ searchParams }: Params) {
           {tags.map((t) => (
             <span
               key={t}
-              className="inline-flex items-center rounded-full border border-ui-border-base bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand-primary)]/80"
+              className="inline-flex items-center rounded-full border border-ui-border-base bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-(--brand-primary)/80"
             >
               {t}
             </span>
@@ -120,7 +120,7 @@ export default async function LookbookPage({ searchParams }: Params) {
           <div className="mt-6 flex justify-center">
             <LocalizedClientLink
               href="/contact"
-              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
             >
               Request the portfolio
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -140,7 +140,7 @@ export default async function LookbookPage({ searchParams }: Params) {
             <LocalizedClientLink
               href={pageHref(currentPage - 1)}
               rel="prev"
-              className="inline-flex h-9 items-center rounded-lg border border-ui-border-base bg-white px-3 text-sm font-semibold text-ui-fg-base transition hover:border-[var(--brand-secondary)]/40"
+              className="inline-flex h-9 items-center rounded-lg border border-ui-border-base bg-white px-3 text-sm font-semibold text-ui-fg-base transition hover:border-(--brand-secondary)/40"
             >
               Prev
             </LocalizedClientLink>
@@ -170,7 +170,7 @@ export default async function LookbookPage({ searchParams }: Params) {
               <LocalizedClientLink
                 key={p}
                 href={pageHref(p)}
-                className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-ui-border-base bg-white px-3 text-sm font-semibold text-ui-fg-base transition hover:border-[var(--brand-secondary)]/40"
+                className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-ui-border-base bg-white px-3 text-sm font-semibold text-ui-fg-base transition hover:border-(--brand-secondary)/40"
               >
                 {p}
               </LocalizedClientLink>
@@ -181,7 +181,7 @@ export default async function LookbookPage({ searchParams }: Params) {
             <LocalizedClientLink
               href={pageHref(currentPage + 1)}
               rel="next"
-              className="inline-flex h-9 items-center rounded-lg border border-ui-border-base bg-white px-3 text-sm font-semibold text-ui-fg-base transition hover:border-[var(--brand-secondary)]/40"
+              className="inline-flex h-9 items-center rounded-lg border border-ui-border-base bg-white px-3 text-sm font-semibold text-ui-fg-base transition hover:border-(--brand-secondary)/40"
             >
               Next
             </LocalizedClientLink>

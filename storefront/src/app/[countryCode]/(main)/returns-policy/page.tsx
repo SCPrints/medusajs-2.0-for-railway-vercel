@@ -41,7 +41,7 @@ export default function ReturnsPolicyPage() {
   return (
     <div className="content-container py-14 small:py-20">
       <header className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
           Policy &middot; Returns
         </p>
         <h1 className="page-title-marketing mt-3 tracking-tight">
@@ -56,7 +56,7 @@ export default function ReturnsPolicyPage() {
 
       <div className="mx-auto mt-10 max-w-3xl space-y-5">
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Section 01
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -74,7 +74,7 @@ export default function ReturnsPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Section 02
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -112,7 +112,7 @@ export default function ReturnsPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Section 03
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -131,7 +131,7 @@ export default function ReturnsPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Section 04
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -149,7 +149,7 @@ export default function ReturnsPolicyPage() {
         </section>
 
         <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Section 05
           </p>
           <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -166,7 +166,7 @@ export default function ReturnsPolicyPage() {
 
       <div className="mx-auto mt-12 max-w-3xl">
         <div className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 text-center small:p-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Need to report an issue?
           </p>
           <h2 className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl">
@@ -180,7 +180,7 @@ export default function ReturnsPolicyPage() {
           <div className="mt-7 flex justify-center">
             <LocalizedClientLink
               href="/contact"
-              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
             >
               Contact support
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

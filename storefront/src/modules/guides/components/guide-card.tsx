@@ -14,9 +14,9 @@ export default function GuideCard({
   return (
     <LocalizedClientLink
       href={guideHref(guide)}
-      className="group flex h-full flex-col overflow-hidden rounded-xl border border-ui-border-base bg-white !text-ui-fg-base transition hover:-translate-y-0.5 hover:border-brand hover:shadow-md"
+      className="group flex h-full flex-col overflow-hidden rounded-xl border border-ui-border-base bg-white text-ui-fg-base! transition hover:-translate-y-0.5 hover:border-brand hover:shadow-md"
     >
-      <div className="relative aspect-[16/10] overflow-hidden bg-ink">
+      <div className="relative aspect-16/10 overflow-hidden bg-ink">
         {guide.cover ? (
           <Image
             src={guide.cover}
@@ -37,7 +37,7 @@ export default function GuideCard({
             ))}
           </div>
         )}
-        <span className="absolute left-3 top-3 rounded-md bg-white px-2 py-1 text-xs font-semibold !text-ink shadow-sm">
+        <span className="absolute left-3 top-3 rounded-md bg-white px-2 py-1 text-xs font-semibold text-ink! shadow-xs">
           {guide.tag}
         </span>
       </div>

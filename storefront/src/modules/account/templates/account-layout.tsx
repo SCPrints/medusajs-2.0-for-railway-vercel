@@ -40,7 +40,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         </div>
         <div className="flex flex-col items-start justify-between gap-6 border-t border-ui-border-base py-12 small:flex-row small:items-end">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               Help
             </p>
             <h3 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">
@@ -53,7 +53,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
           </div>
           <LocalizedClientLink
             href="/contact"
-            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
           >
             Contact support
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

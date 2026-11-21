@@ -1,13 +1,123 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
+@import 'tailwindcss';
 
-:root {
-  /* Sticky header height (row 1 = 80px; row 2 category bar adds 48px from `small:`).
+@config '../../tailwind.config.js';
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility instagram-feed-track {
+  animation: instagram-feed-marquee 70s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility no-scrollbar {
+  /* Chrome, Safari and Opera */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+@utility content-container {
+  @apply max-w-[1440px] w-full mx-auto px-6;
+}
+
+@utility page-title-marketing {
+  /** Primary H1 on marketing / content pages (services, FAQ, hero cards, policies). */
+  @apply text-4xl font-semibold leading-tight text-ui-fg-base small:text-5xl;
+}
+
+@utility page-title-catalog {
+  /** Primary H1 on catalog listing pages (store, collections, categories). */
+  @apply text-3xl font-semibold leading-tight text-ui-fg-base small:text-4xl;
+}
+
+@utility contrast-btn {
+  @apply px-4 py-2 border border-black rounded-full hover:bg-black hover:text-white transition-colors duration-200 ease-in;
+}
+
+@utility text-xsmall-regular {
+  @apply text-[10px] leading-4 font-normal;
+}
+
+@utility text-small-regular {
+  @apply text-xs leading-5 font-normal;
+}
+
+@utility text-small-semi {
+  @apply text-xs leading-5 font-semibold;
+}
+
+@utility text-base-regular {
+  @apply text-sm leading-6 font-normal;
+}
+
+@utility text-base-semi {
+  @apply text-sm leading-6 font-semibold;
+}
+
+@utility text-large-regular {
+  @apply text-base leading-6 font-normal;
+}
+
+@utility text-large-semi {
+  @apply text-base leading-6 font-semibold;
+}
+
+@utility text-xl-regular {
+  @apply text-2xl leading-[36px] font-normal;
+}
+
+@utility text-xl-semi {
+  @apply text-2xl leading-[36px] font-semibold;
+}
+
+@utility text-2xl-regular {
+  @apply text-[30px] leading-[48px] font-normal;
+}
+
+@utility text-2xl-semi {
+  @apply text-[30px] leading-[48px] font-semibold;
+}
+
+@utility text-3xl-regular {
+  @apply text-[32px] leading-[44px] font-normal;
+}
+
+@utility text-3xl-semi {
+  @apply text-[32px] leading-[44px] font-semibold;
+}
+
+@layer utilities {
+  :root {
+    /* Sticky header height (row 1 = 80px; row 2 category bar adds 48px from `small:`).
      Full-viewport pages subtract this: calc(100dvh - var(--nav-height)). */
-  --nav-height: 80px;
+    --nav-height: 80px;
 
-  /* ── Semantic colour tokens ─────────────────────────────────────────────
+    /* ── Semantic colour tokens ─────────────────────────────────────────────
      Space-separated RGB channels so Tailwind can apply opacity modifiers:
      tailwind.config.js maps each to `rgb(var(--x) / <alpha-value>)`, so
      `bg-brand/20`, `text-ink/[0.72]` etc. work. Use them in CSS as
@@ -15,194 +125,189 @@
      A seasonal theme overrides these on `html[data-theme="…"]` — nothing
      else should need to change. Product imagery, garment swatches, the
      customizer canvas and mockups deliberately do NOT read these. */
-  --brand: 255 46 99; /* Magenta Punch #ff2e63 — CTAs, links, highlights */
-  --ink: 26 26 46; /* Inkwell Navy #1a1a2e — body text, dark buttons */
-  --accent: 61 207 194; /* Brand teal #3dcfc2 — hover/secondary accent */
-  --surface: 238 238 238; /* Soft Light #eeeeee — page background */
-  --header-bg: var(--ink); /* Sticky header + checkout header bar */
-  --header-fg: 248 250 252; /* #f8fafc — text on the header / mega-menu */
-  --header-panel: 12 17 23; /* #0c1117 — mega-menu dropdown panel (used at /95) */
-  --hero-overlay: 255 255 255; /* Home hero left-side readability wash */
+    --brand: 255 46 99; /* Magenta Punch #ff2e63 — CTAs, links, highlights */
+    --ink: 26 26 46; /* Inkwell Navy #1a1a2e — body text, dark buttons */
+    --accent: 61 207 194; /* Brand teal #3dcfc2 — hover/secondary accent */
+    --surface: 238 238 238; /* Soft Light #eeeeee — page background */
+    --header-bg: var(--ink); /* Sticky header + checkout header bar */
+    --header-fg: 248 250 252; /* #f8fafc — text on the header / mega-menu */
+    --header-panel: 12 17 23; /* #0c1117 — mega-menu dropdown panel (used at /95) */
+    --hero-overlay: 255 255 255; /* Home hero left-side readability wash */
 
-  /* Legacy aliases — still read by inline styles, the customizer UI and a
+    /* Legacy aliases — still read by inline styles, the customizer UI and a
      few raw `var(--brand-*)` call sites. Derived from the tokens above so
      they follow a theme automatically. Prefer the Tailwind token classes
      (`text-brand`, `bg-ink`, `text-accent`, `bg-surface`) in new code. */
-  --brand-primary: rgb(var(--ink));
-  --brand-secondary: rgb(var(--brand));
-  --brand-accent: rgb(var(--accent));
-  --brand-background: rgb(var(--surface));
-}
-
-/* Tactile press (test page #4) — :where = zero specificity, opt out [data-no-squish] */
-:where(button):not([disabled]):not([aria-disabled="true"]):not([data-no-squish]) {
-  transition: transform 140ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  transform-origin: center;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  :where(button):not([disabled]):not([aria-disabled="true"]):not([data-no-squish]):active {
-    transform: scale(0.97);
+    --brand-primary: rgb(var(--ink));
+    --brand-secondary: rgb(var(--brand));
+    --brand-accent: rgb(var(--accent));
+    --brand-background: rgb(var(--surface));
   }
-}
 
-html,
-body,
-main {
-  background-color: var(--brand-background);
-  color: var(--brand-primary);
-}
+  /* Tactile press (test page #4) — :where = zero specificity, opt out [data-no-squish] */
+  :where(button):not([disabled]):not([aria-disabled='true']):not(
+      [data-no-squish]
+    ) {
+    transition: transform 140ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: center;
+  }
 
-/* (The document-wide `overflow-anchor: none` hack that lived here was removed
+  @media (prefers-reduced-motion: no-preference) {
+    :where(button):not([disabled]):not([aria-disabled='true']):not(
+        [data-no-squish]
+      ):active {
+      transform: scale(0.97);
+    }
+  }
+
+  html,
+  body,
+  main {
+    background-color: var(--brand-background);
+    color: var(--brand-primary);
+  }
+
+  /* (The document-wide `overflow-anchor: none` hack that lived here was removed
    2026-06-10: the sticky header's row 2 no longer animates its in-flow height
    — it slides with transform inside a constant-height slot — so the scroll-
    anchoring feedback loop it papered over can't occur, and the rest of the
    site gets native shift compensation back.) */
 
-.cursor-follow-trail {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 60;
-}
-
-.cursor-follow-particle {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 9999px;
-  /* Teal-dominant; magenta only in the last segment of the gradient */
-  background: linear-gradient(
-    135deg,
-    var(--brand-accent) 0%,
-    var(--brand-accent) 72%,
-    var(--brand-secondary) 100%
-  );
-  box-shadow: 0 0 0 1px rgb(var(--ink) / 0.12);
-  pointer-events: none;
-  opacity: 0;
-  will-change: transform, opacity;
-}
-
-@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
   .cursor-follow-trail {
-    display: none;
-  }
-}
-
-/* Slow magenta ↔ teal pulse used for the customizer "Printing on" location
-   chips at Step 4. Two-tone identity moment that reinforces "this is the
-   stuff that's going on your garment". Honours reduced-motion. */
-@keyframes scpBrandPulse {
-  0%,
-  100% {
-    color: var(--brand-secondary);
-  }
-  50% {
-    color: var(--brand-accent);
-  }
-}
-
-.animate-brand-pulse {
-  animation: scpBrandPulse 3.6s ease-in-out infinite;
-  font-weight: 600;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-brand-pulse {
-    animation: none;
-    color: var(--brand-secondary);
-  }
-}
-
-/* Lean default text links toward brand secondary, keep button links unaffected */
-a:not(.bg-ui-fg-base):not(.text-white) {
-  color: var(--brand-secondary);
-}
-
-a:not(.bg-ui-fg-base):not(.text-white):hover {
-  color: var(--brand-accent);
-}
-
-/* Global palette overrides for Medusa UI utility classes */
-.text-ui-fg-base {
-  color: var(--brand-primary);
-}
-
-.text-ui-fg-subtle {
-  color: rgb(var(--ink) / 0.72);
-}
-
-.bg-ui-fg-base {
-  background-color: var(--brand-primary);
-}
-
-.bg-ui-bg-base,
-.bg-ui-bg-subtle {
-  background-color: var(--brand-background);
-}
-
-.border-ui-border-base {
-  border-color: rgb(var(--ink) / 0.22);
-}
-
-/* Keep interactive states aligned with the new palette */
-.hover\:bg-black:hover {
-  background-color: var(--brand-accent);
-  color: var(--brand-primary);
-}
-
-/* Checkout flow — high-contrast primary actions (Medusa default primary can read as grey) */
-.checkout-primary-action:not(:disabled) {
-  background-color: var(--brand-primary) !important;
-  color: rgb(var(--header-fg) / 0.98) !important;
-  border-color: transparent !important;
-}
-.checkout-primary-action:hover:not(:disabled) {
-  background-color: var(--brand-secondary) !important;
-  color: rgb(var(--header-fg) / 0.98) !important;
-}
-.checkout-primary-action:disabled {
-  opacity: 0.45;
-}
-
-/* Checkout nav: don't let global `a { color: var(--brand-secondary) }` override light-on-navy links */
-a.checkout-nav-link {
-  color: rgb(var(--header-fg) / 0.9) !important;
-}
-a.checkout-nav-link:hover {
-  color: var(--brand-accent) !important;
-}
-a.checkout-nav-link--subtle {
-  color: rgb(var(--header-fg) / 0.75) !important;
-}
-a.checkout-nav-link--subtle:hover {
-  color: var(--brand-accent) !important;
-}
-
-.focus\:ring-ui-fg-base:focus {
-  --tw-ring-color: var(--brand-secondary);
-}
-
-/* Small badge/chip treatment */
-[class*="rounded-full"][class*="text-xs"] {
-  border-color: rgb(var(--brand) / 0.5);
-  color: var(--brand-secondary);
-}
-
-@layer utilities {
-  .instagram-feed-track {
-    animation: instagram-feed-marquee 70s linear infinite;
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 60;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .instagram-feed-track {
-      animation: none;
+  .cursor-follow-particle {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 9999px;
+    /* Teal-dominant; magenta only in the last segment of the gradient */
+    background: linear-gradient(
+      135deg,
+      var(--brand-accent) 0%,
+      var(--brand-accent) 72%,
+      var(--brand-secondary) 100%
+    );
+    box-shadow: 0 0 0 1px rgb(var(--ink) / 0.12);
+    pointer-events: none;
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+
+  @media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+    .cursor-follow-trail {
+      display: none;
     }
   }
 
+  /* Slow magenta ↔ teal pulse used for the customizer "Printing on" location
+   chips at Step 4. Two-tone identity moment that reinforces "this is the
+   stuff that's going on your garment". Honours reduced-motion. */
+  @keyframes scpBrandPulse {
+    0%,
+    100% {
+      color: var(--brand-secondary);
+    }
+    50% {
+      color: var(--brand-accent);
+    }
+  }
+
+  .animate-brand-pulse {
+    animation: scpBrandPulse 3.6s ease-in-out infinite;
+    font-weight: 600;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-brand-pulse {
+      animation: none;
+      color: var(--brand-secondary);
+    }
+  }
+
+  /* Lean default text links toward brand secondary, keep button links unaffected */
+  a:not(.bg-ui-fg-base):not(.text-white) {
+    color: var(--brand-secondary);
+  }
+
+  a:not(.bg-ui-fg-base):not(.text-white):hover {
+    color: var(--brand-accent);
+  }
+
+  /* Global palette overrides for Medusa UI utility classes */
+  .text-ui-fg-base {
+    color: var(--brand-primary);
+  }
+
+  .text-ui-fg-subtle {
+    color: rgb(var(--ink) / 0.72);
+  }
+
+  .bg-ui-fg-base {
+    background-color: var(--brand-primary);
+  }
+
+  .bg-ui-bg-base,
+  .bg-ui-bg-subtle {
+    background-color: var(--brand-background);
+  }
+
+  .border-ui-border-base {
+    border-color: rgb(var(--ink) / 0.22);
+  }
+
+  /* Keep interactive states aligned with the new palette */
+  .hover\:bg-black:hover {
+    background-color: var(--brand-accent);
+    color: var(--brand-primary);
+  }
+
+  /* Checkout flow — high-contrast primary actions (Medusa default primary can read as grey) */
+  .checkout-primary-action:not(:disabled) {
+    background-color: var(--brand-primary) !important;
+    color: rgb(var(--header-fg) / 0.98) !important;
+    border-color: transparent !important;
+  }
+  .checkout-primary-action:hover:not(:disabled) {
+    background-color: var(--brand-secondary) !important;
+    color: rgb(var(--header-fg) / 0.98) !important;
+  }
+  .checkout-primary-action:disabled {
+    opacity: 0.45;
+  }
+
+  /* Checkout nav: don't let global `a { color: var(--brand-secondary) }` override light-on-navy links */
+  a.checkout-nav-link {
+    color: rgb(var(--header-fg) / 0.9) !important;
+  }
+  a.checkout-nav-link:hover {
+    color: var(--brand-accent) !important;
+  }
+  a.checkout-nav-link--subtle {
+    color: rgb(var(--header-fg) / 0.75) !important;
+  }
+  a.checkout-nav-link--subtle:hover {
+    color: var(--brand-accent) !important;
+  }
+
+  .focus\:ring-ui-fg-base:focus {
+    --tw-ring-color: var(--brand-secondary);
+  }
+
+  /* Small badge/chip treatment */
+  [class*='rounded-full'][class*='text-xs'] {
+    border-color: rgb(var(--brand) / 0.5);
+    color: var(--brand-secondary);
+  }
+}
+
+@layer utilities {
   @keyframes instagram-feed-marquee {
     0% {
       transform: translateX(0);
@@ -210,20 +315,6 @@ a.checkout-nav-link--subtle:hover {
     100% {
       transform: translateX(calc(-50% - 0.375rem));
     }
-  }
-
-  /* Chrome, Safari and Opera */
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  .no-scrollbar::-webkit-scrollbar-track {
-    background-color: transparent;
-  }
-
-  .no-scrollbar {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
   }
 
   input:focus ~ label,
@@ -255,78 +346,6 @@ a.checkout-nav-link--subtle:hover {
   input[type="search"]::-webkit-search-results-button,
   input[type="search"]::-webkit-search-results-decoration {
     -webkit-appearance: none;
-  }
-}
-
-@layer components {
-  .content-container {
-    @apply max-w-[1440px] w-full mx-auto px-6;
-  }
-
-  /** Primary H1 on marketing / content pages (services, FAQ, hero cards, policies). */
-  .page-title-marketing {
-    @apply text-4xl font-semibold leading-tight text-ui-fg-base small:text-5xl;
-  }
-
-  /** Primary H1 on catalog listing pages (store, collections, categories). */
-  .page-title-catalog {
-    @apply text-3xl font-semibold leading-tight text-ui-fg-base small:text-4xl;
-  }
-
-  .contrast-btn {
-    @apply px-4 py-2 border border-black rounded-full hover:bg-black hover:text-white transition-colors duration-200 ease-in;
-  }
-
-  .text-xsmall-regular {
-    @apply text-[10px] leading-4 font-normal;
-  }
-
-  .text-small-regular {
-    @apply text-xs leading-5 font-normal;
-  }
-
-  .text-small-semi {
-    @apply text-xs leading-5 font-semibold;
-  }
-
-  .text-base-regular {
-    @apply text-sm leading-6 font-normal;
-  }
-
-  .text-base-semi {
-    @apply text-sm leading-6 font-semibold;
-  }
-
-  .text-large-regular {
-    @apply text-base leading-6 font-normal;
-  }
-
-  .text-large-semi {
-    @apply text-base leading-6 font-semibold;
-  }
-
-  .text-xl-regular {
-    @apply text-2xl leading-[36px] font-normal;
-  }
-
-  .text-xl-semi {
-    @apply text-2xl leading-[36px] font-semibold;
-  }
-
-  .text-2xl-regular {
-    @apply text-[30px] leading-[48px] font-normal;
-  }
-
-  .text-2xl-semi {
-    @apply text-[30px] leading-[48px] font-semibold;
-  }
-
-  .text-3xl-regular {
-    @apply text-[32px] leading-[44px] font-normal;
-  }
-
-  .text-3xl-semi {
-    @apply text-[32px] leading-[44px] font-semibold;
   }
 }
 

@@ -61,7 +61,7 @@ export default function InventoryTab({ inventory, designs }: Props) {
           <select
             value={designFilter}
             onChange={(e) => setDesignFilter(e.target.value)}
-            className="rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40"
+            className="rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
           >
             <option value="all">All designs</option>
             {designs.map((d) => (
@@ -78,7 +78,7 @@ export default function InventoryTab({ inventory, designs }: Props) {
           <select
             value={modeFilter}
             onChange={(e) => setModeFilter(e.target.value as ModeFilter)}
-            className="rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40"
+            className="rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
           >
             <option value="all">All modes</option>
             <option value="held_stock">Held stock</option>
@@ -145,7 +145,7 @@ export default function InventoryTab({ inventory, designs }: Props) {
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                         r.fulfillment_mode === "held_stock"
-                          ? "bg-[var(--brand-accent)]/15 text-ink"
+                          ? "bg-(--brand-accent)/15 text-ink"
                           : "bg-ui-bg-subtle text-ui-fg-subtle"
                       }`}
                     >
@@ -215,7 +215,7 @@ export default function InventoryTab({ inventory, designs }: Props) {
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                     r.fulfillment_mode === "held_stock"
-                      ? "bg-[var(--brand-accent)]/15 text-ink"
+                      ? "bg-(--brand-accent)/15 text-ink"
                       : "bg-ui-bg-subtle text-ui-fg-subtle"
                   }`}
                 >

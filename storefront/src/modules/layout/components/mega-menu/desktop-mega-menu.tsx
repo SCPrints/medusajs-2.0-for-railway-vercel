@@ -130,7 +130,7 @@ const DesktopMegaMenu = ({ audiences }: Props) => {
                   className={[
                     "inline-flex items-center px-3 py-3 text-sm font-medium tracking-wide whitespace-nowrap",
                     "transition-colors duration-150",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]/60 focus-visible:rounded",
+                    "focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-accent)/60 focus-visible:rounded-sm",
                     isOpen
                       ? "text-accent"
                       : "text-brand hover:text-accent",

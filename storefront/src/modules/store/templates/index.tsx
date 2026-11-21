@@ -155,7 +155,7 @@ const StoreTemplate = async ({
       />
       <div className="w-full">
         <header className="mb-8 border-l-4 border-brand pl-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             {heading?.eyebrow ??
               (matchedBrand || isRamo
                 ? "Brand catalog"

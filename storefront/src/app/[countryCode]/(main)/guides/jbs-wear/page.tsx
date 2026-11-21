@@ -124,11 +124,11 @@ const label = "text-xs font-semibold uppercase tracking-[0.16em]"
 const h2 = `${display.className} text-5xl font-extrabold uppercase leading-[0.92] small:text-7xl`
 const chip = `${display.className} inline-block border px-2 py-0.5 text-sm font-semibold uppercase tracking-[0.08em]`
 const btnAmber =
-  "inline-flex min-h-11 items-center gap-2 bg-[#f5b300] px-6 py-3 text-sm font-bold uppercase tracking-[0.12em] !text-[#0f2238] transition hover:bg-white"
+  "inline-flex min-h-11 items-center gap-2 bg-[#f5b300] px-6 py-3 text-sm font-bold uppercase tracking-[0.12em] text-[#0f2238]! transition hover:bg-white"
 const btnGhost =
-  "inline-flex min-h-11 items-center gap-2 border-2 border-white/50 px-6 py-3 text-sm font-bold uppercase tracking-[0.12em] !text-white transition hover:border-white"
+  "inline-flex min-h-11 items-center gap-2 border-2 border-white/50 px-6 py-3 text-sm font-bold uppercase tracking-[0.12em] text-white! transition hover:border-white"
 const btnNavy =
-  "inline-flex min-h-11 items-center gap-2 bg-[#0f2238] px-6 py-3 text-sm font-bold uppercase tracking-[0.12em] !text-white transition hover:bg-[#1d3a5c]"
+  "inline-flex min-h-11 items-center gap-2 bg-[#0f2238] px-6 py-3 text-sm font-bold uppercase tracking-[0.12em] text-white! transition hover:bg-[#1d3a5c]"
 const delay = (s: number) => ({ ["--d" as string]: `${s}s` })
 
 const Spec = ({ n, children, dark = false }: { n: string; children: string; dark?: boolean }) => (
@@ -151,7 +151,7 @@ function WeightLadder({ title, items }: { title: string; items: Summary[] }) {
             <li key={s.handle} className="border-t border-[#0f2238]/15 first:border-t-0">
               <LocalizedClientLink
                 href={`/products/${s.handle}`}
-                className="group grid min-h-11 grid-cols-[1fr_auto] items-baseline gap-x-4 px-5 py-4 !text-[#0f2238]"
+                className="group grid min-h-11 grid-cols-[1fr_auto] items-baseline gap-x-4 px-5 py-4 text-[#0f2238]!"
               >
                 <span className="font-semibold group-hover:underline group-hover:underline-offset-4">
                   {s.title.replace(/^JB's\s+/, "")}
@@ -280,9 +280,9 @@ export default async function JbsWearGuidePage() {
               <LocalizedClientLink
                 key={s.handle}
                 href={`/products/${s.handle}`}
-                className={`group block bg-[#f3f1ec] p-3 !text-[#0f2238] ${i ? "mt-10" : ""}`}
+                className={`group block bg-[#f3f1ec] p-3 text-[#0f2238]! ${i ? "mt-10" : ""}`}
               >
-                <div className="relative aspect-[9/11]">
+                <div className="relative aspect-9/11">
                   {s.thumbnail ? (
                     <Image
                       src={s.thumbnail}
@@ -331,7 +331,7 @@ export default async function JbsWearGuidePage() {
               const href = t.anchor ?? (t.p?.typeId ? `/brands/jbs-wear?typeId=${t.p.typeId}` : "/brands/jbs-wear")
               const inner = (
                 <>
-                  <div className="relative aspect-[5/4] overflow-hidden bg-white">
+                  <div className="relative aspect-5/4 overflow-hidden bg-white">
                     {t.p?.thumbnail ? (
                       <Image
                         src={t.p.thumbnail}
@@ -354,11 +354,11 @@ export default async function JbsWearGuidePage() {
               return (
                 <Reveal key={t.label} delay={(i % 3) * 0.08} className="h-full">
                   {t.anchor ? (
-                    <a href={href} className="group block h-full border-2 border-[#0f2238] bg-white !text-[#0f2238]">
+                    <a href={href} className="group block h-full border-2 border-[#0f2238] bg-white text-[#0f2238]!">
                       {inner}
                     </a>
                   ) : (
-                    <LocalizedClientLink href={href} className="group block h-full border-2 border-[#0f2238] bg-white !text-[#0f2238]">
+                    <LocalizedClientLink href={href} className="group block h-full border-2 border-[#0f2238] bg-white text-[#0f2238]!">
                       {inner}
                     </LocalizedClientLink>
                   )}
@@ -422,7 +422,7 @@ export default async function JbsWearGuidePage() {
             <div className="mt-12 grid gap-4 phone:grid-cols-2 medium:grid-cols-4">
               {hiVis.map((h, i) => (
                 <Reveal key={h.handle} delay={i * 0.08} className="h-full">
-                  <LocalizedClientLink href={`/products/${h.handle}`} className="group flex h-full flex-col bg-white !text-[#0f2238]">
+                  <LocalizedClientLink href={`/products/${h.handle}`} className="group flex h-full flex-col bg-white text-[#0f2238]!">
                     <div className="relative aspect-square">
                       {h.p?.thumbnail ? (
                         <Image
@@ -471,7 +471,7 @@ export default async function JbsWearGuidePage() {
               <ul className="grid grid-cols-3 gap-2 phone:grid-cols-4 tablet:grid-cols-6 medium:grid-cols-9">
                 {wallColours.map((c) => (
                   <li key={c.name} className="bg-white">
-                    <div className="relative aspect-[9/11]">
+                    <div className="relative aspect-9/11">
                       <Image
                         src={c.src}
                         alt={`JB's Tee in ${c.name}`}
@@ -510,7 +510,7 @@ export default async function JbsWearGuidePage() {
               <Reveal key={l.handle} delay={i * 0.08} className="h-full">
                 <LocalizedClientLink
                   href={`/brands/${l.handle}`}
-                  className="group flex h-full flex-col border-2 border-[#0f2238] !text-[#0f2238]"
+                  className="group flex h-full flex-col border-2 border-[#0f2238] text-[#0f2238]!"
                 >
                   <div className="relative aspect-square bg-[#f3f1ec]">
                     {l.p?.thumbnail ? (
@@ -594,7 +594,7 @@ export default async function JbsWearGuidePage() {
             Not sure which?{" "}
             <LocalizedClientLink
               href="/guides/dtf-vs-screen-printing-vs-embroidery"
-              className="!text-[#0f2238] underline underline-offset-4 hover:no-underline"
+              className="text-[#0f2238]! underline underline-offset-4 hover:no-underline"
             >
               Compare the three methods
             </LocalizedClientLink>

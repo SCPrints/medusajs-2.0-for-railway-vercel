@@ -14,7 +14,7 @@ export const QuoteStatusBadge = ({ quote }: { quote: Pick<AccountQuote, "status"
 )
 
 const secondaryButton =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2.5 text-sm font-semibold !text-ui-fg-base hover:bg-ui-bg-subtle"
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2.5 text-sm font-semibold text-ui-fg-base! hover:bg-ui-bg-subtle"
 
 /** Garment rows of a quote: picture, name, sizes, quantity and (once sent) prices. */
 export const QuoteLines = ({ lines, currency, limit }: { lines: AccountQuoteLine[]; currency: string; limit?: number }) => {

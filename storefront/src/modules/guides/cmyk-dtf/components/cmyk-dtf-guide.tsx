@@ -36,7 +36,7 @@ export default function CmykDtfGuide() {
       <div className="border-b border-ui-border-base bg-ui-bg-subtle">
         <div className="content-container py-14 small:py-20">
           <header className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
               Print preparation
             </p>
             <h1 className="page-title-marketing mt-3 tracking-tight">
@@ -57,7 +57,7 @@ export default function CmykDtfGuide() {
       <div className="content-container py-12 small:py-16">
         <div className="mx-auto max-w-6xl space-y-12 small:space-y-16">
           <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               Pre-flight checklist
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">

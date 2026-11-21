@@ -201,7 +201,7 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-start">
         {/* Text column — sits to the left of the photo on desktop, below it on
             mobile (image-first). */}
-        <div className="order-2 flex flex-col gap-5 lg:order-none lg:col-span-5">
+        <div className="order-2 flex flex-col gap-5 lg:order-0 lg:col-span-5">
           <div className="flex flex-col gap-3">
             <div>
               <NoMinimumBadge />
@@ -213,7 +213,7 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
               ref={triggerRef}
               type="button"
               onClick={openStudio}
-              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#1e293b)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary,#1e293b)] focus-visible:ring-offset-2"
+              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-(--brand-primary,#1e293b) px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-primary,#1e293b) focus-visible:ring-offset-2"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -245,7 +245,7 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
         </div>
 
         {/* Picture — to the right of the text on desktop, first on mobile. */}
-        <div className="order-1 lg:order-none lg:col-span-7">{gallery}</div>
+        <div className="order-1 lg:order-0 lg:col-span-7">{gallery}</div>
       </div>
 
       {/* Below-fold marketing/spec content (production ETA, decoration
@@ -260,7 +260,7 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
       {hasOpenedOnce ? (
         <div
           ref={overlayRef}
-          className={`fixed inset-0 z-[200] flex-col bg-ui-bg-subtle ${open ? "flex" : "hidden"}`}
+          className={`fixed inset-0 z-200 flex-col bg-ui-bg-subtle ${open ? "flex" : "hidden"}`}
           role="dialog"
           aria-modal="true"
           aria-hidden={!open}
@@ -318,7 +318,7 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
               live on the landing, so they're still reachable in the studio.
               Tagged as a sub-layer so Escape dismisses it (not the studio). */}
           {showDetails && productInfo ? (
-            <div className="absolute inset-0 z-[60] flex justify-end" data-studio-sublayer>
+            <div className="absolute inset-0 z-60 flex justify-end" data-studio-sublayer>
               <button
                 type="button"
                 aria-label="Close product details"

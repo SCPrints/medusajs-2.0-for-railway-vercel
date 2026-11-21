@@ -39,7 +39,7 @@ export default async function GroupOrderJoinPage({
     return (
       <div className="content-container py-14 small:py-20">
         <div className="mx-auto max-w-xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
             Group order
           </p>
           <h1 className="page-title-marketing mt-3 tracking-tight">
@@ -52,7 +52,7 @@ export default async function GroupOrderJoinPage({
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <LocalizedClientLink
               href="/contact"
-              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110"
             >
               Contact support
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -68,9 +68,9 @@ export default async function GroupOrderJoinPage({
 
   return (
     <div className="content-container max-w-3xl py-12">
-      <section className="rounded-2xl border border-ui-border-base bg-white p-6 shadow-sm small:p-8">
+      <section className="rounded-2xl border border-ui-border-base bg-white p-6 shadow-xs small:p-8">
         <header className="border-l-4 border-brand pl-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             {group_order.organisation_name ?? "Group order"}
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ui-fg-base small:text-3xl">
@@ -184,8 +184,8 @@ export default async function GroupOrderJoinPage({
       </section>
 
       {participants.length > 0 ? (
-        <section className="mt-6 rounded-2xl border border-ui-border-base bg-white p-6 shadow-sm small:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+        <section className="mt-6 rounded-2xl border border-ui-border-base bg-white p-6 shadow-xs small:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
             Crew &middot; {participants.length} joined
           </p>
           <h2 className="mt-2 text-lg font-semibold text-ui-fg-base">

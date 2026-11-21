@@ -425,7 +425,7 @@ function HelpTip({ text }: { text: string }) {
         onMouseLeave={() => setOpen(false)}
         onClick={() => setOpen((o) => !o)}
         onBlur={() => setOpen(false)}
-        className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--brand-secondary,#0ea5b7)] text-sm font-bold text-white shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary,#0ea5b7)] focus-visible:ring-offset-2"
+        className="flex h-6 w-6 items-center justify-center rounded-full bg-(--brand-secondary,#0ea5b7) text-sm font-bold text-white shadow-xs transition hover:brightness-110 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary,#0ea5b7) focus-visible:ring-offset-2"
         aria-label="Help"
       >
         ?
@@ -5971,7 +5971,7 @@ export default function CustomizerTemplate({
 
   const editorColumn = (
           <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col" : "space-y-4"}>
-            <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col overflow-hidden bg-ui-bg-base" : "overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base shadow-sm"}>
+            <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col overflow-hidden bg-ui-bg-base" : "overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base shadow-xs"}>
               <div className={`flex flex-col px-4 py-3 small:flex-row small:items-center small:justify-between${assemblyLayout ? " py-2.5" : " border-b border-ui-border-base bg-ui-bg-subtle/40"}`}>
                 <div className="flex items-start gap-3">
                   {!assemblyLayout && (
@@ -6058,8 +6058,8 @@ export default function CustomizerTemplate({
                   </p>
                   <div
                     className={[
-                      assemblyLayout ? "relative isolate z-[1] flex flex-1 min-h-0 items-center justify-center" : "z-[1]",
-                      artworkDropActive ? "rounded-xl outline-dashed outline-2 outline-offset-4 outline-[var(--brand-primary)]" : "",
+                      assemblyLayout ? "relative isolate z-1 flex flex-1 min-h-0 items-center justify-center" : "z-1",
+                      artworkDropActive ? "rounded-xl outline-dashed outline-2 outline-offset-4 outline-(--brand-primary)" : "",
                     ].join(" ")}
                     // Drop a "Your artwork" tile, or a file from the desktop,
                     // straight onto the garment.
@@ -6098,7 +6098,7 @@ export default function CustomizerTemplate({
                         alt=""
                         aria-hidden
                         draggable={false}
-                        className="pointer-events-none absolute left-1/2 top-1/2 z-[2] h-[108%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.08]"
+                        className="pointer-events-none absolute left-1/2 top-1/2 z-2 h-[108%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.08]"
                       />
                     )}
                     {/* Brief "preparing" overlay while the Fabric canvas first
@@ -6108,7 +6108,7 @@ export default function CustomizerTemplate({
                         once. */}
                     {assemblyLayout && canvasSize.width === 0 && (
                       <div
-                        className="pointer-events-none absolute inset-0 z-[3] flex items-center justify-center bg-ui-bg-base"
+                        className="pointer-events-none absolute inset-0 z-3 flex items-center justify-center bg-ui-bg-base"
                         aria-hidden
                       >
                         <div className="flex flex-col items-center gap-3 text-ui-fg-subtle">
@@ -6137,7 +6137,7 @@ export default function CustomizerTemplate({
                       }
                       frameClassName={
                         assemblyLayout
-                          ? "mx-auto aspect-[4/5] h-full max-h-full w-auto max-w-full rounded-xl"
+                          ? "mx-auto aspect-4/5 h-full max-h-full w-auto max-w-full rounded-xl"
                           : undefined
                       }
                     />
@@ -6203,7 +6203,7 @@ export default function CustomizerTemplate({
                 <button
                   type="button"
                   onClick={() => setMovedToGarmentNotice(null)}
-                  className="min-h-8 min-w-8 rounded text-sky-700 hover:bg-sky-100"
+                  className="min-h-8 min-w-8 rounded-sm text-sky-700 hover:bg-sky-100"
                   aria-label="Dismiss"
                 >
                   ×
@@ -6353,7 +6353,7 @@ export default function CustomizerTemplate({
         onClick={onClick}
         className={`w-full rounded-xl border p-4 text-left transition ${
           isNext
-            ? "border-ui-border-strong bg-ui-bg-subtle hover:border-ui-fg-base hover:bg-ui-bg-subtle hover:shadow-sm"
+            ? "border-ui-border-strong bg-ui-bg-subtle hover:border-ui-fg-base hover:bg-ui-bg-subtle hover:shadow-xs"
             : "border-dashed border-ui-border-base bg-ui-bg-subtle/30 opacity-60 hover:border-ui-border-strong hover:opacity-90"
         }`}
       >
@@ -6723,7 +6723,7 @@ export default function CustomizerTemplate({
       // bulkPrintThumbSources / stableHandleBulkSubmit etc.) so they have
       // stable identities for the memoised <BulkOrderGrid/>.
       return (
-        <div className="fixed inset-0 z-[60] overflow-hidden bg-white" data-studio-sublayer>
+        <div className="fixed inset-0 z-60 overflow-hidden bg-white" data-studio-sublayer>
           <BulkOrderGrid
             product={selectedProduct}
             baseVariant={selectedVariant}
@@ -6771,7 +6771,7 @@ export default function CustomizerTemplate({
         {assemblyLayout && (uploadError || statusMessage) ? (
           <div
             // Phones/tablets: sit above the pinned price + Next bar.
-            className="pointer-events-none fixed inset-x-3 bottom-24 z-[210] flex justify-center small:bottom-3"
+            className="pointer-events-none fixed inset-x-3 bottom-24 z-210 flex justify-center small:bottom-3"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             <div
@@ -6791,7 +6791,7 @@ export default function CustomizerTemplate({
                   setStatusMessage(null)
                 }}
                 aria-label="Dismiss message"
-                className="-mr-1 -mt-1 shrink-0 rounded p-1 text-base leading-none opacity-60 transition-opacity hover:opacity-100"
+                className="-mr-1 -mt-1 shrink-0 rounded-sm p-1 text-base leading-none opacity-60 transition-opacity hover:opacity-100"
               >
                 ✕
               </button>
@@ -6815,7 +6815,7 @@ export default function CustomizerTemplate({
             // editing) so placed artwork never rescales under the customer's
             // finger. Desktop (small:flex-row) restores flex-1 + full height.
             ? "flex min-w-0 flex-col min-h-0 overflow-hidden bg-ui-bg-base p-3 small:p-4 basis-[38dvh] [@media(max-height:520px)]:basis-[34dvh] grow-0 shrink-0 small:basis-0 small:grow small:shrink small:h-full"
-            : `order-2 lg:order-none flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
+            : `order-2 lg:order-0 flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
                 isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-8"
               }`
         }>
@@ -6893,7 +6893,7 @@ export default function CustomizerTemplate({
             // shrink-0 + h-full which claimed the whole column and squished the
             // canvas. Desktop: fixed-width, full-height side panel as before.
             ? "flex w-full small:w-[400px] lg:w-[420px] flex-col border-t border-ui-border-base bg-ui-bg-subtle overflow-hidden min-h-0 grow shrink basis-0 small:grow-0 small:shrink-0 small:basis-auto small:h-full small:border-t-0 small:border-l"
-            : `order-1 lg:order-none flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
+            : `order-1 lg:order-0 flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
                 isCustomizing ? "lg:col-span-5" : "lg:col-span-4"
               }`
         }>
@@ -6931,7 +6931,7 @@ export default function CustomizerTemplate({
             </div>
           )}
           <div
-            className={assemblyLayout ? "flex flex-1 flex-col gap-3 overflow-y-auto px-4 pt-5 [&>*]:shrink-0 scroll-pb-24" : "contents"}
+            className={assemblyLayout ? "flex flex-1 flex-col gap-3 overflow-y-auto px-4 pt-5 *:shrink-0 scroll-pb-24" : "contents"}
             style={
               assemblyLayout
                 ? { paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }
@@ -7159,10 +7159,10 @@ export default function CustomizerTemplate({
           {hasStep1 && !editGroupId && !staffEditor ? (
             <div ref={step1Ref} className={
               assemblyLayout
-                ? "relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
+                ? "relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-xs"
                 : `space-y-3 rounded-xl border p-4 ${
                     pdpStep === 1
-                      ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
+                      ? "border-ui-fg-base bg-ui-bg-base shadow-xs"
                       : "border-ui-border-base bg-ui-bg-subtle/40"
                   }`
             }>
@@ -7200,7 +7200,7 @@ export default function CustomizerTemplate({
                     <>
                       <button
                         type="button"
-                        className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#1e293b)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99]"
+                        className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-(--brand-primary,#1e293b) px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99]"
                         onClick={() => {
                           setPdpStep1Done(true)
                           setPdpStep((s) => (s > 1 ? s : 2))
@@ -7245,7 +7245,7 @@ export default function CustomizerTemplate({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                className="flex flex-col gap-2 [&>*]:shrink-0"
+                className="flex flex-col gap-2 *:shrink-0"
               >
 
           {/* Step 2 — Print location */}
@@ -7271,10 +7271,10 @@ export default function CustomizerTemplate({
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
                   className={
                   assemblyLayout
-                    ? "relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
+                    ? "relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-xs"
                     : `space-y-3 rounded-xl border p-4 ${
                         pdpStep === 2
-                          ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
+                          ? "border-ui-fg-base bg-ui-bg-base shadow-xs"
                           : "border-ui-border-base bg-ui-bg-subtle/40"
                       }`
                 }>
@@ -7528,7 +7528,7 @@ export default function CustomizerTemplate({
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
-                className="relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
+                className="relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-xs"
               >
                 <button
                   type="button"
@@ -7611,7 +7611,7 @@ export default function CustomizerTemplate({
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
               className={`space-y-3 rounded-xl border p-4 ${
                 pdpStep === 3
-                  ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
+                  ? "border-ui-fg-base bg-ui-bg-base shadow-xs"
                   : "border-ui-border-base bg-ui-bg-subtle/40"
               }`}>
               <StepHeader
@@ -7668,7 +7668,7 @@ export default function CustomizerTemplate({
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
               className="flex flex-col gap-3"
             >
-              <div className="space-y-3 rounded-xl border-2 border-amber-500 bg-amber-50/50 p-3 shadow-sm">
+              <div className="space-y-3 rounded-xl border-2 border-amber-500 bg-amber-50/50 p-3 shadow-xs">
                 <div>
                   <p className="text-sm font-semibold text-amber-900">
                     Save design changes
@@ -7747,7 +7747,7 @@ export default function CustomizerTemplate({
                     void addCustomizedToCart()
                   }}
                   disabled={isSubmitting || editGroupLineIds.length === 0}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#1e293b)] px-4 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-(--brand-primary,#1e293b) px-4 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isSubmitting
                     ? "Saving…"
@@ -7778,7 +7778,7 @@ export default function CustomizerTemplate({
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
               className="flex flex-col gap-3"
             >
-              <div className={assemblyLayout ? "relative space-y-2 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm" : "space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-sm"}>
+              <div className={assemblyLayout ? "relative space-y-2 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-xs" : "space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-xs"}>
                 <StepHeader num={stepNum(4)} assemblyNum={stepNum(4)} title={designOnly ? "Save mockup" : "Quantity & checkout"} done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
                 {(() => {
                   const sideShortMap: Record<GarmentSide, string> = {
@@ -7897,7 +7897,7 @@ export default function CustomizerTemplate({
                       type="button"
                       onClick={() => setBulkMode(true)}
                       disabled={isSubmitting}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-ui-fg-base bg-white px-4 py-3 text-left text-sm font-medium text-ui-fg-base shadow-sm transition-colors hover:bg-ui-bg-subtle disabled:opacity-60"
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-ui-fg-base bg-white px-4 py-3 text-left text-sm font-medium text-ui-fg-base shadow-xs transition-colors hover:bg-ui-bg-subtle disabled:opacity-60"
                     >
                       <span className="flex flex-col">
                         <span>Order multiple colours →</span>
@@ -7995,7 +7995,7 @@ export default function CustomizerTemplate({
                   rows={3}
                   maxLength={CUSTOMIZER_PRINT_NOTES_MAX_LENGTH}
                   placeholder="e.g. Match logo PMS 185 C, keep 3 cm from collar seam…"
-                  className="w-full resize-y rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted outline-none focus:border-ui-border-interactive focus:ring-2 focus:ring-ui-border-interactive/20"
+                  className="w-full resize-y rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted outline-hidden focus:border-ui-border-interactive focus:ring-2 focus:ring-ui-border-interactive/20"
                   disabled={isSubmitting}
                 />
                 <p className="text-xs text-ui-fg-muted tabular-nums">
@@ -8091,7 +8091,7 @@ export default function CustomizerTemplate({
                   type="button"
                   onClick={action.run}
                   disabled={onQuantity && hasArt && isSubmitting}
-                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-ui-fg-base px-4 text-sm font-semibold text-ui-bg-base shadow-sm active:scale-[0.98] disabled:opacity-60"
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-ui-fg-base px-4 text-sm font-semibold text-ui-bg-base shadow-xs active:scale-[0.98] disabled:opacity-60"
                 >
                   {action.label}
                   {onQuantity && hasArt ? null : <span aria-hidden>→</span>}

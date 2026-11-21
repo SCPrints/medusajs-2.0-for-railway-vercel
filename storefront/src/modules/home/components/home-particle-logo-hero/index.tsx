@@ -4610,7 +4610,7 @@ export default function HomeParticleLogoHero({
       window.removeEventListener("mousedown", onMouseDown)
       window.removeEventListener("focus", onResumePointer)
       window.removeEventListener("pageshow", onResumePointer)
-      window.removeEventListener("blur", onWindowBlur)
+      window.removeEventListener("blur-sm", onWindowBlur)
       document.removeEventListener("mouseout", onDocumentMouseOut)
       document.removeEventListener("visibilitychange", onVisibilityChange)
     }
@@ -4655,7 +4655,7 @@ export default function HomeParticleLogoHero({
             src={logoSrc}
             alt=""
             decoding="async"
-            className={`pointer-events-none absolute left-1/2 z-[5] max-w-[min(96%,80rem)] -translate-x-1/2 -translate-y-1/2 object-contain transition-opacity duration-300 ${
+            className={`pointer-events-none absolute left-1/2 z-5 max-w-[min(96%,80rem)] -translate-x-1/2 -translate-y-1/2 object-contain transition-opacity duration-300 ${
               presentation === "fullscreen"
                 ? "top-[48%] max-h-[min(50vh,460px)]"
                 : "top-1/2 max-h-[min(58vh,560px)]"
@@ -4666,7 +4666,7 @@ export default function HomeParticleLogoHero({
           <canvas
             ref={canvasORef}
             aria-hidden
-            className="pointer-events-none absolute inset-0 z-[10] block h-full w-full min-h-0 min-w-0 !bg-transparent [background:transparent!important] [image-rendering:auto]"
+            className="pointer-events-none absolute inset-0 z-10 block h-full w-full min-h-0 min-w-0 bg-transparent! [background:transparent!important] [image-rendering:auto]"
             style={{
               pointerEvents: "none",
               background: "transparent",
@@ -4675,7 +4675,7 @@ export default function HomeParticleLogoHero({
           <canvas
             ref={canvasARef}
             aria-hidden
-            className="pointer-events-none absolute inset-0 z-[11] block h-full w-full min-h-0 min-w-0 !bg-transparent [background:transparent!important] [image-rendering:auto]"
+            className="pointer-events-none absolute inset-0 z-11 block h-full w-full min-h-0 min-w-0 bg-transparent! [background:transparent!important] [image-rendering:auto]"
             style={{
               pointerEvents: "none",
               background: "transparent",
@@ -4684,7 +4684,7 @@ export default function HomeParticleLogoHero({
           <canvas
             ref={canvasCRef}
             aria-hidden
-            className="pointer-events-none absolute inset-0 z-[12] block h-full w-full min-h-0 min-w-0 !bg-transparent [background:transparent!important] [image-rendering:auto]"
+            className="pointer-events-none absolute inset-0 z-12 block h-full w-full min-h-0 min-w-0 bg-transparent! [background:transparent!important] [image-rendering:auto]"
             style={{
               pointerEvents: "none",
               background: "transparent",

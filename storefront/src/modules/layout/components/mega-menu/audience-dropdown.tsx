@@ -51,7 +51,7 @@ const AudienceDropdown = ({ audience, onLinkClick }: Props) => {
                   <LocalizedClientLink
                     href={`/categories/${sub.handle}`}
                     onClick={onLinkClick}
-                    className="group inline-flex items-center gap-x-1.5 text-sm text-header-fg/85 transition-colors hover:text-accent focus:text-accent focus:outline-none"
+                    className="group inline-flex items-center gap-x-1.5 text-sm text-header-fg/85 transition-colors hover:text-accent focus:text-accent focus:outline-hidden"
                   >
                     <span>{sub.name}</span>
                     <span className="text-[10px] text-header-fg/40 group-hover:text-header-fg/60 transition-colors">

@@ -31,7 +31,7 @@ type ImageGalleryProps = {
    * Extra Tailwind classes appended to the hero wrapper (heroLayout
    * mode only). Use to cap the hero height so the thumbnail strip
    * sits above the fold — e.g. "max-h-[55vh]". The wrapper keeps
-   * its aspect-[3/4] ratio, so a max-h constraint also shrinks the
+   * its aspect-3/4 ratio, so a max-h constraint also shrinks the
    * width proportionally.
    */
   heroClassName?: string
@@ -233,7 +233,7 @@ const ImageGallery = ({
     return (
       <div className="flex flex-col gap-3">
         <div
-          className={`relative mx-auto aspect-[3/4] w-full overflow-hidden rounded-xl bg-ui-bg-subtle ${heroClassName}`}
+          className={`relative mx-auto aspect-3/4 w-full overflow-hidden rounded-xl bg-ui-bg-subtle ${heroClassName}`}
         >
           {heroImage ? (
             <Image
@@ -296,7 +296,7 @@ const ImageGallery = ({
     <div className="flex items-start relative">
       <div className="grid grid-cols-2 gap-3 small:gap-4 flex-1">
         {!hasProductImages && (
-          <Container className="col-span-2 relative aspect-[29/34] w-full overflow-hidden bg-ui-bg-subtle p-6 flex items-center justify-center">
+          <Container className="col-span-2 relative aspect-29/34 w-full overflow-hidden bg-ui-bg-subtle p-6 flex items-center justify-center">
             <p className="text-sm text-ui-fg-subtle text-center">
               No garment image is available for this product yet.
             </p>

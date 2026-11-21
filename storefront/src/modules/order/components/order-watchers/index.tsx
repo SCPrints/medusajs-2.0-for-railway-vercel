@@ -66,7 +66,7 @@ const OrderWatchers = ({ orderId }: { orderId: string }) => {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="email@example.com"
-          className="flex-1 rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+          className="flex-1 rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand"
           disabled={pending || watchers.length >= 5}
           onKeyDown={(e) => {
             if (e.key === "Enter") add()
@@ -76,7 +76,7 @@ const OrderWatchers = ({ orderId }: { orderId: string }) => {
           type="button"
           onClick={add}
           disabled={pending || !draft.trim() || watchers.length >= 5}
-          className="inline-flex items-center justify-center rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white shadow-xs disabled:opacity-60"
         >
           Add
         </button>

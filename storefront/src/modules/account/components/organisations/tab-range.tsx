@@ -46,7 +46,7 @@ export default function RangeTab({ orgId, orgName, range, roster }: Props) {
         </p>
         <LocalizedClientLink
           href="/account/designs"
-          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-6 text-sm font-semibold text-white hover:bg-[var(--brand-secondary)]/90"
+          className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-6 text-sm font-semibold text-white hover:bg-(--brand-secondary)/90"
         >
           Go to My designs
         </LocalizedClientLink>
@@ -121,7 +121,7 @@ export default function RangeTab({ orgId, orgName, range, roster }: Props) {
               </>
             )
             const card =
-              "flex h-full flex-col overflow-hidden rounded-2xl border border-ui-border-base bg-white text-left transition hover:border-[var(--brand-secondary)]/40 hover:shadow-sm"
+              "flex h-full flex-col overflow-hidden rounded-2xl border border-ui-border-base bg-white text-left transition hover:border-(--brand-secondary)/40 hover:shadow-xs"
             return (
               <li key={item.design_id}>
                 {href ? (

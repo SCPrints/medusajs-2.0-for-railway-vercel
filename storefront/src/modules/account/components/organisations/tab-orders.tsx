@@ -73,7 +73,7 @@ export default function OrdersTab({ orgId, orders, destinations }: Props) {
           <select
             value={destFilter}
             onChange={(e) => setDestFilter(e.target.value)}
-            className="rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40"
+            className="rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40"
           >
             <option value="all">All destinations</option>
             {destinations.map((d) => (

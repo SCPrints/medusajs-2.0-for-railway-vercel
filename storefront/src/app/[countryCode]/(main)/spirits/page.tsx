@@ -66,7 +66,7 @@ export default async function SpiritsHubPage({ params }: Props) {
       <section className="relative overflow-hidden border-b border-ui-border-base bg-ui-bg-base">
         <div className="content-container py-20 small:py-28">
           <div className="mx-auto max-w-3xl text-center animate-[fade-in_0.6s_ease-out]">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/80">
               Custom printing
             </p>
             <h1 className="mt-4 text-4xl small:text-5xl font-semibold text-ui-fg-base">

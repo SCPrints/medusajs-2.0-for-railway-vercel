@@ -15,7 +15,7 @@ export default async function SpendPage({ searchParams }: { searchParams: Promis
   return (
     <div className="w-full" data-testid="spend-page-wrapper">
       <header className="mb-8 border-l-4 border-brand pl-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">Spend</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">Spend</p>
         <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">
           {data?.scope.type === "organisation" && data.scope.name ? `${data.scope.name} spend` : "My spend"}
         </h1>

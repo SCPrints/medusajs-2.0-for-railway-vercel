@@ -295,7 +295,7 @@ function InputPanel({
             className={`flex w-full items-center gap-3 rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm transition ${
               isUploading
                 ? "cursor-wait opacity-70"
-                : "cursor-pointer hover:border-[var(--brand-secondary)]/50 hover:bg-ui-bg-subtle"
+                : "cursor-pointer hover:border-(--brand-secondary)/50 hover:bg-ui-bg-subtle"
             }`}
             title="Upload a PNG, JPG, or SVG to add to your design"
           >
@@ -397,7 +397,7 @@ function InputPanel({
       {enabled && pendingDeleteId && onDeleteUpload && typeof document !== "undefined"
         ? createPortal(
             <div
-              className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 p-4"
+              className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40 p-4"
               role="dialog"
               aria-modal
               aria-label="Confirm delete upload"
@@ -477,7 +477,7 @@ function InputPanel({
               onChange={(e) => applyText(e.target.value)}
               placeholder="Your text"
               maxLength={120}
-              className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base"
+              className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted focus:border-ui-fg-base focus:outline-hidden focus:ring-1 focus:ring-ui-fg-base"
               style={{ fontFamily: `"${fontFamily}", sans-serif` }}
             />
           </label>
@@ -490,7 +490,7 @@ function InputPanel({
               <select
                 value={fontFamily}
                 onChange={(e) => applyFontFamily(e.target.value)}
-                className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-2 py-1.5 text-sm text-ui-fg-base focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base"
+                className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-2 py-1.5 text-sm text-ui-fg-base focus:border-ui-fg-base focus:outline-hidden focus:ring-1 focus:ring-ui-fg-base"
                 style={{ fontFamily: `"${fontFamily}", sans-serif` }}
               >
                 {TEXT_FONT_OPTIONS.map((font) => (
@@ -515,7 +515,7 @@ function InputPanel({
                   value={color}
                   onChange={(e) => applyColor(e.target.value)}
                   aria-label="Pick a custom text colour"
-                  className="h-6 w-8 cursor-pointer rounded border border-ui-border-base bg-transparent p-0"
+                  className="h-6 w-8 cursor-pointer rounded-sm border border-ui-border-base bg-transparent p-0"
                 />
                 <span className="font-mono text-xs uppercase text-ui-fg-subtle">{color}</span>
               </div>

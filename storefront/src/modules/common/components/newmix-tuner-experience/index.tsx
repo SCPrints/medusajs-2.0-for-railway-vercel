@@ -1426,7 +1426,7 @@ export default function NewmixTunerExperience(
 
           {/** Group blurb + on/off toggle. Colours tab has no toggle — picking
            * a palette is always meaningful, there's no "off" state. */}
-          <div className="border-b border-white/10 bg-white/[0.02] px-3 py-3">
+          <div className="border-b border-white/10 bg-white/2 px-3 py-3">
             <div className="flex items-center justify-between gap-3">
               <div className="text-[12px] font-semibold text-white/85">
                 {activeGroupSpec.label}
@@ -1483,7 +1483,7 @@ export default function NewmixTunerExperience(
                           "group flex flex-col items-center gap-1.5 rounded-lg p-1.5 transition-colors " +
                           (selected
                             ? "bg-white/10"
-                            : "hover:bg-white/[0.04]")
+                            : "hover:bg-white/4")
                         }
                       >
                         <span
@@ -1533,7 +1533,7 @@ export default function NewmixTunerExperience(
                   <label
                     key={spec.key}
                     className={
-                      "block rounded-lg border border-white/10 bg-white/[0.025] px-3 py-2 transition-opacity " +
+                      "block rounded-lg border border-white/10 bg-white/2.5 px-3 py-2 transition-opacity " +
                       (hasToggle && !sliderEnabled ? "opacity-50" : "")
                     }
                   >
@@ -1601,7 +1601,7 @@ export default function NewmixTunerExperience(
                 return (
                   <label
                     key={spec.key}
-                    className="block rounded-lg border border-white/10 bg-white/[0.025] px-3 py-2"
+                    className="block rounded-lg border border-white/10 bg-white/2.5 px-3 py-2"
                   >
                     <span className="flex items-baseline justify-between gap-3">
                       <span className="text-[12px] font-medium text-white/85">

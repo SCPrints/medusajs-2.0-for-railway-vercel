@@ -46,7 +46,7 @@ const tidySizes = (sizes: Record<string, string>) =>
   )
 
 const cellInput =
-  "w-full min-h-11 rounded-md border border-transparent bg-transparent px-2 text-base text-ui-fg-base hover:border-ui-border-base focus:border-ui-border-base focus:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40 tablet:text-sm"
+  "w-full min-h-11 rounded-md border border-transparent bg-transparent px-2 text-base text-ui-fg-base hover:border-ui-border-base focus:border-ui-border-base focus:bg-white focus:outline-hidden focus-visible:ring-2 focus-visible:ring-(--brand-secondary)/40 tablet:text-sm"
 
 /**
  * "People": the organisation's roster as a table you just type in. A row
@@ -173,7 +173,7 @@ export default function PeopleTab({ orgId, roster, knownSizes, onChange }: Props
             <button
               type="button"
               onClick={() => setImporting((v) => !v)}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-brand px-5 text-sm font-semibold text-white transition hover:bg-(--brand-secondary)/90"
             >
               Paste a list
             </button>
@@ -310,7 +310,7 @@ export default function PeopleTab({ orgId, roster, knownSizes, onChange }: Props
 
             {canEdit ? (
               <tr
-                className="border-t border-ui-border-base bg-[var(--brand-secondary)]/5"
+                className="border-t border-ui-border-base bg-(--brand-secondary)/5"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault()

@@ -157,7 +157,7 @@ const SavedDesigns = ({
               <div className="relative">
                 <CardImage src={design.thumbnail_url} alt={design.name} />
                 {design.shared_from ? (
-                  <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-ui-fg-base shadow-sm">
+                  <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-ui-fg-base shadow-xs">
                     Shared by {design.shared_from.organisation_name}
                   </span>
                 ) : null}
@@ -177,7 +177,7 @@ const SavedDesigns = ({
                       if (e.key === "Escape") setRenamingId(null)
                     }}
                     aria-label="Design name"
-                    className="min-h-11 rounded border border-ui-border-base px-2 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-ink"
+                    className="min-h-11 rounded-sm border border-ui-border-base px-2 text-base font-semibold focus:outline-hidden focus:ring-2 focus:ring-ink"
                     maxLength={120}
                     disabled={isBusy}
                   />
@@ -332,7 +332,7 @@ const DesignsGrid = ({ designs, pastDesigns = [], organisations = [] }: Props) =
             onClick={() => setTab(t.id)}
             className={[
               "min-h-11 flex-1 rounded-md px-3 text-sm font-semibold transition",
-              tab === t.id ? "bg-white text-ui-fg-base shadow-sm" : "text-ui-fg-subtle hover:text-ui-fg-base",
+              tab === t.id ? "bg-white text-ui-fg-base shadow-xs" : "text-ui-fg-subtle hover:text-ui-fg-base",
             ].join(" ")}
           >
             {t.label}

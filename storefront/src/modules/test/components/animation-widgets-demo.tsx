@@ -278,7 +278,7 @@ function CountdownDisplay() {
     }
   }, [now])
 
-  const box = "rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-center min-w-[4.5rem]"
+  const box = "rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-center min-w-18"
   if (ended) {
     return <p className="text-sm font-medium text-ui-fg-base">Demo target date reached — set a new one in code.</p>
   }
@@ -323,7 +323,7 @@ function BeforeAfterSlider() {
   return (
     <div
       ref={wrapRef}
-      className="relative mx-auto aspect-[5/3] w-full max-w-lg select-none overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-subtle touch-none"
+      className="relative mx-auto aspect-5/3 w-full max-w-lg select-none overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-subtle touch-none"
       onPointerDown={(e) => {
         dragging.current = true
         e.currentTarget.setPointerCapture(e.pointerId)
@@ -371,10 +371,10 @@ function BeforeAfterSlider() {
       >
         ↔
       </div>
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/50 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/50 px-2 py-1 text-xs text-white">
         Before
       </p>
-      <p className="pointer-events-none absolute bottom-2 right-2 rounded bg-black/50 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 right-2 rounded-sm bg-black/50 px-2 py-1 text-xs text-white">
         After
       </p>
     </div>
@@ -396,7 +396,7 @@ function LoaderOverlayDemo({ reducedMotion }: { reducedMotion: boolean }) {
       <AnimatePresence>
         {open ? (
           <motion.div
-            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-ui-fg-base/85 backdrop-blur-sm"
+            className="fixed inset-0 z-200 flex flex-col items-center justify-center bg-ui-fg-base/85 backdrop-blur-xs"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -666,8 +666,8 @@ function LabPagination({
                   href={hrefFor(p)}
                   className={
                     p === currentPage
-                      ? "inline-flex min-w-[2.25rem] justify-center rounded-full bg-ui-fg-base px-2 py-1 text-sm font-medium text-ui-bg-base"
-                      : "inline-flex min-w-[2.25rem] justify-center rounded-full border border-ui-border-base px-2 py-1 text-sm text-ui-fg-base hover:bg-ui-bg-subtle"
+                      ? "inline-flex min-w-9 justify-center rounded-full bg-ui-fg-base px-2 py-1 text-sm font-medium text-ui-bg-base"
+                      : "inline-flex min-w-9 justify-center rounded-full border border-ui-border-base px-2 py-1 text-sm text-ui-fg-base hover:bg-ui-bg-subtle"
                   }
                   aria-current={p === currentPage ? "page" : undefined}
                 >
@@ -824,13 +824,13 @@ export default function AnimationWidgetsDemo() {
               }}
             />
           ) : null}
-          <div className="relative z-[1] flex flex-col items-start gap-4 p-6">
+          <div className="relative z-1 flex flex-col items-start gap-4 p-6">
             <label className="flex cursor-pointer items-center gap-2 text-sm text-ui-fg-base">
               <input
                 type="checkbox"
                 checked={snowOn}
                 onChange={(e) => setSnowOn(e.target.checked)}
-                className="rounded border-ui-border-base"
+                className="rounded-sm border-ui-border-base"
                 disabled={reducedMotion}
               />
               Snow {reducedMotion ? "(off — reduced motion)" : ""}
@@ -889,7 +889,7 @@ export default function AnimationWidgetsDemo() {
 
       <Section
         key="progress-ring"
-        title="Progress ring"
+        title="Progress ring-3"
         description="SVG circular progress — inline task or checkout step indicator."
       >
         <LabProgressRing reducedMotion={reducedMotion} />
@@ -1034,7 +1034,7 @@ export default function AnimationWidgetsDemo() {
       <Section
         key="blur-words"
         title="Blur-in words"
-        description="Words lose blur as they enter the viewport."
+        description="Words lose blur-sm as they enter the viewport."
       >
         <LabBlurInWords reducedMotion={reducedMotion} />
       </Section>,
@@ -1090,7 +1090,7 @@ export default function AnimationWidgetsDemo() {
       <Section
         key="aurora"
         title="Aurora mesh"
-        description="Rotating conic gradient with heavy blur — distinct from the floating blobs demo."
+        description="Rotating conic gradient with heavy blur-sm — distinct from the floating blobs demo."
       >
         <LabAuroraMesh reducedMotion={reducedMotion} />
       </Section>,
@@ -1106,7 +1106,7 @@ export default function AnimationWidgetsDemo() {
       <Section
         key="glass-sheen"
         title="Glass + sheen"
-        description="backdrop-blur panel with a periodic highlight sweep."
+        description="backdrop-blur-sm panel with a periodic highlight sweep."
       >
         <LabGlassSheen reducedMotion={reducedMotion} />
       </Section>,
@@ -1333,7 +1333,7 @@ export default function AnimationWidgetsDemo() {
 
       <Section
         key="tier-c-marquee-outline"
-        title="Marquee outline fill"
+        title="Marquee outline-solid fill"
         description="Stroked headline with gradient fill scrolling horizontally."
       >
         <LabTierCMarqueeOutlineFill reducedMotion={reducedMotion} />
@@ -1382,7 +1382,7 @@ export default function AnimationWidgetsDemo() {
       <Section
         key="tier-c-neon-flicker"
         title="Neon tube flicker"
-        description="Sequenced drop-shadow keyframes; static copy when reduced motion."
+        description="Sequenced drop-shadow-sm keyframes; static copy when reduced motion."
       >
         <LabTierCNeonFlicker reducedMotion={reducedMotion} />
       </Section>,
@@ -1662,7 +1662,7 @@ export default function AnimationWidgetsDemo() {
       <Section
         key="tier-d-noise-border"
         title="Conic gradient border"
-        description="Rotating gradient ring with counter-spun inner card."
+        description="Rotating gradient ring-3 with counter-spun inner card."
       >
         <LabTierDNoiseGradientBorder reducedMotion={reducedMotion} />
       </Section>,
@@ -1677,7 +1677,7 @@ export default function AnimationWidgetsDemo() {
 
       <Section
         key="tier-d-focus-ring"
-        title="Focus ring demo"
+        title="Focus ring-3 demo"
         description="Contrasting radii on button vs input with focus-visible."
       >
         <LabTierDFocusRingMorph reducedMotion={reducedMotion} />
@@ -1694,7 +1694,7 @@ export default function AnimationWidgetsDemo() {
       <Section
         key="tier-d-will-change"
         title="Will-change stress note"
-        description="Optional heavy blur layer with rAF fps note."
+        description="Optional heavy blur-sm layer with rAF fps note."
       >
         <LabTierDWillChangeStress reducedMotion={reducedMotion} />
       </Section>,
@@ -1726,7 +1726,7 @@ export default function AnimationWidgetsDemo() {
       <Section
         key="tier-e-lens"
         title="WebGL — lens distortion hover"
-        description="Inline GLSL fragment shader bulges a still image around the pointer with a chromatic-aberration ring on the lens edge."
+        description="Inline GLSL fragment shader bulges a still image around the pointer with a chromatic-aberration ring-3 on the lens edge."
       >
         <LabTierELensDistortion reducedMotion={reducedMotion} />
       </Section>,

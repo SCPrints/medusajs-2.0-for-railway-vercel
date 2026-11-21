@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <div className="mb-2 h-0.5 w-8 rounded-full bg-[var(--brand-secondary)]" />
+      <div className="mb-2 h-0.5 w-8 rounded-full bg-(--brand-secondary)" />
       <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-ui-fg-base">
         {children}
       </h2>
@@ -95,7 +95,7 @@ const TYPE: { token: string; cls: string; size: string; usage: string }[] = [
 const RADIUS: { token: string; px: string; cls: string; usage: string }[] = [
   { token: "soft", px: "2px", cls: "rounded-soft", usage: "Hairline corners, small chips" },
   { token: "base", px: "4px", cls: "rounded-base", usage: "Inputs, list rows" },
-  { token: "rounded", px: "8px", cls: "rounded-rounded", usage: "Buttons, cards, popovers" },
+  { token: "rounded-sm", px: "8px", cls: "rounded-rounded", usage: "Buttons, cards, popovers" },
   { token: "large", px: "16px", cls: "rounded-large", usage: "Product cards, large surfaces" },
   { token: "circle", px: "9999px", cls: "rounded-full", usage: "Pills, avatars, badges, contrast-btn" },
 ]
@@ -114,7 +114,7 @@ const SPACING: { px: number; util: string; usage: string }[] = [
 
 /* ---- ELEVATION ---- */
 const ELEVATION: { token: string; shadow: string; usage: string }[] = [
-  { token: "shadow-sm", shadow: "0 1px 2px 0 rgba(0,0,0,0.05)", usage: "Buttons, inputs — flat resting state" },
+  { token: "shadow-xs", shadow: "0 1px 2px 0 rgba(0,0,0,0.05)", usage: "Buttons, inputs — flat resting state" },
   { token: "elevation-card-rest", shadow: "0 2px 8px -2px rgba(0,0,0,0.12)", usage: "Cards at rest (Medusa UI token)" },
   { token: "elevation-card-hover", shadow: "0 8px 20px -6px rgba(0,0,0,0.22)", usage: "Cards on hover (Medusa UI token)" },
   { token: "card-lift", shadow: "0 28px 55px -12px rgba(0,0,0,0.38)", usage: "Product listing card hover lift" },
@@ -125,7 +125,7 @@ export default function DesignSystemPage() {
     <div className="content-container py-14 small:py-20">
       {/* Header */}
       <header className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-secondary)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-secondary)">
           SC Prints
         </p>
         <h1 className="page-title-marketing mt-2 tracking-tight">
@@ -188,10 +188,10 @@ export default function DesignSystemPage() {
             <div
               key={t.token}
               className={`grid grid-cols-1 gap-1 px-4 py-4 tablet:grid-cols-[200px_150px_1fr] tablet:items-center tablet:gap-4 ${
-                i % 2 ? "bg-white" : "bg-black/[0.02]"
+                i % 2 ? "bg-white" : "bg-black/2"
               }`}
             >
-              <code className="text-xs font-semibold text-[var(--brand-secondary)]">
+              <code className="text-xs font-semibold text-(--brand-secondary)">
                 {t.token}
               </code>
               <span className="text-xs text-ui-fg-subtle">{t.size}</span>
@@ -207,7 +207,7 @@ export default function DesignSystemPage() {
         <ul className="mt-3 grid gap-1 text-xs text-ui-fg-subtle">
           {TYPE.map((t) => (
             <li key={t.token} className="hidden tablet:block">
-              <span className="font-mono text-[var(--brand-secondary)]">{t.token}</span>
+              <span className="font-mono text-(--brand-secondary)">{t.token}</span>
               {" — "}
               {t.usage}
             </li>
@@ -229,10 +229,10 @@ export default function DesignSystemPage() {
                 {s.px}px
               </div>
               <div
-                className="h-5 rounded-base bg-[var(--brand-accent)]"
+                className="h-5 rounded-base bg-(--brand-accent)"
                 style={{ width: s.px }}
               />
-              <code className="w-20 shrink-0 text-xs font-semibold text-[var(--brand-secondary)]">
+              <code className="w-20 shrink-0 text-xs font-semibold text-(--brand-secondary)">
                 {s.util}
               </code>
               <span className="text-xs text-ui-fg-subtle">{s.usage}</span>
@@ -248,10 +248,10 @@ export default function DesignSystemPage() {
           {RADIUS.map((r) => (
             <div key={r.token}>
               <div
-                className="mb-2 h-20 w-full border-2 border-[var(--brand-secondary)] bg-white"
+                className="mb-2 h-20 w-full border-2 border-(--brand-secondary) bg-white"
                 style={{ borderRadius: r.px }}
               />
-              <p className="text-xs font-semibold text-[var(--brand-secondary)]">
+              <p className="text-xs font-semibold text-(--brand-secondary)">
                 radius/{r.token}
               </p>
               <p className="text-sm font-bold text-ui-fg-base">{r.px}</p>
@@ -271,7 +271,7 @@ export default function DesignSystemPage() {
                 className="mb-3 h-24 w-full rounded-large bg-white"
                 style={{ boxShadow: e.shadow }}
               />
-              <p className="text-xs font-semibold text-[var(--brand-secondary)]">{e.token}</p>
+              <p className="text-xs font-semibold text-(--brand-secondary)">{e.token}</p>
               <p className="text-xs leading-snug text-ui-fg-subtle">{e.usage}</p>
             </div>
           ))}
@@ -285,7 +285,7 @@ export default function DesignSystemPage() {
         {/* Buttons */}
         <p className="mb-4 text-sm font-medium text-ui-fg-base">Buttons</p>
         <div className="flex flex-wrap items-center gap-4">
-          <button className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110">
+          <button className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-(--brand-secondary) px-6 py-3 text-sm font-semibold text-white shadow-xs transition hover:brightness-110">
             Primary action
             <span className="transition-transform group-hover:translate-x-0.5">→</span>
           </button>
@@ -329,8 +329,8 @@ export default function DesignSystemPage() {
         </p>
         <div className="grid gap-6 tablet:grid-cols-2">
           <div className="rounded-large border border-ui-border-base bg-white p-5">
-            <div className="border-l-4 border-[var(--brand-secondary)] pl-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <div className="border-l-4 border-(--brand-secondary) pl-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
                 Eyebrow
               </p>
               <h3 className="mt-2 text-3xl font-semibold text-ui-fg-base">
@@ -343,7 +343,7 @@ export default function DesignSystemPage() {
           </div>
           <div className="rounded-large border border-ui-border-base bg-white p-5">
             <div className="mx-auto max-w-md text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
                 Eyebrow
               </p>
               <h3 className="mt-2 text-3xl font-semibold text-ui-fg-base">
@@ -368,7 +368,7 @@ export default function DesignSystemPage() {
           <span className="inline-block rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold leading-none text-blue-700 ring-1 ring-blue-200">
             Candidate
           </span>
-          <span className="inline-block rounded bg-ui-bg-subtle px-1.5 py-0.5 text-[10px] font-medium leading-none text-ui-fg-subtle ring-1 ring-ui-border-base">
+          <span className="inline-block rounded-sm bg-ui-bg-subtle px-1.5 py-0.5 text-[10px] font-medium leading-none text-ui-fg-subtle ring-1 ring-ui-border-base">
             Tech tag
           </span>
         </div>

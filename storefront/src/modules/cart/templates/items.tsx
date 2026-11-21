@@ -172,18 +172,18 @@ const ItemsTemplate = ({ items }: ItemsTemplateProps) => {
   return (
     <div>
       <div className="pb-3 flex items-center">
-        <Heading className="text-[2rem] leading-[2.75rem]">Cart</Heading>
+        <Heading className="text-[2rem] leading-11">Cart</Heading>
       </div>
       <Table>
         <Table.Header className="border-t-0">
           <Table.Row className="text-ui-fg-subtle txt-medium-plus">
-            <Table.HeaderCell className="!pl-0">Item</Table.HeaderCell>
+            <Table.HeaderCell className="pl-0!">Item</Table.HeaderCell>
             <Table.HeaderCell></Table.HeaderCell>
             <Table.HeaderCell>Quantity</Table.HeaderCell>
             <Table.HeaderCell className="hidden small:table-cell">
               Price
             </Table.HeaderCell>
-            <Table.HeaderCell className="!pr-0 text-right">
+            <Table.HeaderCell className="pr-0! text-right">
               Total
             </Table.HeaderCell>
           </Table.Row>
@@ -275,12 +275,12 @@ const CartItemGroup = ({
     <>
       <Table.Row className="bg-ui-bg-subtle hover:bg-ui-bg-subtle-hover transition-colors">
         {/* Medusa UI's Table.Cell prop type doesn't declare `colSpan`, but it forwards rest props to <td>. */}
-        <Table.Cell {...({ colSpan: 5 } as any)} className="!py-2">
+        <Table.Cell {...({ colSpan: 5 } as any)} className="py-2!">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="flex flex-1 items-center justify-between gap-3 rounded-md text-left transition-colors hover:bg-ui-bg-base/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-border-interactive/40"
+              className="flex flex-1 items-center justify-between gap-3 rounded-md text-left transition-colors hover:bg-ui-bg-base/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ui-border-interactive/40"
               aria-expanded={open}
               aria-label={open ? "Collapse group" : "Expand group to see variants"}
               data-testid="cart-group-toggle"
@@ -310,7 +310,7 @@ const CartItemGroup = ({
                   </svg>
                 </span>
                 {showThumbnail ? (
-                  <div className="shrink-0 w-12 h-12 rounded overflow-hidden bg-ui-bg-base ring-1 ring-ui-border-base">
+                  <div className="shrink-0 w-12 h-12 rounded-sm overflow-hidden bg-ui-bg-base ring-1 ring-ui-border-base">
                     <LineItemMockupPreview
                       mockups={mockupArtifacts}
                       mockupUrls={mockupUrls}
@@ -340,7 +340,7 @@ const CartItemGroup = ({
             {showGroupEditLink ? (
               <LocalizedClientLink
                 href={`/products/${productHandle}?edit_group=${editGroupId}`}
-                className="shrink-0 rounded-md bg-ink px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-black/5 transition-all hover:brightness-110"
+                className="shrink-0 rounded-md bg-ink px-3 py-1.5 text-xs font-semibold text-white shadow-xs ring-1 ring-black/5 transition-all hover:brightness-110"
                 data-testid="cart-group-edit-design"
               >
                 ✏️ Edit design

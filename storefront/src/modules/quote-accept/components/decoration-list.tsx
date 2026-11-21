@@ -15,10 +15,10 @@ const DecorationList = ({
     new Set(decorations.map((d) => d.garment ?? "")).size > 1
   return (
     <div className="mb-6">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">
         Decoration details
       </p>
-      <ul className="divide-y divide-ink/[0.06] rounded-lg border border-ink/[0.08]">
+      <ul className="divide-y divide-ink/6 rounded-lg border border-ink/8">
         {decorations.map((d, i) => (
           <li key={i} className="flex items-start justify-between gap-3 px-3 py-2.5">
             <div className="min-w-0">

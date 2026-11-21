@@ -29,7 +29,7 @@ export default async function QuoteApprovalPage({
     return (
       <div className="content-container py-14 small:py-20">
         <div className="mx-auto max-w-xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
             Design approval
           </p>
           <h1 className="page-title-marketing mt-3 tracking-tight">

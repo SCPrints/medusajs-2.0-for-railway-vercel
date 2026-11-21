@@ -150,7 +150,7 @@ const CreateFromDesignForm = ({
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand"
               placeholder="e.g. Marrickville Lions 2026 hoodies"
             />
           </label>
@@ -162,7 +162,7 @@ const CreateFromDesignForm = ({
             <input
               value={organisation}
               onChange={(e) => setOrganisation(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand"
               placeholder="School / club / business name (optional)"
             />
           </label>
@@ -175,7 +175,7 @@ const CreateFromDesignForm = ({
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand"
               />
             </label>
             <label className="text-sm">
@@ -186,7 +186,7 @@ const CreateFromDesignForm = ({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand"
               />
             </label>
           </div>
@@ -199,7 +199,7 @@ const CreateFromDesignForm = ({
               type="date"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand"
             />
           </label>
 
@@ -211,7 +211,7 @@ const CreateFromDesignForm = ({
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand"
               placeholder="e.g. Tall fits available on request"
             />
           </label>
@@ -225,7 +225,7 @@ const CreateFromDesignForm = ({
               type="button"
               onClick={submit}
               disabled={pending}
-              className="inline-flex items-center justify-center rounded-md bg-ink px-5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-md bg-ink px-5 py-2 text-sm font-semibold text-white shadow-xs hover:opacity-95 disabled:opacity-60"
             >
               {pending ? "Creating…" : "Create group order"}
             </button>

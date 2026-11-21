@@ -51,7 +51,7 @@ type FlyToCartAddButtonProps = {
   "data-testid"?: string
   /** Thumbnail to animate toward the header cart; use absolute or site-relative URL. */
   flyImageSrc: string
-  /** @default z-[210] so it appears above the nav; must stay below modal overlays if needed */
+  /** @default z-210 so it appears above the nav; must stay below modal overlays if needed */
   flyZIndexClass?: string
 }
 
@@ -75,7 +75,7 @@ export default function FlyToCartAddButton({
   children,
   "data-testid": dataTestId,
   flyImageSrc,
-  flyZIndexClass = "z-[210]",
+  flyZIndexClass = "z-210",
 }: FlyToCartAddButtonProps) {
   const btnRef = useRef<HTMLButtonElement>(null)
   const [fly, setFly] = useState<FlyState>(null)

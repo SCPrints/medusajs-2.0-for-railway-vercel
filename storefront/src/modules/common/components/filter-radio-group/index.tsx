@@ -40,7 +40,7 @@ const FilterRadioGroup = ({
             <Label
               htmlFor={i.value}
               className={clx(
-                "!txt-compact-small !transform-none text-ui-fg-subtle hover:cursor-pointer",
+                "txt-compact-small! transform-none! text-ui-fg-subtle hover:cursor-pointer",
                 {
                   "text-ui-fg-base": i.value === value,
                 }

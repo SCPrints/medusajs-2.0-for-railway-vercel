@@ -37,7 +37,7 @@ function FacetSelect({
       <select
         value={value}
         onChange={onChange}
-        className="appearance-none flex-1 bg-transparent border-none px-4 py-2.5 transition-colors duration-150 outline-none"
+        className="appearance-none flex-1 bg-transparent border-none px-4 py-2.5 transition-colors duration-150 outline-hidden"
       >
         <option disabled value="">
           {placeholder}
@@ -326,7 +326,7 @@ const RefinementList = ({
   return (
     <>
       {/* Mobile + tablet portrait: trigger row + slide-up drawer */}
-      <div className="small:hidden sticky top-20 z-30 mb-4 flex items-center justify-between gap-2 rounded-lg border border-ui-border-base bg-white px-3 py-3 shadow-sm">
+      <div className="small:hidden sticky top-20 z-30 mb-4 flex items-center justify-between gap-2 rounded-lg border border-ui-border-base bg-white px-3 py-3 shadow-xs">
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -374,7 +374,7 @@ const RefinementList = ({
           <button
             type="button"
             aria-label="Close filters"
-            className="flex-1 bg-black/40 backdrop-blur-sm"
+            className="flex-1 bg-black/40 backdrop-blur-xs"
             onClick={() => setDrawerOpen(false)}
           />
           <div

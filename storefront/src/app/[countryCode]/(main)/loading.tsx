@@ -12,8 +12,8 @@ export default function Loading() {
       className="content-container min-h-screen py-12 small:py-16"
       aria-busy="true"
     >
-      <div className="h-6 w-40 animate-pulse rounded bg-ui-bg-subtle" />
-      <div className="mt-4 h-10 w-2/3 animate-pulse rounded bg-ui-bg-subtle" />
+      <div className="h-6 w-40 animate-pulse rounded-sm bg-ui-bg-subtle" />
+      <div className="mt-4 h-10 w-2/3 animate-pulse rounded-sm bg-ui-bg-subtle" />
       <div className="mt-10 h-[60vh] animate-pulse rounded-2xl border border-ui-border-base bg-ui-bg-subtle" />
     </div>
   )

@@ -194,7 +194,7 @@ export function LabTierGFallingChips({
         onPointerDown={drop}
       >
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-        <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+        <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
           Click anywhere to drop chips. Pure RAF AABB + impulse — no Matter.js.
         </p>
       </div>
@@ -349,7 +349,7 @@ export function LabTierGRopeChain({
       onPointerLeave={() => (target.current.set = false)}
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-      <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+      <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
         Move pointer — verlet chain follows. Pure JS, no library.
       </p>
     </div>
@@ -836,7 +836,7 @@ export function LabTierGGarmentColorSweep({
 
   return (
     <div className="space-y-3">
-      <div className="relative aspect-[5/4] w-full overflow-hidden rounded-xl border border-ui-border-base">
+      <div className="relative aspect-5/4 w-full overflow-hidden rounded-xl border border-ui-border-base">
         <div className="absolute inset-0" style={{ background: prev.hex }} />
         <motion.div
           key={sweepKey}
@@ -876,7 +876,7 @@ export function LabTierGGarmentColorSweep({
             SC PRINTS
           </text>
         </svg>
-        <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-1 text-xs text-white">
+        <p className="pointer-events-none absolute bottom-2 left-2 rounded-sm bg-black/55 px-2 py-1 text-xs text-white">
           Click a swatch — circular clip-path sweeps from the click point.
         </p>
       </div>

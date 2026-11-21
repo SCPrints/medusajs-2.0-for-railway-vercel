@@ -8,7 +8,7 @@ export default function BundleCard({ bundle }: { bundle: Bundle }) {
     <LocalizedClientLink href={`/bundles/${bundle.handle}`} className="group block">
       <div className="overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base transition hover:border-ui-border-interactive hover:shadow-md">
         {bundle.thumbnail_url ? (
-          <div className="aspect-[16/9] overflow-hidden bg-ui-bg-subtle">
+          <div className="aspect-video overflow-hidden bg-ui-bg-subtle">
             <img
               src={bundle.thumbnail_url}
               alt={bundle.title}
@@ -17,7 +17,7 @@ export default function BundleCard({ bundle }: { bundle: Bundle }) {
             />
           </div>
         ) : (
-          <div className="flex aspect-[16/9] items-center justify-center bg-ui-bg-subtle">
+          <div className="flex aspect-video items-center justify-center bg-ui-bg-subtle">
             <span className="text-4xl">📦</span>
           </div>
         )}

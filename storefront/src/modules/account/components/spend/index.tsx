@@ -6,10 +6,10 @@ import { chartBars } from "./chart"
 
 const pill = (active: boolean) =>
   `inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold ${
-    active ? "border-brand bg-brand text-white" : "border-ui-border-base bg-white !text-ui-fg-base hover:bg-ui-bg-subtle"
+    active ? "border-brand bg-brand text-white" : "border-ui-border-base bg-white text-ui-fg-base! hover:bg-ui-bg-subtle"
   }`
 const downloadButton =
-  "inline-flex min-h-11 items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2.5 text-sm font-semibold !text-ui-fg-base hover:bg-ui-bg-subtle"
+  "inline-flex min-h-11 items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2.5 text-sm font-semibold text-ui-fg-base! hover:bg-ui-bg-subtle"
 
 const STATUS_TONE: Record<string, string> = {
   paid: "text-emerald-700",
@@ -54,7 +54,7 @@ const SpendReport = ({ data }: { data: SpendResponse }) => {
       </div>
 
       <section aria-label="Spend by month">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">Spend by month</h2>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">Spend by month</h2>
         {report.totals.orders === 0 ? (
           <p className="rounded-xl border border-dashed border-ui-border-base p-6 text-center text-sm text-ui-fg-subtle">
             No orders in the last 24 months.
@@ -94,7 +94,7 @@ const SpendReport = ({ data }: { data: SpendResponse }) => {
 
       {hasCostCentres ? (
         <section aria-label="Spend by cost centre">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">Spend by cost centre</h2>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">Spend by cost centre</h2>
           <ul className="divide-y divide-gray-100 rounded-xl border border-ui-border-base bg-white">
             {report.cost_centres.map((c) => (
               <li key={c.cost_centre} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
@@ -110,7 +110,7 @@ const SpendReport = ({ data }: { data: SpendResponse }) => {
 
       <section aria-label="Statement of invoices">
         <div className="mb-3 flex flex-col gap-3 tablet:flex-row tablet:items-center tablet:justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">Statement of invoices</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">Statement of invoices</h2>
           {report.statement.length > 0 ? (
             <div className="flex gap-2">
               <a href={`/api/account/spend?format=pdf${query}`} download className={downloadButton} data-testid="statement-pdf">
@@ -124,7 +124,7 @@ const SpendReport = ({ data }: { data: SpendResponse }) => {
         </div>
         {report.statement.length > 0 ? (
           <div className="overflow-x-auto rounded-xl border border-ui-border-base bg-white">
-            <table className="w-full min-w-[36rem] text-left text-sm">
+            <table className="w-full min-w-xl text-left text-sm">
               <thead className="text-xs uppercase tracking-wide text-ui-fg-subtle">
                 <tr className="border-b border-gray-200">
                   <th className="px-4 py-3 font-semibold">Date</th>

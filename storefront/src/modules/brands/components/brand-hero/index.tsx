@@ -45,7 +45,7 @@ function LogoChip({
 }) {
   return (
     <span
-      className={`mb-5 inline-flex w-fit items-center rounded-xl px-4 py-3 shadow-sm ring-1 ${
+      className={`mb-5 inline-flex w-fit items-center rounded-xl px-4 py-3 shadow-xs ring-1 ${
         dark
           ? "bg-stone-900/10 ring-black/10"
           : "bg-white/95 ring-black/5"
@@ -111,7 +111,7 @@ export default function BrandHero({
                   <li key={c.id}>
                     <LocalizedClientLink
                       href={`/brands/${c.handle}`}
-                      className="inline-flex min-h-11 items-center rounded-full border border-gray-300 bg-white/60 px-4 py-1 text-sm font-medium text-gray-700 backdrop-blur-sm transition hover:bg-white/90"
+                      className="inline-flex min-h-11 items-center rounded-full border border-gray-300 bg-white/60 px-4 py-1 text-sm font-medium text-gray-700 backdrop-blur-xs transition hover:bg-white/90"
                     >
                       {c.name}
                     </LocalizedClientLink>
@@ -158,7 +158,7 @@ export default function BrandHero({
           <div className={`h-full w-full ${bgClass}`} aria-hidden />
         )}
         {/* Legibility overlay — darker at the bottom where the text sits. */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/30" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/55 to-black/30" />
       </div>
 
       <div className="content-container relative flex min-h-[44vh] flex-col justify-end py-12 small:min-h-[48vh] small:py-16">
@@ -166,7 +166,7 @@ export default function BrandHero({
           <LogoChip logoSrc={logoSrc} name={name} />
         ) : null}
 
-        <h1 className="text-3xl font-semibold tracking-tight text-white drop-shadow-sm small:text-4xl medium:text-5xl">
+        <h1 className="text-3xl font-semibold tracking-tight text-white drop-shadow-xs small:text-4xl medium:text-5xl">
           {name}
         </h1>
 
@@ -182,7 +182,7 @@ export default function BrandHero({
               <li key={c.id}>
                 <LocalizedClientLink
                   href={`/brands/${c.handle}`}
-                  className="inline-flex min-h-11 items-center rounded-full border border-white/30 bg-white/10 px-4 py-1 text-sm font-medium text-white backdrop-blur-sm transition hover:bg-white/20"
+                  className="inline-flex min-h-11 items-center rounded-full border border-white/30 bg-white/10 px-4 py-1 text-sm font-medium text-white backdrop-blur-xs transition hover:bg-white/20"
                 >
                   {c.name}
                 </LocalizedClientLink>

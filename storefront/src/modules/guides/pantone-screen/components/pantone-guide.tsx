@@ -13,7 +13,7 @@ const Bullet = ({ children }: { children: React.ReactNode }) => (
 )
 
 const Card = ({ color }: { color: PantoneColor }) => (
-  <article className="flex flex-col overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-sm">
+  <article className="flex flex-col overflow-hidden rounded-xl border border-ui-border-base bg-ui-bg-base shadow-xs">
     <div className="min-h-[110px] border-b border-ui-border-base" style={{ backgroundColor: color.hex }} aria-hidden />
     <div className="p-4">
       <h3 className="text-base font-semibold text-ui-fg-base">{color.name}</h3>
@@ -31,7 +31,7 @@ export default function PantoneGuide() {
       <div className="border-b border-ui-border-base bg-ui-bg-subtle">
         <div className="content-container py-14 small:py-20">
           <header className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--brand-primary)/70">
               Print preparation
             </p>
             <h1 className="page-title-marketing mt-3 tracking-tight">Pantone colours for screen printing</h1>
@@ -49,7 +49,7 @@ export default function PantoneGuide() {
         <div className="mx-auto max-w-6xl space-y-12 small:space-y-16">
           <section className="grid gap-6 tablet:grid-cols-2">
             <div className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
                 Why Pantone here and CMYK there
               </p>
               <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">Spot ink versus process</h2>
@@ -70,7 +70,7 @@ export default function PantoneGuide() {
             </div>
 
             <div className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
                 Pre-flight checklist
               </p>
               <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">How to supply a Pantone</h2>
@@ -93,7 +93,7 @@ export default function PantoneGuide() {
           </section>
 
           <section className="rounded-2xl border border-ui-border-base bg-white p-6 small:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">
               What changes the match
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ui-fg-base small:text-2xl">Fabric is not paper</h2>

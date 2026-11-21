@@ -69,7 +69,7 @@ const LineItemMockupPreview = ({
   return (
     <Container
       className={clx(
-        "relative w-full overflow-hidden p-1 bg-ui-bg-subtle shadow-elevation-card-rest rounded-large flex flex-col aspect-[1/1]",
+        "relative w-full overflow-hidden p-1 bg-ui-bg-subtle shadow-elevation-card-rest rounded-large flex flex-col aspect-square",
         className
       )}
     >
@@ -89,7 +89,7 @@ const LineItemMockupPreview = ({
               sizes="96px"
               fill
             />
-            <span className="absolute top-1 left-1 rounded bg-black/60 px-1 py-0.5 text-[10px] leading-none text-white">
+            <span className="absolute top-1 left-1 rounded-sm bg-black/60 px-1 py-0.5 text-[10px] leading-none text-white">
               {mockup.label}
             </span>
           </div>

@@ -13,7 +13,7 @@ export default async function PricesPage() {
   return (
     <div className="w-full" data-testid="prices-page-wrapper">
       <header className="mb-8 border-l-4 border-brand pl-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">Price list</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--brand-primary)/80">Price list</p>
         <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base small:text-3xl">My prices</h1>
         <p className="mt-3 max-w-2xl text-sm text-ui-fg-subtle small:text-base">
           Your price for each garment you order, by quantity, plus print and embroidery prices.

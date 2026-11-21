@@ -6,10 +6,10 @@ const SkeletonOrderCard = () => {
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col gap-1.5">
-          <div className="h-3 w-20 rounded bg-gray-200" />
-          <div className="h-5 w-24 rounded bg-gray-200" />
+          <div className="h-3 w-20 rounded-sm bg-gray-200" />
+          <div className="h-5 w-24 rounded-sm bg-gray-200" />
         </div>
-        <div className="h-4 w-16 rounded bg-gray-200" />
+        <div className="h-4 w-16 rounded-sm bg-gray-200" />
       </div>
       <div className="mt-4 grid grid-cols-3 gap-3 phone:grid-cols-4">
         {Array.from({ length: 3 }).map((_, i) => (
@@ -17,7 +17,7 @@ const SkeletonOrderCard = () => {
         ))}
       </div>
       <div className="mt-4 flex justify-end">
-        <div className="h-8 w-24 rounded bg-gray-200" />
+        <div className="h-8 w-24 rounded-sm bg-gray-200" />
       </div>
     </div>
   )
