@@ -296,8 +296,8 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
       aria-label="Custom hat brief builder"
     >
       <HoneypotField />
-      {/* 1. Base cap */}
-      <fieldset className="space-y-4">
+      {/* 1. Base cap. mt-8 keeps the Tailwind 3 space-y gap (the honeypot is first). */}
+      <fieldset className="mt-8 space-y-4">
         <legend className="text-sm font-semibold text-ink">1. Base cap</legend>
         <div>
           <label className={labelClass}>Cap style</label>

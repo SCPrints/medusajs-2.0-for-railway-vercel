@@ -204,7 +204,8 @@ export default function ContactForm() {
     <div className="bg-white p-8 rounded-2xl shadow-xs border border-gray-100">
       <form onSubmit={handleSubmit} className="space-y-6">
         <HoneypotField />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* mt-6: Tailwind 3 space-y gave the first visible field this gap (the honeypot is first). */}
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label
               htmlFor="first-name"

@@ -275,7 +275,8 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
       aria-label="BYO inquiry form"
     >
       <HoneypotField />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {/* mt-4 keeps the Tailwind 3 space-y gap (the honeypot is first). */}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="byo-first-name" className={labelClass}>
             First name
