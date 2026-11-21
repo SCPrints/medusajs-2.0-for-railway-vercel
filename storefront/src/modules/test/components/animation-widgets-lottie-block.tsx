@@ -1,6 +1,6 @@
 "use client"
 
-import Lottie, { type LottieRefCurrentProps } from "lottie-react"
+import { Lottie, type LottieHandle } from "lottie-react"
 import { useEffect, useRef, useState } from "react"
 import { useInView } from "react-intersection-observer"
 
@@ -14,7 +14,7 @@ type Props = {
 
 export default function AnimationWidgetsLottieBlock({ reducedMotion }: Props) {
   const { ref, inView } = useInView({ threshold: 0.35, triggerOnce: false })
-  const lottieRef = useRef<LottieRefCurrentProps>(null)
+  const lottieRef = useRef<LottieHandle>(null)
   const [data, setData] = useState<object | null>(null)
 
   useEffect(() => {
@@ -42,8 +42,7 @@ export default function AnimationWidgetsLottieBlock({ reducedMotion }: Props) {
       return
     }
     if (reducedMotion) {
-      api.pause()
-      api.goToAndStop(0, true)
+      api.stop()
       return
     }
     if (inView) {
@@ -65,7 +64,7 @@ export default function AnimationWidgetsLottieBlock({ reducedMotion }: Props) {
     <div ref={ref} className="mx-auto max-w-xs">
       <Lottie
         lottieRef={lottieRef}
-        animationData={data}
+        src={data}
         loop={!reducedMotion}
         autoplay={false}
         className="max-h-[220px]"
