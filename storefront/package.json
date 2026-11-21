@@ -44,7 +44,7 @@
     "@radix-ui/react-slot": "^1.5.0",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
-    "@rive-app/react-canvas": "^4.40.0",
+    "@rive-app/react-canvas": "^4.41.0",
     "@splinetool/react-spline": "^4.2.0",
     "@splinetool/runtime": "^2.0.211",
     "@stripe/react-stripe-js": "^7.1.0",
@@ -72,7 +72,7 @@
     "sanitize-html": "^2.18.2",
     "server-only": "^0.0.1",
     "split-type": "^0.3.4",
-    "tailwindcss-radix": "^2.8.0",
+    "tailwindcss-radix": "^4.0.2",
     "three": "^0.187.0",
     "webpack": "^5.112.2",
     "zod": "^4.6.7"
