@@ -1,7 +1,7 @@
 "use client"
 
 import { Container, clx } from "@medusajs/ui"
-import { motion } from "framer-motion"
+import { LazyMotion, m } from "framer-motion"
 import Image from "next/image"
 import {
   useCallback,
@@ -14,6 +14,7 @@ import {
 
 import PlaceholderImage from "@modules/common/icons/placeholder-image"
 
+import { loadMotionFeatures } from "@lib/util/lazy-motion"
 import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-images"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
@@ -582,7 +583,8 @@ function ProductListingCardTiltLift({
   // 12 cards × many swatches per card all re-rendering on every mouse pixel).
   // Kept the lift+scale spring since it only fires on pointer enter/leave.
   return (
-    <motion.article
+    <LazyMotion features={loadMotionFeatures}>
+    <m.article
       ref={cardRootRef}
       data-testid="product-wrapper"
       onPointerEnter={onPointerEnter}
@@ -605,7 +607,8 @@ function ProductListingCardTiltLift({
       )}
     >
       {content}
-    </motion.article>
+    </m.article>
+    </LazyMotion>
   )
 }
 

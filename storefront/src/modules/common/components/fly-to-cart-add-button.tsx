@@ -2,16 +2,18 @@
 
 import { Button } from "@medusajs/ui"
 import type { HttpTypes } from "@medusajs/types"
-import { motion } from "framer-motion"
+import { LazyMotion, m } from "framer-motion"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+
+import { loadMotionFeatures, motionFeaturesLoaded } from "@lib/util/lazy-motion"
 
 const FLYING_SIZE = 48
 const NAV_CART_SELECTOR = "[data-testid='nav-cart-link']"
 
 const squishTransition = { type: "spring" as const, stiffness: 500, damping: 18 }
 
-const MotionAddButton = motion(Button)
+const MotionAddButton = m.create(Button)
 
 const FALLBACK_FLY_IMG = "/branding/sc-prints-logo-transparent.png"
 
@@ -86,7 +88,8 @@ export default function FlyToCartAddButton({
   }, [])
 
   const startFly = useCallback(() => {
-    if (!btnRef.current) {
+    // Without the animation code the chip would never finish flying and stay on screen.
+    if (!btnRef.current || !motionFeaturesLoaded()) {
       return
     }
     const endRect = resolveCartTargetRect()
@@ -119,7 +122,7 @@ export default function FlyToCartAddButton({
     mounted &&
     fly &&
     createPortal(
-      <motion.div
+      <m.div
         key={fly.id}
         className={`pointer-events-none fixed ${flyZIndexClass} h-12 w-12 overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-base shadow-md`}
         style={{ left: 0, top: 0 }}
@@ -137,12 +140,12 @@ export default function FlyToCartAddButton({
           height={FLYING_SIZE}
           className="h-full w-full object-contain p-0.5"
         />
-      </motion.div>,
+      </m.div>,
       document.body
     )
 
   return (
-    <>
+    <LazyMotion features={loadMotionFeatures}>
       <MotionAddButton
         ref={btnRef}
         type="button"
@@ -159,6 +162,6 @@ export default function FlyToCartAddButton({
         {children}
       </MotionAddButton>
       {flyLayer}
-    </>
+    </LazyMotion>
   )
 }

@@ -4,7 +4,8 @@ import Back from "@modules/common/icons/back"
 import FastDelivery from "@modules/common/icons/fast-delivery"
 import Refresh from "@modules/common/icons/refresh"
 import { HttpTypes } from "@medusajs/types"
-import { LayoutGroup, motion, useReducedMotion } from "framer-motion"
+import { loadMotionFeatures } from "@lib/util/lazy-motion"
+import { LayoutGroup, LazyMotion, m, useReducedMotion } from "framer-motion"
 import { useId, useState } from "react"
 import MaterialsCompliance from "@modules/products/components/materials-compliance"
 import { isBeanieGarmentProduct } from "@modules/products/lib/variant-options"
@@ -26,6 +27,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
 
   return (
     <div className="w-full">
+      <LazyMotion features={loadMotionFeatures}>
       <LayoutGroup id={`${baseId}-pdp-info-tabs`}>
         <div
           className="relative flex gap-1 border-b border-ui-border-base"
@@ -47,7 +49,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
             >
               {label}
               {active === i ? (
-                <motion.span
+                <m.span
                   layoutId={`${baseId}-pdp-tab-underline`}
                   className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-ui-fg-base"
                   transition={underlineTransition}
@@ -57,6 +59,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
           ))}
         </div>
       </LayoutGroup>
+      </LazyMotion>
 
       <div
         role="tabpanel"
