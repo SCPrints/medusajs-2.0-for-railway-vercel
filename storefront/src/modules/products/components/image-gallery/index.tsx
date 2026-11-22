@@ -242,6 +242,8 @@ const ImageGallery = ({
               alt={`${altBase} — view ${activeIndex + 1}`}
               fill
               priority
+              // Next 16's `priority` only preloads; without this Chrome fetches the LCP photo at Low.
+              fetchPriority="high"
               sizes="(max-width: 1024px) 100vw, 50vw"
               // object-contain so the customer always sees the whole
               // garment, not a centre-cropped slice. Supplier photos

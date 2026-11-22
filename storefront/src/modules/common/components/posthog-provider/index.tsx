@@ -1,18 +1,17 @@
 "use client"
 
-import posthog from "posthog-js"
-import { PostHogProvider as PHProvider } from "posthog-js/react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { Suspense, useEffect } from "react"
 
 import { isInternalTraffic } from "@lib/internal-traffic"
-import { phCapturePageViewWhenReady } from "@lib/posthog"
+import { phCapturePageView, phStart } from "@lib/posthog"
+import { afterPageLoad } from "@lib/util/after-page-load"
 
 /**
- * Bootstraps posthog-js once on the client, wraps children in the
- * react context so any descendant can `usePostHog()`, and fires
- * pageview captures on App Router route changes (App Router doesn't
- * auto-emit pageview events the way the Pages Router did).
+ * Bootstraps posthog-js once on the client and fires pageview captures on
+ * App Router route changes (App Router doesn't auto-emit pageview events the
+ * way the Pages Router did). Use `@lib/posthog` to capture: there is no React
+ * context, because `posthog-js/react` pulls the whole SDK into the first load.
  *
  * Renders children without instrumentation when
  * NEXT_PUBLIC_POSTHOG_KEY isn't set (dev / preview environments
@@ -24,15 +23,12 @@ const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY
 const apiHost =
   process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com"
 
-const initPostHog = () => {
-  if (
-    typeof window === "undefined" ||
-    !apiKey ||
-    (posthog as any).__loaded ||
-    isInternalTraffic()
-  ) {
+const initPostHog = async () => {
+  if (!apiKey || isInternalTraffic()) {
+    phStart(null)
     return
   }
+  const { default: posthog } = await import("posthog-js")
   posthog.init(apiKey, {
     api_host: apiHost,
     capture_pageview: false,
@@ -49,43 +45,31 @@ const initPostHog = () => {
     // surveys.js (~33 KiB) and removes its 5-min cache-TTL refetch.
     disable_surveys: true,
   })
+  phStart(posthog)
 }
 
-// Defer initialization until after the page is interactive so PostHog's
-// 92 KiB doesn't compete with first-party JS on the critical path. The
-// phCapturePageViewWhenReady helper polls until __loaded so the first
-// pageview is preserved through the delay.
+// Download and start PostHog only after the page has loaded: in the first-load
+// bundle its ~120 KB added ~0.7s to mobile LCP on every page.
 if (typeof window !== "undefined" && apiKey) {
-  const schedule = () => {
-    const ric = (window as any).requestIdleCallback as
-      | ((cb: () => void, opts?: { timeout: number }) => number)
-      | undefined
-    if (ric) {
-      ric(initPostHog, { timeout: 4000 })
-    } else {
-      setTimeout(initPostHog, 1500)
-    }
-  }
-  if (document.readyState === "complete") {
-    schedule()
-  } else {
-    window.addEventListener("load", schedule, { once: true })
-  }
+  afterPageLoad(() => {
+    // A failed download (offline, ad blocker) just means no analytics this visit.
+    initPostHog().catch(() => phStart(null))
+  })
 }
 
 export const PostHogProvider = ({ children }: { children: React.ReactNode }) => {
   if (!apiKey) {
     // No-op passthrough so call sites can use phIdentify/phCapture
-    // without conditionals — they're already gated on `__loaded`.
+    // without conditionals — they just wait in the capped queue.
     return <>{children}</>
   }
   return (
-    <PHProvider client={posthog}>
+    <>
       <Suspense fallback={null}>
         <PageViewTracker />
       </Suspense>
       {children}
-    </PHProvider>
+    </>
   )
 }
 
@@ -100,7 +84,7 @@ const PageViewTracker = () => {
       (searchParams && searchParams.toString()
         ? `?${searchParams.toString()}`
         : "")
-    phCapturePageViewWhenReady(url)
+    phCapturePageView(url)
   }, [pathname, searchParams])
 
   return null

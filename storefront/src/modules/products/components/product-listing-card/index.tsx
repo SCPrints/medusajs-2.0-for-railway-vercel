@@ -146,6 +146,7 @@ function CardImage({
           sizes="(max-width: 576px) 50vw, (max-width: 1024px) 33vw, 260px"
           fill
           priority={priority}
+          fetchPriority={priority ? "high" : undefined}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center">

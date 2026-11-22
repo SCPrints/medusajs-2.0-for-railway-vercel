@@ -3,6 +3,7 @@
 import Image from "next/image"
 import { useSearchParams } from "next/navigation"
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import { afterPageLoad } from "@lib/util/after-page-load"
 import NoMinimumBadge from "@modules/common/components/no-minimum-badge"
 
 /**
@@ -94,6 +95,16 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
     if (autoOpen || deepLinkOpen) openStudio()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Fetch the Studio code once the page has loaded, so opening it is still instant.
+  useEffect(
+    () =>
+      afterPageLoad(() => {
+        // A failed warm-up is harmless: opening the Studio requests it again.
+        import("./embedded-product-customizer").catch(() => undefined)
+      }),
+    []
+  )
 
   // Accessibility: while the studio overlay is open, make the page behind it
   // inert (removed from tab order + the a11y tree), move focus into the

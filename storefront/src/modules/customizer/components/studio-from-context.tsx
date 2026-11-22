@@ -1,10 +1,14 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import type { ComponentProps } from "react"
 
 import { useProductOptions } from "@modules/products/context/product-options-context"
 
-import EmbeddedProductCustomizer from "./embedded-product-customizer"
+// Fabric + the Studio are ~190 KB gzipped, so they stay out of the PDP's first
+// load (StudioLauncher warms them after load). No `loading` option on purpose:
+// the template's Suspense fallback ("Loading the design studio…") covers it.
+const EmbeddedProductCustomizer = dynamic(() => import("./embedded-product-customizer"))
 
 type Props = Omit<ComponentProps<typeof EmbeddedProductCustomizer>, "product">
 
