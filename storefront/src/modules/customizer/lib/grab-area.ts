@@ -31,6 +31,10 @@ export function applyGrabArea(object: any): void {
     if (control) object.setControlVisible(key, roomForSides || control.actionName === "resizing")
   }
 
+  // The padded box already lifts the rotate handle; don't push it off the canvas.
+  const rotate = object.controls.mtr
+  if (rotate) rotate.offsetY = -Math.max(24, 40 - (padding - BASE_PADDING))
+
   // A press in the middle always moves; handles keep everything outside it.
   object.findControl = function (pointer: { x: number; y: number }, forTouch?: boolean) {
     const { tl, br } = this.oCoords ?? {}

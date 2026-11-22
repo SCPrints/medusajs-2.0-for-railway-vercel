@@ -170,7 +170,7 @@ function CanvasStage({
       */}
       {previewSize && !isSleeveView && showPhoto ? (
         <div
-          className="pointer-events-none absolute right-1 top-1 rounded-md border border-ui-border-base px-1 py-0.5 text-[9px] font-medium text-ui-fg-subtle shadow-xs small:right-3 small:top-3 small:px-2 small:py-1 small:text-[11px]"
+          className="pointer-events-none absolute bottom-1 right-1 rounded-md border border-ui-border-base px-1 py-0.5 text-[9px] font-medium text-ui-fg-subtle shadow-xs small:bottom-auto small:right-3 small:top-3 small:px-2 small:py-1 small:text-[11px]"
           aria-hidden
         >
           Preview shown on a size {previewSize}

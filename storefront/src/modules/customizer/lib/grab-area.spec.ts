@@ -7,7 +7,7 @@ const fake = (width: number, height: number, zoom = 1, sideAction = "scale") => 
     canvas: { getZoom: () => zoom },
     getScaledWidth: () => width,
     getScaledHeight: () => height,
-    controls: { ml: { actionName: sideAction }, mr: { actionName: sideAction }, mt: {}, mb: {} },
+    controls: { ml: { actionName: sideAction }, mr: { actionName: sideAction }, mt: {}, mb: {}, mtr: { offsetY: -40 } },
     setControlVisible: (key: string, on: boolean) => (visible[key] = on),
     setCoords: () => undefined,
     oCoords: { tl: { x: 78, y: 78 }, br: { x: 122, y: 122 } },
@@ -36,6 +36,11 @@ describe("applyGrabArea", () => {
 
   it("keeps a text box's wrap handles", () => {
     expect(fake(120, 18, 1, "resizing").visible).toEqual({ ml: true, mr: true, mt: false, mb: false })
+  })
+
+  it("keeps the rotate handle close, but out of the grab area", () => {
+    expect(fake(16, 12).object.controls.mtr.offsetY).toBe(-28)
+    expect(fake(200, 150).object.controls.mtr.offsetY).toBe(-40)
   })
 
   it("leaves large artwork at the normal padding", () => {
