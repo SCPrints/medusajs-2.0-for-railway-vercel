@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Must match packageManager in package.json
-RUN npm install -g pnpm@9.10.0
+RUN npm install -g pnpm@10.34.9
 
 WORKDIR /app
 

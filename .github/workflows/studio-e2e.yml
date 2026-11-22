@@ -35,21 +35,21 @@ jobs:
       STUDIO_ADMIN_API_KEY: ${{ secrets.STUDIO_ADMIN_API_KEY }}
       CI: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.deployment.sha || github.sha }}
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          package_json_file: storefront/package.json
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: storefront/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test-studio ${{ github.event.inputs.grep && format('-g "{0}"', github.event.inputs.grep) || '' }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: studio-report
