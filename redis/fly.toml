@@ -2,7 +2,7 @@ app = 'sc-prints-redis'
 primary_region = 'syd'
 
 [build]
-  image = 'redis:7-alpine'
+  image = 'redis:7.4.12-alpine'
 
 [experimental]
   # 800mb cap on a 1GB machine — upsized 2026-08-27 after the catalog-wide
