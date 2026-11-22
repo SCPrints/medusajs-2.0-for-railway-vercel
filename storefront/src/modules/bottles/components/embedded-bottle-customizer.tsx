@@ -1,10 +1,14 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useState } from "react"
 import type { HttpTypes } from "@medusajs/types"
 
-import BottleCustomizer from "./bottle-customizer"
 import type { BottleSpec } from "../lib/bottle-label-spec"
+
+// The shared product template references this component, so a static import put
+// Fabric (~110 KB gzipped) on every product page. Still server-rendered for bottles.
+const BottleCustomizer = dynamic(() => import("./bottle-customizer"))
 
 type VariantOption = {
   id: string
