@@ -1,14 +1,26 @@
 "use client"
 
-import dynamic from "next/dynamic"
-import type { ComponentProps } from "react"
+import { lazy, useState, type ComponentProps } from "react"
 
 import { useProductOptions } from "@modules/products/context/product-options-context"
+import type EmbeddedProductCustomizer from "./embedded-product-customizer"
 
-// Fabric + the Studio are ~190 KB gzipped, so they stay out of the PDP's first
-// load (StudioLauncher warms them after load). No `loading` option on purpose:
-// the template's Suspense fallback ("Loading the design studio…") covers it.
-const EmbeddedProductCustomizer = dynamic(() => import("./embedded-product-customizer"))
+let loadedStudio: typeof EmbeddedProductCustomizer | undefined
+
+/**
+ * Fabric + the Studio are ~190 KB gzipped, so they stay out of the PDP's first
+ * load. StudioLauncher calls this once the page has loaded.
+ */
+export const loadStudio = async () => {
+  const studio = await import("./embedded-product-customizer")
+  loadedStudio = studio.default
+  return studio
+}
+
+// Only used if the Studio opens before it has downloaded. Not next/dynamic:
+// that suspends on first render even when the code is already here, and React
+// then holds the "Loading the design studio…" fallback for 300 ms.
+const LazyStudio = lazy(loadStudio)
 
 type Props = Omit<ComponentProps<typeof EmbeddedProductCustomizer>, "product">
 
@@ -21,5 +33,7 @@ type Props = Omit<ComponentProps<typeof EmbeddedProductCustomizer>, "product">
  */
 export default function StudioFromContext(props: Props) {
   const { product } = useProductOptions()
-  return <EmbeddedProductCustomizer product={product} {...props} />
+  // Chosen once per mount: switching component type would remount the canvas.
+  const [Studio] = useState(() => loadedStudio ?? LazyStudio)
+  return <Studio product={product} {...props} />
 }

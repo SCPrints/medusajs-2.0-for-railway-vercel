@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { afterPageLoad } from "@lib/util/after-page-load"
 import NoMinimumBadge from "@modules/common/components/no-minimum-badge"
+import { loadStudio } from "@modules/customizer/components/studio-from-context"
 
 /**
  * URL params that signal "the customer arrived to design/edit, not browse" —
@@ -101,7 +102,7 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
     () =>
       afterPageLoad(() => {
         // A failed warm-up is harmless: opening the Studio requests it again.
-        import("./embedded-product-customizer").catch(() => undefined)
+        loadStudio().catch(() => undefined)
       }),
     []
   )
