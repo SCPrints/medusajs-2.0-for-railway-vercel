@@ -31,6 +31,8 @@ describe("applyGrabArea", () => {
 
   it("hides side handles only when there is no room for them", () => {
     expect(fake(16, 12).visible).toEqual({ ml: false, mr: false, mt: false, mb: false })
+    // A fresh logo on desktop keeps all eight handles.
+    expect(fake(48, 36).visible).toEqual({ ml: true, mr: true, mt: true, mb: true })
     expect(fake(200, 150).visible).toEqual({ ml: true, mr: true, mt: true, mb: true })
   })
 

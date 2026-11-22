@@ -7,8 +7,6 @@
  */
 export const GRAB_PX = 44
 const BASE_PADDING = 4
-/** Under this, the four side handles would sit on top of the corner handles. */
-const SIDE_HANDLE_MIN_PX = 72
 const SIDE_HANDLES = ["ml", "mr", "mt", "mb"]
 
 /** Selection-box padding that makes the shorter side at least GRAB_PX. */
@@ -24,7 +22,8 @@ export function applyGrabArea(object: any): void {
   const padding = grabPadding(width, height)
   object.padding = padding
 
-  const roomForSides = Math.min(width, height) + 2 * padding >= SIDE_HANDLE_MIN_PX
+  // Only artwork small enough to need padding is too small for the side handles.
+  const roomForSides = padding === BASE_PADDING
   for (const key of SIDE_HANDLES) {
     const control = object.controls[key]
     // Text boxes wrap with ml / mr, so those always stay.
