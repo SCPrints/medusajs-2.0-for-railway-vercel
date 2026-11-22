@@ -170,7 +170,7 @@ function CanvasStage({
       */}
       {previewSize && !isSleeveView && showPhoto ? (
         <div
-          className="pointer-events-none absolute right-3 top-3 rounded-md border border-ui-border-base px-2 py-1 text-[11px] font-medium text-ui-fg-subtle shadow-xs"
+          className="pointer-events-none absolute right-1 top-1 rounded-md border border-ui-border-base px-1 py-0.5 text-[9px] font-medium text-ui-fg-subtle shadow-xs small:right-3 small:top-3 small:px-2 small:py-1 small:text-[11px]"
           aria-hidden
         >
           Preview shown on a size {previewSize}
@@ -196,7 +196,7 @@ function CanvasStage({
       />
 
       {(outOfBoundsWarning || dpiWarning || sizeWarning) && (
-        <div className="absolute bottom-3 left-3 right-3 space-y-1 rounded-md p-2 text-xs shadow-sm">
+        <div className="pointer-events-none absolute bottom-1 left-1 right-1 space-y-1 rounded-md p-1 text-[10px] leading-tight shadow-sm small:bottom-3 small:left-3 small:right-3 small:p-2 small:text-xs small:leading-4">
           {outOfBoundsWarning && <p className="text-rose-600">{outOfBoundsWarning}</p>}
           {dpiWarning && <p className="text-amber-700">{dpiWarning}</p>}
           {sizeWarning && <p className="text-amber-700">{sizeWarning}</p>}

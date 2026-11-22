@@ -21,6 +21,7 @@ import {
 } from "@modules/customizer/lib/dpi"
 import { resolvePdpFlyImageSrc } from "@modules/common/components/fly-to-cart-add-button"
 import CanvasStage from "@modules/customizer/components/canvas-stage"
+import { applyGrabArea } from "@modules/customizer/lib/grab-area"
 import DesignPreviewPopover from "@modules/customizer/components/design-preview-popover"
 import InputPanel, { ARTWORK_DRAG_TYPE } from "@modules/customizer/components/input-panel"
 import BulkOrderGrid, {
@@ -1569,7 +1570,10 @@ export default function CustomizerTemplate({
     const w = Number(canvas.getWidth?.() ?? canvas.width ?? 0)
     const h = Number(canvas.getHeight?.() ?? canvas.height ?? 0)
     canvas.setViewportTransform(mockupViewportTransform(w, h, mockupScaleRef.current))
-    canvas.getObjects?.().forEach((o: any) => o.setCoords?.())
+    canvas.getObjects?.().forEach((o: any) => {
+      o.setCoords?.()
+      applyGrabArea(o)
+    })
     canvas.requestRenderAll?.()
   }
 
@@ -3178,6 +3182,7 @@ export default function CustomizerTemplate({
           borderColor: "rgba(15, 23, 42, 0.55)",
           padding: 4,
         })
+        applyGrabArea(object)
       })
       canvas.renderAll()
       updateLayers()
@@ -3410,10 +3415,14 @@ export default function CustomizerTemplate({
     canvas.on("object:modified", syncHandlers)
     canvas.on("object:added", syncHandlers)
     canvas.on("object:removed", syncHandlers)
+    canvas.on("object:added", (event: any) => applyGrabArea(event.target))
+    canvas.on("object:modified", (event: any) => applyGrabArea(event.target))
     canvas.on("selection:created", () => {
+      applyGrabArea(canvas.getActiveObject())
       updateLayers()
     })
     canvas.on("selection:updated", () => {
+      applyGrabArea(canvas.getActiveObject())
       updateLayers()
     })
     canvas.on("selection:cleared", () => {
@@ -5972,7 +5981,7 @@ export default function CustomizerTemplate({
   const editorColumn = (
           <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col" : "space-y-4"}>
             <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col overflow-hidden bg-ui-bg-base" : "overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base shadow-xs"}>
-              <div className={`flex flex-col px-4 py-3 small:flex-row small:items-center small:justify-between${assemblyLayout ? " py-2.5" : " border-b border-ui-border-base"}`}>
+              <div className={assemblyLayout ? "flex shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 px-1 py-1 small:px-4 small:py-2.5" : "flex flex-col border-b border-ui-border-base px-4 py-3 small:flex-row small:items-center small:justify-between"}>
                 <div className="flex items-start gap-3">
                   {!assemblyLayout && (
                   <div>
@@ -5999,7 +6008,7 @@ export default function CustomizerTemplate({
                     />
                   ) : null}
                 </div>
-                <div className="mt-2 flex items-center gap-3 small:mt-0">
+                <div className={assemblyLayout ? "flex items-center gap-3" : "mt-2 flex items-center gap-3 small:mt-0"}>
                   {!staffEditor && !assemblyLayout ? (
                     <p className="hidden text-xs text-ui-fg-subtle small:block">
                       Drag, resize and position your artwork.
@@ -6052,8 +6061,8 @@ export default function CustomizerTemplate({
                 </div>
                 )}
 
-                <div className={assemblyLayout ? "order-1 flex flex-1 min-h-0 flex-col p-4 lg:order-2" : "order-1 min-h-[min(58vh,680px)] flex-1 p-4 small:p-5 lg:order-2"}>
-                  <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">
+                <div className={assemblyLayout ? "order-1 flex flex-1 min-h-0 flex-col p-1 small:p-4 lg:order-2" : "order-1 min-h-[min(58vh,680px)] flex-1 p-4 small:p-5 lg:order-2"}>
+                  <p className={`text-center text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle ${assemblyLayout ? "mb-1 small:mb-2 [@media(max-height:520px)]:max-small:hidden" : "mb-2"}`}>
                     Editing: {sideLabel}
                   </p>
                   <div
@@ -6809,12 +6818,12 @@ export default function CustomizerTemplate({
           assemblyLayout
             // Mobile/tablet (below small:=1024) stacks flex-col: pin the canvas
             // to a fixed share of the viewport (no grow/shrink) so it can't be
-            // starved to ~0 by the section panel below it. 38dvh (was 46) leaves
-            // the steps + pinned price bar room: phone recordings showed constant
-            // scrolling inside a too-small steps box. Fixed (not resized while
+            // starved to ~0 by the section panel below it. 42dvh with slim chrome
+            // leaves both a usable garment and room for the steps + price bar
+            // (46 starved the steps; 38 left a ~117px garment nobody could drag on). Fixed (not resized while
             // editing) so placed artwork never rescales under the customer's
             // finger. Desktop (small:flex-row) restores flex-1 + full height.
-            ? "flex min-w-0 flex-col min-h-0 overflow-hidden bg-ui-bg-base p-3 small:p-4 basis-[38dvh] [@media(max-height:520px)]:basis-[34dvh] grow-0 shrink-0 small:basis-0 small:grow small:shrink small:h-full"
+            ? "flex min-w-0 flex-col min-h-0 overflow-hidden bg-ui-bg-base p-2 small:p-4 basis-[42dvh] [@media(max-height:520px)]:basis-[40dvh] grow-0 shrink-0 small:basis-0 small:grow small:shrink small:h-full"
             : `order-2 lg:order-0 flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
                 isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-8"
               }`
@@ -6898,12 +6907,12 @@ export default function CustomizerTemplate({
               }`
         }>
           {assemblyLayout && (
-            <div className="flex items-center justify-between gap-2 border-b border-ui-border-base px-4 py-3">
+            <div className="flex items-center justify-between gap-2 border-b border-ui-border-base px-4 py-1.5 small:py-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-ui-fg-base">
                   {selectedProduct?.title ?? "Customise"}
                 </p>
-                <p className="text-[11px] uppercase tracking-wide text-ui-fg-subtle">
+                <p className="hidden text-[11px] uppercase tracking-wide text-ui-fg-subtle small:block">
                   SC Prints Studio
                 </p>
               </div>

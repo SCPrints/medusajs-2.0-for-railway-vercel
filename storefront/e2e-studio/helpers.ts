@@ -250,3 +250,15 @@ export async function emptyCart(context: BrowserContext) {
     }).catch(() => undefined)
   }
 }
+
+/** One finger, through CDP: `page.mouse` never exercises Fabric's bigger touch handles. */
+export async function touchDrag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [from] })
+  for (let i = 1; i <= 25; i++) {
+    const point = { x: from.x + ((to.x - from.x) * i) / 25, y: from.y + ((to.y - from.y) * i) / 25 }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [point] })
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+  await cdp.detach()
+}

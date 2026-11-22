@@ -23,7 +23,7 @@ test.beforeEach(async ({ context }) => {
   await prepareContext(context)
 })
 
-test("quote mode: design lands on the quote in dollars, and re-editing replaces it", async ({ page }) => {
+test("quote mode: design lands on the job in dollars, and re-editing replaces its mockup", async ({ page }) => {
   const { quote } = await adminApi("/admin/quotes", {
     method: "POST",
     body: JSON.stringify({ email: TEST_EMAIL, contact_name: "Studio test", subject: "STUDIO TEST — auto-deleted" }),
@@ -36,9 +36,10 @@ test("quote mode: design lands on the quote in dollars, and re-editing replaces 
     const { url } = await adminApi(`/admin/quotes/${quote.id}/design-link?handle=${TEST_HANDLE}`)
     await openStudioUrl(page, url)
     await uploadArtwork(page, { name: "logo.png", mimeType: "image/png", buffer: await makeImage(page, { width: 3000, height: 2250 }) })
-    await submitDesign(page, { qty: 2, button: /^Add design to quote$/ })
+    // The staff editor saves artwork only: one "(any size)" line, sized up on the job.
+    await page.getByRole("button", { name: /^Add design to job$/ }).click()
 
-    await expect.poll(summary, { timeout: 120_000, intervals: [2_000] }).toMatch(/^qg_[^,]+:2$/)
+    await expect.poll(summary, { timeout: 120_000, intervals: [2_000] }).toMatch(/^qg_[^,]+:1$/)
     const [line] = await designLines()
     // Dollars, not cents: the Studio's price field is named "...Cents" but holds dollars.
     expect(Number(line.unit_price)).toBeGreaterThan(5)
@@ -50,14 +51,17 @@ test("quote mode: design lands on the quote in dollars, and re-editing replaces 
     expect((await measureArtwork(page, mockup)) as any).toMatchObject({ ok: true })
 
     // "Edit design in Studio" on that group: the design reloads, and saving
-    // replaces the group's lines rather than adding to them.
+    // swaps the mockup on the same line rather than adding one.
     const { url: editUrl } = await adminApi(
       `/admin/quotes/${quote.id}/design-link?handle=${TEST_HANDLE}&group=${line.group_id}`
     )
     await openStudioUrl(page, editUrl)
     await expect.poll(async () => (await studioObjects(page)).length, { timeout: 30_000 }).toBe(1)
-    await submitDesign(page, { qty: 3, button: /^Add design to quote$/ })
-    await expect.poll(summary, { timeout: 120_000, intervals: [2_000] }).toBe(`${line.group_id}:3`)
+    await dragObjectTo(page, (await studioObjects(page))[0], 0.5, 0.65)
+    await page.getByRole("button", { name: /^Save mockup to job$/ }).click()
+    const frontMockup = async () => ((await designLines())[0]?.mockup_urls ?? []).find((m: any) => m.side === "front")?.url ?? mockup
+    await expect.poll(frontMockup, { timeout: 120_000, intervals: [2_000] }).not.toBe(mockup)
+    expect(await summary()).toBe(`${line.group_id}:1`)
   } finally {
     await adminApi(`/admin/quotes/${quote.id}`, { method: "DELETE" }).catch(() => undefined)
   }
