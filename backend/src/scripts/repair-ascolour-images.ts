@@ -291,7 +291,14 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
         finalUrls.push(url)
       }
       for (const url of currentUrls) add(url) // keeps live + uncertain, skips dead
-      for (const url of recovered) add(url)
+      // Only shots the product lost: a shot it still shows (from the website or
+      // at another size) under a different link would otherwise be duplicated.
+      const shots = new Set(finalUrls.map(shotKey))
+      for (const url of recovered) {
+        if (shots.has(shotKey(url))) continue
+        shots.add(shotKey(url))
+        add(url)
+      }
 
       if (!finalUrls.length) {
         logger.warn(`  ${product.handle} (${styleCode}): every image is dead and nothing recovered — leaving as-is for manual review`)
