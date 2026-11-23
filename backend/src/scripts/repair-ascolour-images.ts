@@ -157,6 +157,16 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
 
   const isDead = (status: number) => status === 404 || status === 410
 
+  // A stale Cloudflare copy makes a 386×513 link answer 200 from Fly after the
+  // photo is gone. BigCommerce renders every size from one original, so if the
+  // 1280×1280 sibling is 404/410 the photo is gone and the small link is dead.
+  const checkPhoto = async (url: string) => {
+    const res = await checkImageUrl(url, timeoutMs)
+    if (!res.ok || !isSmallAsColourUrl(url)) return res
+    const big = await checkImageUrl(url.replace(/\.386\.513\./i, ".1280.1280."), timeoutMs)
+    return isDead(big.status) ? big : res
+  }
+
   let offset = 0
   let scanned = 0
   let healthy = 0
@@ -245,7 +255,7 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
       // 1. Liveness-check current images.
       const currentChecks = await mapPool(currentUrls, HEAD_CONCURRENCY, async (url) => ({
         url,
-        res: await checkImageUrl(url, timeoutMs),
+        res: await checkPhoto(url),
       }))
       const deadCurrent = currentChecks.filter((c) => isDead(c.res.status))
       if (!deadCurrent.length) { healthy++; continue } // nothing confirmed-dead → leave it
@@ -264,7 +274,7 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
       const recovered: string[] = []
       for (const img of apiImages as any[]) {
         for (const variant of sizeVariants(img)) {
-          const res = await checkImageUrl(variant, timeoutMs)
+          const res = await checkPhoto(variant)
           if (res.ok) { recovered.push(variant); break }
         }
       }
