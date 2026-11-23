@@ -341,6 +341,8 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
           has_prices: lines.some((l) => l.unit_price != null) || num(quote.total_estimate) != null,
           design_changes_requested_at: iso(qmeta.design_changes_requested_at),
           design_approved_at: iso(qmeta.design_approved_at),
+          team_store_run: quote.source === "team_store",
+          team_store_done: qmeta.team_store_completed === true,
         }
       : null,
     order:

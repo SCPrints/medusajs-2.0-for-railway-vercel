@@ -23,6 +23,11 @@ import {
   restoreSideLayouts,
 } from "../../../../../lib/side-layouts-archive"
 import { verifyQuoteDesign } from "../../../../../services/quote-design/sign"
+import {
+  isTeamStoreItemId,
+  teamStoreDesignGET,
+  teamStoreDesignPOST,
+} from "../../../../../services/team-store/design-items"
 
 /**
  * POST /store/quotes/:id/design-items
@@ -68,6 +73,8 @@ const schema = z.object({
  * `qsig` capability as the POST. Null when the group has no design line yet.
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  // Team-store items reuse the Studio's quote mode (services/team-store/design-items.ts).
+  if (isTeamStoreItemId(req.params.id)) return teamStoreDesignGET(req, res)
   const id = req.params.id
   const qsig = typeof req.query.qsig === "string" ? req.query.qsig : ""
   const group = typeof req.query.group === "string" ? req.query.group : ""
@@ -97,6 +104,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  if (isTeamStoreItemId(req.params.id)) return teamStoreDesignPOST(req, res)
   const id = req.params.id
 
   let body: z.infer<typeof schema>

@@ -376,6 +376,11 @@ const medusaConfig = {
     },
 
     {
+      // Team stores (Docs/TEAM_STORES_SPEC.md). Routes 404 unless TEAM_STORES_ENABLED.
+      resolve: "./src/modules/team-store",
+    },
+
+    {
       resolve: "./src/modules/search-log",
     },
 

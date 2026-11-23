@@ -11,6 +11,7 @@ export type JobAttentionKind =
   | "names_numbers_requested"
   | "problem_reported"
   | "size_swap_requested"
+  | "team_store_under_minimum"
 
 /** Email-only kinds: no task, so not part of raiseAttention's JobAttentionKind. */
 type AlertKind = JobAttentionKind | "unmatched_email"
@@ -63,6 +64,11 @@ const COPY: Record<AlertKind, { eyebrow: string; color: string; body: string }> 
     eyebrow: "Customer reported a problem",
     color: "#dc2626",
     body: "The customer reported a problem with their order. Photos and details are on the job's Activity. Decide it under Customer requests, then reply to them.",
+  },
+  team_store_under_minimum: {
+    eyebrow: "Team store under its minimum",
+    color: "#dc2626",
+    body: "This team store closed with fewer units than its minimum. Decide whether to print anyway or refund every buyer, from the store's page in admin.",
   },
   size_swap_requested: {
     eyebrow: "Size swap requested",

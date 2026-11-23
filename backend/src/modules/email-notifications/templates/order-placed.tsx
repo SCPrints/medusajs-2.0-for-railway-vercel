@@ -57,6 +57,9 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
   const title = isMerchant ? 'New order received' : 'Thanks for your order'
 
   const items = order.items ?? []
+  // Team-store order: it prints with the whole store's run (Docs/TEAM_STORES_SPEC.md).
+  const teamStoreClosesAt = (items as any[]).find((i) => i?.metadata?.team_store_closes_at)?.metadata
+    ?.team_store_closes_at as string | undefined
 
   return (
     <Base preview={effectivePreview}>
@@ -137,6 +140,18 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
         {poNumber ? (
           <Text style={{ margin: '4px 0 0', fontSize: '14px', color: SLATE }}>
             <strong style={{ color: NAVY }}>PO number:</strong> {poNumber}
+          </Text>
+        ) : null}
+        {teamStoreClosesAt && !isMerchant ? (
+          <Text style={{ margin: '4px 0 0', fontSize: '14px', color: SLATE }}>
+            Your order prints when the store closes on{' '}
+            {new Date(teamStoreClosesAt).toLocaleDateString('en-AU', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              timeZone: 'Australia/Sydney',
+            })}
+            .
           </Text>
         ) : null}
         <Text style={{ margin: '4px 0 0', fontSize: '14px', color: SLATE }}>

@@ -123,6 +123,7 @@ const isExempt = (line: InvariantLine): boolean => {
   const meta = line.metadata as Record<string, unknown> | null | undefined
   if (!meta) return false
   if (meta.quote_locked_price === true) return true
+  if (meta.team_store_locked_price === true) return true
   if (meta.decorationDesign) return true
   // Explicit override convention: staff-recorded deviation with provenance.
   if (typeof meta.price_override === "object" && meta.price_override !== null) return true

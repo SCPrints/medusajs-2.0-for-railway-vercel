@@ -21,6 +21,7 @@ import {
 } from "./scp-resolve-garment-unit-price"
 import { classifyCartAddError, extractWorkflowErrorMessage } from "./cart-workflow-error"
 import { computeScpLineDescriptor, type ScpLineDescriptor } from "./scp-line-descriptor"
+import { TEAM_STORE_CART_ONLY_MESSAGE, cartTeamStoreId } from "./team-store"
 
 export type ScpAddLineInput = {
   variant_id: string
@@ -64,6 +65,7 @@ export async function addScpLinesToCart(
       "completed_at",
       "region.id",
       "region.currency_code",
+      "items.metadata",
     ],
   })
 
@@ -73,6 +75,11 @@ export async function addScpLinesToCart(
   }
   if (cart.completed_at) {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, "Cannot modify a completed cart.")
+  }
+  // Every server-built add (bulk grid, bundles, order again, group orders) goes
+  // through here: a team-store cart holds only that store's items (Decision 4).
+  if (cartTeamStoreId((cart.items as Array<{ metadata?: Record<string, unknown> | null }>) ?? [])) {
+    throw new MedusaError(MedusaError.Types.NOT_ALLOWED, TEAM_STORE_CART_ONLY_MESSAGE)
   }
 
   // Flat tier garment price (replaces the bulk ladder) for tier customers.

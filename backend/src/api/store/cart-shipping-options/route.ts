@@ -13,6 +13,7 @@ import {
   SHIPPING_PACKAGING_OVERHEAD_GRAMS,
 } from "../../../lib/constants"
 import { resolveShippingRate } from "../../../lib/shippit-quote"
+import { isBulkTeamStoreCart } from "../../../lib/team-store"
 
 type ShippingOption = {
   id: string
@@ -87,11 +88,15 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // amount stamped here is the one the customer is charged. Served from the
   // resolver's cache on the provider's call a moment later.
   const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER)
-  const rate = await resolveShippingRate(
-    weightSummary.totalWeightGrams,
-    (cart as { shipping_address?: Record<string, string | null> }).shipping_address,
-    (msg) => logger.warn(`cart-shipping-options: ${msg}`)
-  )
+  // Team store, bulk delivery: $0 to the buyer (the scp provider does the same).
+  const bulkTeamStore = isBulkTeamStoreCart((cart as { items?: Array<{ metadata?: Record<string, unknown> | null }> }).items)
+  const rate = bulkTeamStore
+    ? { amount: 0, rate_source: "team_store_bulk" as const, fallback_reason: null, shippit: null }
+    : await resolveShippingRate(
+        weightSummary.totalWeightGrams,
+        (cart as { shipping_address?: Record<string, string | null> }).shipping_address,
+        (msg) => logger.warn(`cart-shipping-options: ${msg}`)
+      )
 
   // Stamp the decision onto cart.metadata so it rides into the order and the
   // Admin "Shipping decision" panel can render the weight breakdown post-

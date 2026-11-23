@@ -5,6 +5,7 @@ import { checkoutPriceInvariantMiddleware } from "./middlewares/checkout-price-i
 import { stripVariantCostMetadataMiddleware } from "./middlewares/strip-variant-cost-metadata"
 import { stripLineItemTrustMetadataMiddleware } from "./middlewares/strip-line-item-trust-metadata"
 import { cleanCartPoNumberMiddleware } from "./middlewares/clean-cart-po-number"
+import { forceTeamStoreBulkAddress, refuseAddsToTeamStoreCart } from "./middlewares/team-store-cart-guard"
 import { cleanCartRushRequestMiddleware } from "./middlewares/clean-cart-rush-request"
 import { cleanCartSplitDeliveryMiddleware } from "./middlewares/clean-cart-split-delivery"
 import { orgCheckoutCompleteGuard, orgPaymentSessionGuard } from "./middlewares/org-checkout-guard"
@@ -61,7 +62,33 @@ export default defineMiddlewares({
       // Medusa updates a line with POST (there is no PUT on this route).
       matcher: "/store/carts/:id/line-items",
       methods: ["POST"],
-      middlewares: [stripLineItemTrustMetadataMiddleware],
+      middlewares: [stripLineItemTrustMetadataMiddleware, refuseAddsToTeamStoreCart],
+    },
+    {
+      // Team-store carts hold only that store's items (Decision 4).
+      matcher: "/store/carts/:id/scp-line-items",
+      methods: ["POST"],
+      middlewares: [refuseAddsToTeamStoreCart],
+    },
+    {
+      matcher: "/store/carts/:id/scp-line-items-batch",
+      methods: ["POST"],
+      middlewares: [refuseAddsToTeamStoreCart],
+    },
+    {
+      matcher: "/store/carts/:id/bundle-items",
+      methods: ["POST"],
+      middlewares: [refuseAddsToTeamStoreCart],
+    },
+    {
+      matcher: "/store/carts/:id/embroidery-line-items",
+      methods: ["POST"],
+      middlewares: [refuseAddsToTeamStoreCart],
+    },
+    {
+      matcher: "/store/carts/:id/sample-line",
+      methods: ["POST"],
+      middlewares: [refuseAddsToTeamStoreCart],
     },
     {
       matcher: "/store/carts/:id/line-items/:line_id",
@@ -84,7 +111,7 @@ export default defineMiddlewares({
       // Checkout's PO number field: trim + cap at 60 (lib/po-number.ts).
       matcher: "/store/carts/:id",
       methods: ["POST"],
-      middlewares: [cleanCartPoNumberMiddleware, cleanCartRushRequestMiddleware, cleanCartSplitDeliveryMiddleware],
+      middlewares: [cleanCartPoNumberMiddleware, cleanCartRushRequestMiddleware, cleanCartSplitDeliveryMiddleware, forceTeamStoreBulkAddress],
     },
     {
       // Pricing invariant — last gate before a cart becomes an order.

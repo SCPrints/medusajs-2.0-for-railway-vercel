@@ -19,6 +19,8 @@ export const AUDIT_ENTITY = {
   ORGANISATION_DESIGN: "organisation_design",
   ORGANISATION_DESTINATION: "organisation_destination",
   ORG_INVENTORY: "org_inventory",
+  /** A team store (Docs/TEAM_STORES_SPEC.md). */
+  TEAM_STORE: "team_store",
   /** The backend process itself (boot records for crash detection). */
   SYSTEM: "system",
 } as const

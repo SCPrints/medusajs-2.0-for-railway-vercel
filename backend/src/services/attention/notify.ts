@@ -46,6 +46,7 @@ const TITLE: Record<JobAttentionKind, (label: string) => string> = {
   names_numbers_requested: (l) => `Price names / numbers — ${l}`,
   problem_reported: (l) => `Customer reported a problem — ${l}`,
   size_swap_requested: (l) => `Size swap requested — ${l}`,
+  team_store_under_minimum: (l) => `Team store under minimum: print or refund — ${l}`,
 }
 
 const BODY: Record<JobAttentionKind, string> = {
@@ -59,6 +60,8 @@ const BODY: Record<JobAttentionKind, string> = {
     "The customer asked for names / numbers printed on the garments. Nothing was charged for them at checkout. Price it from the roster (job → Delivery), confirm the price with the customer, then go ahead.",
   problem_reported:
     "The customer reported a problem with their order (photos are on the job's Activity). Decide it in the job's Customer requests, then reply to them.",
+  team_store_under_minimum:
+    "This team store closed under its minimum quantity. Decide: print anyway (the price was set for a bigger run), or refund every buyer. The store's admin page has the run.",
   size_swap_requested:
     "The customer asked to swap a size. Check stock (printed garments usually can't be swapped), decide it in the job's Customer requests, then reply to them.",
 }
@@ -197,6 +200,7 @@ export async function raiseAttention(
         names_numbers_requested: `Names / numbers to price — ${input.label}`,
         problem_reported: `Problem reported — ${input.label}`,
         size_swap_requested: `Size swap requested — ${input.label}`,
+        team_store_under_minimum: `Team store under minimum — ${input.label}`,
       }
       // orders@ has no mailbox: replying to this alert must reach the customer
       // and land on the job (same two-address reply-to as the contact-form alert).
