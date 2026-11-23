@@ -27,6 +27,7 @@ import { buildQuoteMockups } from "../../lib/quote-mockups"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { STRIPE_PAYMENT_LINK_MODULE } from "../../modules/stripe-payment-link"
 import { TASK_MODULE } from "../../modules/task"
+import { jobTaskFilter } from "../../lib/job-tasks"
 import { buildProofImages } from "../artwork-approval/proof-email"
 import { splitAttachmentBlock } from "../inbound-email/attachments"
 import { buildOrderTimeline } from "../order-timeline/build"
@@ -225,10 +226,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
 
   // ── Tasks ────────────────────────────────────────────────────────────────
   const taskRows: any[] = await tasks
-    .listTasks(
-      { ...(orderId ? { order_id: orderId } : { quote_id: quoteId }), status: ["open", "in_progress"] },
-      { take: 50, order: { due_at: "ASC" } }
-    )
+    .listTasks(jobTaskFilter(orderId, quoteId), { take: 50, order: { due_at: "ASC" } })
     .catch(() => [])
 
   // ── Activity ─────────────────────────────────────────────────────────────
