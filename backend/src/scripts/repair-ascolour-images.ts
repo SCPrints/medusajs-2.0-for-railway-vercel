@@ -23,8 +23,9 @@
  *   5. Repoint the thumbnail to a live MAIN/FRONT shot.
  *   6. Write only if the set actually changed.
  *
- * Before that, every 386×513 link is swapped for the 1280×1280 link of the
- * same photo when that loads (see lib/ascolour-image-size.ts: the small resize
+ * Before that, every 386×513 link is swapped for the API's 1280×1280 link of
+ * the same photo (or of the re-shot photo for the same colour + view) when that
+ * loads (see lib/ascolour-image-size.ts: the small resize
  * passes the liveness check from Fly yet 404s for many visitors).
  *
  * Idempotent and safe to re-run. Verifies nothing it writes is dead.
@@ -199,13 +200,25 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
 
       // 0. Swap 386×513 links for the full-size link of the same photo, when it loads.
       const swaps = new Map<string, string>()
-      await mapPool(currentUrls, HEAD_CONCURRENCY, async (url) => {
-        const big = fullSizeAsColourUrl(url)
-        if (big && (await checkImageUrl(big, timeoutMs)).ok) swaps.set(url, big)
-      })
-      if (swaps.size) {
+      if (currentUrls.some((u) => u.includes(".386.513."))) {
+        let api: AsColourImage[] = []
         try {
-          const res = await writeProductImages(container, product.id, currentUrls.map((u) => swaps.get(u) ?? u), {
+          api = extractArray<AsColourImage>(await ascolour.getClient().getProductImages(styleCode))
+        } catch (err: any) {
+          logger.warn(`  ${product.handle} (${styleCode}): API fetch failed for full-size swap — ${err?.message ?? err}`)
+        }
+        await mapPool(currentUrls, HEAD_CONCURRENCY, async (url) => {
+          const big = fullSizeAsColourUrl(url, api as any[])
+          if (big && (await checkImageUrl(big, timeoutMs)).ok) swaps.set(url, big)
+        })
+      }
+      if (swaps.size) {
+        const seenKeys = new Set<string>()
+        const desired = currentUrls
+          .map((u) => swaps.get(u) ?? u)
+          .filter((u) => !seenKeys.has(normKey(u)) && !!seenKeys.add(normKey(u))) // old + re-shot link can map to one photo
+        try {
+          const res = await writeProductImages(container, product.id, desired, {
             currentUrls,
             explicitRemovals: [...swaps.keys()],
             thumbnail: swaps.get(product.thumbnail) ?? undefined,
