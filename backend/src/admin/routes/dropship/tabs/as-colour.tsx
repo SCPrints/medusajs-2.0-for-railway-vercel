@@ -59,6 +59,7 @@ type InHouseOrder = PendingOrder & {
 
 type DropshipData = {
   needs_sizes?: NeedsSizesOrder[]
+  needs_sku?: NeedsSizesOrder[]
   pending: PendingOrder[]
   sent: SentOrder[]
   in_house: InHouseOrder[]
@@ -960,6 +961,7 @@ const AsColourDropshipPage = () => {
       ) : activeTab === "pending" ? (
         <>
           <NeedsSizesBanner orders={data?.needs_sizes ?? []} />
+          <NeedsSizesBanner orders={data?.needs_sku ?? []} title="AS Colour garments with no SKU" hint="Typed as free text, so they can't be sent from here. Order them by hand, then mark blanks ordered on the job." />
           <PendingTab
             orders={pending}
             onSendComplete={load}

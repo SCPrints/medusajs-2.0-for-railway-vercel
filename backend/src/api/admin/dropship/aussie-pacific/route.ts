@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import { needsSizesForSupplier, type NeedsSizesOrder } from "../../../../lib/sizes-pending"
+import { AUSSIE_PACIFIC_NAME, needsSizesForSupplier, noSkuForSupplier, type NeedsSizesOrder } from "../../../../lib/sizes-pending"
+import { resolveTracksFromMeta } from "../../../../lib/production-stage"
 
 const LOOKBACK_DAYS = 90
 
@@ -71,6 +72,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const pending: any[] = []
   const needs_sizes: NeedsSizesOrder[] = []
+  // Garments typed as free text: no SKU, so they never reach `pending`.
+  const needs_sku: NeedsSizesOrder[] = []
   const sent: any[] = []
 
   for (const order of orders) {
@@ -92,6 +95,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
     const waiting = needsSizesForSupplier(order, "aussie-pacific-", customerName)
     if (waiting) needs_sizes.push(waiting)
+    if (resolveTracksFromMeta(order.metadata ?? {}).blanks === "not_started") {
+      const unlinked = noSkuForSupplier(order, { handlePrefix: "aussie-pacific-", name: AUSSIE_PACIFIC_NAME }, customerName)
+      if (unlinked) needs_sku.push(unlinked)
+    }
 
     const apItems = items.filter(isAussiePacificItem)
     if (!apItems.length) continue
@@ -122,5 +129,5 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  return res.json({ pending, sent, needs_sizes })
+  return res.json({ pending, sent, needs_sizes, needs_sku })
 }

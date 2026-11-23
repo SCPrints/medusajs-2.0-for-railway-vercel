@@ -129,3 +129,34 @@ export function needsSizesForSupplier(
     lines: lines.map((li) => ({ title: String(li.title ?? ""), quantity: Number(li.quantity ?? 0) })),
   }
 }
+
+/**
+ * Dropship blind spot: a supplier garment typed as a free-text quote line
+ * ("AS Colour Classic Tee 5026 - Black") reaches the order with no SKU, so the
+ * supplier queue never lists it (#120, Nov 2026). Flag lines that name the
+ * supplier (or carry its product handle) but have no SKU, unless sizes are
+ * still to come (listed separately) or the customer supplies the garment.
+ * Callers skip orders whose blanks are already ordered.
+ */
+export function noSkuForSupplier(
+  order: { id: string; display_id?: number | null; items?: any[] | null },
+  supplier: { handlePrefix: string; name: RegExp },
+  customer: string
+): NeedsSizesOrder | null {
+  const lines = (order.items ?? []).filter((li) => {
+    if (li.variant_sku || isSizesPendingLine(li)) return false
+    const title = String(li.title ?? "")
+    if (/customer[\s-]*supplied/i.test(title)) return false
+    return String(li.metadata?.product_handle ?? "").startsWith(supplier.handlePrefix) || supplier.name.test(title)
+  })
+  if (!lines.length) return null
+  return {
+    order_id: order.id,
+    display_id: order.display_id ?? null,
+    customer,
+    lines: lines.map((li) => ({ title: String(li.title ?? ""), quantity: Number(li.quantity ?? 0) })),
+  }
+}
+
+export const AS_COLOUR_NAME = /\b(as\s?colou?r|asc)\b/i
+export const AUSSIE_PACIFIC_NAME = /\baussie\s?pacific\b|^AP\b/i

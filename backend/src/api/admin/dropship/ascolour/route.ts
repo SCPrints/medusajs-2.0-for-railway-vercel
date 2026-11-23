@@ -3,7 +3,8 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { ASCOLOUR_MODULE } from "../../../../modules/ascolour"
 import type AsColourService from "../../../../modules/ascolour/service"
-import { needsSizesForSupplier, type NeedsSizesOrder } from "../../../../lib/sizes-pending"
+import { AS_COLOUR_NAME, needsSizesForSupplier, noSkuForSupplier, type NeedsSizesOrder } from "../../../../lib/sizes-pending"
+import { resolveTracksFromMeta } from "../../../../lib/production-stage"
 
 const LOOKBACK_DAYS = 90
 
@@ -81,6 +82,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // kept visible (and reversible) rather than silently disappearing.
   const in_house: any[] = []
   const needs_sizes: NeedsSizesOrder[] = []
+  // Garments typed as free text: no SKU, so they never reach `pending`.
+  const needs_sku: NeedsSizesOrder[] = []
 
   for (const order of orders) {
     // Only last 90 days
@@ -99,6 +102,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
     const waiting = needsSizesForSupplier(order, "as-colour-", customerName)
     if (waiting) needs_sizes.push(waiting)
+    if (resolveTracksFromMeta(order.metadata ?? {}).blanks === "not_started") {
+      const unlinked = noSkuForSupplier(order, { handlePrefix: "as-colour-", name: AS_COLOUR_NAME }, customerName)
+      if (unlinked) needs_sku.push(unlinked)
+    }
 
     const items: any[] = order.items ?? []
     const ascolourItems = items.filter(isAsColourItem)
@@ -148,5 +155,5 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // AS Colour module not configured — leave null.
   }
 
-  return res.json({ pending, sent, in_house, needs_sizes, default_shipping_method })
+  return res.json({ pending, sent, in_house, needs_sizes, needs_sku, default_shipping_method })
 }
