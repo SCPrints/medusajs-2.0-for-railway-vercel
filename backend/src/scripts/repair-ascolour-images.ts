@@ -308,7 +308,11 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
 
       // 4. Thumbnail: live, prefer MAIN/FRONT. Fall back to first final url.
       const liveThumbCandidates = finalUrls.filter((u) => !deadKeys.has(normKey(u)))
-      const thumbnail = pickThumbnail(liveThumbCandidates.length ? liveThumbCandidates : finalUrls)
+      // Keep a thumbnail that still works; only a dead one gets repointed.
+      const thumbnail =
+        product.thumbnail && finalUrls.includes(product.thumbnail)
+          ? product.thumbnail
+          : pickThumbnail(liveThumbCandidates.length ? liveThumbCandidates : finalUrls)
 
       // 5. No-op if unchanged.
       const currentKeys = new Set(currentUrls.map(normKey))
