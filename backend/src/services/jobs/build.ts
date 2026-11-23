@@ -330,6 +330,8 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
       .at(-1) ?? null
 
   const hasDecorated = order ? (order.items ?? []).some(isDecoratedLine) : false
+  const dupLabel =
+    qmeta.closed_reason === "duplicate" && typeof qmeta.duplicate_of_label === "string" ? qmeta.duplicate_of_label : null
   const snapshot: JobSnapshot = {
     quote: quote
       ? {
@@ -341,6 +343,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
           design_changes_requested_at: iso(qmeta.design_changes_requested_at),
           design_approved_at: iso(qmeta.design_approved_at),
           design_approval_sent_at: iso(qmeta.design_approval_sent_at),
+          duplicate_of_label: dupLabel,
           team_store_run: quote.source === "team_store",
           team_store_done: qmeta.team_store_completed === true,
         }
@@ -464,6 +467,8 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
           design_approval_status: typeof qmeta.design_approval_status === "string" ? qmeta.design_approval_status : null,
           needed_by: ymd(qmeta.needed_by),
           delivery_method: typeof qmeta.delivery_method === "string" ? qmeta.delivery_method : null,
+          duplicate_of_label: dupLabel,
+          duplicate_of: dupLabel && typeof qmeta.duplicate_of === "string" ? qmeta.duplicate_of : null,
         }
       : null,
     order:

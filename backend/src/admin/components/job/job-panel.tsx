@@ -203,6 +203,22 @@ export function JobPanel({ job, order, onChanged }: Props) {
     }
   }
 
+  // A customer wrote twice and the other job got the work: close this one
+  // without calling it a lost sale.
+  const closeAsDuplicate = async () => {
+    const of = window.prompt("Which job handled this? Order number (e.g. 122) or quote id (Q-…):")?.trim()
+    if (!of) return
+    try {
+      const r = await fetch(`/admin/jobs/${encodeURIComponent(job.id)}/close-duplicate`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ of }) })
+      const body = (await r.json().catch(() => ({}))) as any
+      if (!r.ok) throw new Error(body?.error ?? `HTTP ${r.status}`)
+      toast.success(body?.job?.state?.next_action?.label ?? "Closed")
+      onChanged()
+    } catch (err: any) {
+      toast.error(err?.message ?? "Couldn't close it")
+    }
+  }
+
   // Verbs that apply to this job, in one place. Each opens the existing tool
   // over the job; nothing is shown when it doesn't apply.
   const verbs: { key: Verb; label: string }[] = order
@@ -330,6 +346,9 @@ export function JobPanel({ job, order, onChanged }: Props) {
                   ) : null}
                   <DropdownMenu.Item onClick={() => setVerb("task")}>Add a task</DropdownMenu.Item>
                   <DropdownMenu.Item onClick={copyJobLink}>Copy job link</DropdownMenu.Item>
+                  {job.quote && !order ? (
+                    <DropdownMenu.Item onClick={closeAsDuplicate}>Close: handled on another job</DropdownMenu.Item>
+                  ) : null}
                 </DropdownMenu.Content>
               </DropdownMenu>
             </div>
@@ -340,7 +359,13 @@ export function JobPanel({ job, order, onChanged }: Props) {
             ) : null}
           </div>
         ) : (
-          <Badge color="grey">Closed</Badge>
+          job.quote?.duplicate_of ? (
+            <Badge color="grey" className="w-fit">
+              Handled on <AppLink className="underline" href={`/app/jobs?job=${encodeURIComponent(job.quote.duplicate_of)}`}>{job.quote.duplicate_of_label}</AppLink>
+            </Badge>
+          ) : (
+            <Badge color="grey">Closed</Badge>
+          )
         )}
       </Container>
 

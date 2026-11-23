@@ -92,6 +92,9 @@ export type JobView = {
     needed_by: string | null
     /** "pickup" | "delivery" chosen before conversion (metadata.delivery_method). */
     delivery_method: string | null
+    /** Closed as handled on another job: that job's label ("#122") and id. */
+    duplicate_of_label?: string | null
+    duplicate_of?: string | null
   } | null
   order: {
     id: string

@@ -119,7 +119,8 @@ const QUEUE_BY_ACTION: Partial<Record<NextActionKind, TodayQueue>> = {
  * that says, else (reply, follow-up) by where the job actually is.
  */
 export function queueFor(job: Pick<JobView, "order" | "quote" | "state"> & { activity?: JobView["activity"] }): TodayQueue {
-  if (job.state.lost) return "lost"
+  // A duplicate enquiry was won on the other job: Done, not a lost sale.
+  if (job.state.lost) return job.quote?.duplicate_of_label ? "done" : "lost"
   if (job.state.next_action.kind === "none") return "done"
   if (!job.order && job.quote?.status === "new" && threadTimes(job.activity ?? []).answers.length === 0) return "new"
   const byAction = QUEUE_BY_ACTION[job.state.next_action.kind]

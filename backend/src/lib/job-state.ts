@@ -76,6 +76,8 @@ export type JobSnapshot = {
     design_approved_at: string | null
     /** Staff last sent the design for approval (answers a change request). */
     design_approval_sent_at?: string | null
+    /** Closed as handled on another job ("#122"): metadata.duplicate_of_label. */
+    duplicate_of_label?: string | null
     /** A team store's production run (source "team_store"): the buyers'
      * orders already exist, so it is never converted to an order. */
     team_store_run?: boolean
@@ -217,7 +219,9 @@ function deriveBaseState(s: JobSnapshot): JobState {
     lost,
   })
 
-  if (lost) return wait(null, null, { kind: "none", label: "Closed" })
+  if (lost) {
+    return wait(null, null, { kind: "none", label: q?.duplicate_of_label ? `Handled on ${q.duplicate_of_label}` : "Closed" })
+  }
 
   // Finished jobs first — but a job isn't finished while money is owed.
   const finished = !!o && (tracks!.downstream === "delivered" || tracks!.downstream === "shipped")

@@ -71,6 +71,9 @@ describe("queueFor", () => {
     const answered = [{ at: "2026-10-21T01:00:00.000Z", kind: "email_out" as const, title: "Email", detail: null, actor: "staff-email:sean@x.com" }]
     expect(queueFor(job("a", priceIt, { quote: newQuote, activity: answered }))).toBe("to_quote")
     expect(queueFor(job("a", { lost: true, next_action: { kind: "none", label: "Closed" } }))).toBe("lost")
+    // Closed as handled on another job: that job got the work, so Done.
+    const dup = job("a", {}).quote!
+    expect(queueFor(job("a", { lost: true, next_action: { kind: "none", label: "Handled on #122" } }, { quote: { ...dup, duplicate_of_label: "#122" } }))).toBe("done")
     expect(queueFor(job("a", { next_action: { kind: "none", label: "Delivered" } }, { order: order({ tracks: { artwork: "approved", blanks: "arrived", downstream: "delivered" } }) }))).toBe("done")
   })
 

@@ -41,6 +41,12 @@ const base = (over: Partial<JobSnapshot>): JobSnapshot => ({
 })
 
 describe("deriveJobState", () => {
+  it("an enquiry closed as a duplicate reads 'Handled on #122'", () => {
+    const st = deriveJobState(base({ quote: quote({ status: "lost", duplicate_of_label: "#122" }) }))
+    expect(st.lost).toBe(true)
+    expect(st.next_action.label).toBe("Handled on #122")
+  })
+
   it("design change request → Revise the design, until the new design is sent", () => {
     const asked = quote({ design_changes_requested_at: "2026-10-19T00:00:00.000Z" })
     expect(deriveJobState(base({ quote: asked })).next_action.kind).toBe("revise_design")
