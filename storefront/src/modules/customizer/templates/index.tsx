@@ -161,6 +161,7 @@ import {
   normalizeRasterDataUrl,
   loadSvgObject,
 } from "@modules/customizer/lib/file-upload-utils"
+import { trimTransparentEdges } from "@modules/customizer/lib/trim-transparent"
 import {
   variantHasConfiguredPrice,
   getSizeOption,
@@ -3556,10 +3557,12 @@ export default function CustomizerTemplate({
       return
     }
 
-    const dataUrl = asset.dataUrl ?? ""
-    if (!dataUrl) {
+    const uploaded = asset.dataUrl ?? ""
+    if (!uploaded) {
       throw new Error("Could not read image.")
     }
+    // Size and price by the visible artwork, not a Canva page's transparent margins.
+    const dataUrl = await trimTransparentEdges(uploaded)
     const imageObject = await FabricImage.fromURL(dataUrl)
     const { width: naturalW, height: naturalH } = imageObject.getOriginalSize()
     if (naturalW > 0 && naturalH > 0) {
