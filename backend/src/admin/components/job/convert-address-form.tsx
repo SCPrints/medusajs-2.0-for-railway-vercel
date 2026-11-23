@@ -87,7 +87,7 @@ export function AddressFields({
             </div>
           </div>
           <div className="col-span-2">
-            <Label size="xsmall">Phone (courier)</Label>
+            <Label size="xsmall">Phone (for the courier to call)</Label>
             <Input size="small" value={addr.phone} onChange={set("phone")} />
           </div>
         </div>

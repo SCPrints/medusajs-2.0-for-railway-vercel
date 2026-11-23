@@ -25,6 +25,7 @@ import {
 import { mergeServerRows } from "../../lib/quote-line-merge"
 import { AppLink, pricerHref } from "../../lib/nav"
 import { garmentKey, groupLines, sizeFromTitle } from "../../../lib/quote-line-group"
+import { SERVICE_LINE_HANDLE } from "../../../lib/sizes-pending"
 
 export type Quote = {
   id: string
@@ -359,6 +360,8 @@ export function LineItemsEditor({
     }
   }
 
+  // Fee lines (digitising, screen setup) ride on service products: nothing to design.
+  const isFeeHandle = (h: string) => h === SERVICE_LINE_HANDLE || h.endsWith("-setup")
   const designActions = (row: DraftLineItem) => {
     const idx = rows.indexOf(row)
     const hasDesign = Boolean(row.customizerDesign)
@@ -372,7 +375,7 @@ export function LineItemsEditor({
               product + colour and the design attaches at their price. */}
           {(hasDesign ||
             (row.group_id && row.id.startsWith("jp_")) ||
-            (row.product_handle && !row.id.startsWith("jp_"))) &&
+            (row.product_handle && !row.id.startsWith("jp_") && !isFeeHandle(row.product_handle))) &&
           onDesignLine ? (
             <Button size="small" variant="secondary" onClick={() => onDesignLine(row)}>
               <PencilSquare /> {hasDesign ? "Edit design in Studio" : "Design in Studio"}

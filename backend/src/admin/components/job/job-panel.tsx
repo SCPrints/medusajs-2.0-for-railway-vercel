@@ -254,7 +254,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
               {job.quote?.subject ? <span className="text-ui-fg-subtle font-normal"> · {job.quote.subject}</span> : null}
             </Heading>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ui-fg-subtle">
-              {job.customer.email ? <a className="hover:underline" href={`mailto:${job.customer.email}`}>{job.customer.email}</a> : null}
+              {job.customer.email ? <a className="hover:underline" href={`mailto:${job.customer.email}`}>{job.customer.email}</a> : <span className="text-ui-tag-orange-text">No email yet</span>}
               {job.customer.phone ? <a className="hover:underline" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a> : null}
               {job.customer.company ? <span>{customerLink(job.customer.company)}</span> : null}
               <span>
