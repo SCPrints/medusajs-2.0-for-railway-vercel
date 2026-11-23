@@ -47,6 +47,15 @@ export const HIDE_GUARD_FRACTION = 0.1
 
 const norm = (s: string | null | undefined) => String(s ?? "").trim().toLowerCase()
 
+// Things we can't decorate (Sean, 23 Nov 2026): never imported, not even as
+// drafts. Checked against every live title: only socks, footwear, gloves,
+// eye/ear PPE and small parts match ("Belt Loop Shorts", "Tie Dye",
+// "knee pads not included" do not).
+const UNPRINTABLE =
+  /\b(socks?|gloves?|(gum)?boots?(?![- ]?cut)|boot covers?|shoes?|sneakers?|footwear|sandals?|goggles?|safety glasses|specs?|spectacles|ear ?muffs?|ear ?plugs?|knee ?pads?(?! not included)|zip pullers?|cummerbunds?|(neck)?ties?(?![- ]?(dye|back|front|up|waist))|belts?(?! ?loops?)|underwear|briefs?|boxers?|plastic pockets?)\b/i
+
+export const isUnprintable = (name: string) => UNPRINTABLE.test(name)
+
 export function planCatalogSync(feed: FeedItem[], ours: OurProduct[]): CatalogSyncPlan {
   if (!feed.length) {
     return { toAdd: [], toHide: [], hideBlockedReason: "The supplier returned no products, so nothing was changed." }
@@ -60,7 +69,7 @@ export function planCatalogSync(feed: FeedItem[], ours: OurProduct[]): CatalogSy
   const seen = new Set<string>()
   const toAdd = feed.filter((f) => {
     const key = norm(f.code)
-    if (f.discontinued || seen.has(key)) return false
+    if (f.discontinued || seen.has(key) || isUnprintable(f.name)) return false
     seen.add(key)
     return !ourCodes.has(key) && !ourHandles.has(norm(f.handle))
   })

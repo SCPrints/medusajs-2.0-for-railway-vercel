@@ -26,6 +26,23 @@ describe("planCatalogSync", () => {
     expect(plan.toHide).toEqual([])
   })
 
+  it("never adds things we can't print (socks, boots, gloves, PPE)", () => {
+    const plan = planCatalogSync(
+      [
+        feed("A", { name: "Podium Sport Ankle Sock 5Pack" }),
+        feed("B", { name: "Steeler Zip Safety Boot" }),
+        feed("C", { name: "Nitrile Gripper Glove (12PK)" }),
+        feed("D", { name: "32dB Supreme Ear Muff" }),
+        feed("E", { name: "Cotton Drill Belt Loop Shorts" }),
+        feed("F", { name: "Tie Dye Tee" }),
+        feed("G", { name: "Cargo Pants - knee pads not included" }),
+        feed("H", { name: "Bootcut Pant" }),
+      ],
+      []
+    )
+    expect(plan.toAdd.map((f) => f.code)).toEqual(["E", "F", "G", "H"])
+  })
+
   it("matches by code even when the handle changed (renamed style)", () => {
     const plan = planCatalogSync([feed("1130", { handle: "as-colour-new-name-1130" })], [ours("1130")])
     expect(plan.toAdd).toEqual([])
