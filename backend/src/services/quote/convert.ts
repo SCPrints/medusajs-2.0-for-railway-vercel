@@ -143,6 +143,13 @@ export const convertQuoteToOrder = async (
       `Quote is ${quote.status} — reopen it before converting.`
     )
   }
+  if (quote.source === "team_store") {
+    // The buyers' orders already exist; the run quote is a Jobs-list record only.
+    throw new MedusaError(
+      MedusaError.Types.NOT_ALLOWED,
+      "This is a team store's production run. Its orders already exist, so it can't be converted."
+    )
+  }
 
   // ── Region + sales channel (same resolution as the accept route) ────────
   const { data: regions } = await query.graph({

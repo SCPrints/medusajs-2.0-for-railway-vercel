@@ -110,6 +110,7 @@ const QUEUE_BY_ACTION: Partial<Record<NextActionKind, TodayQueue>> = {
   qc_done: "production",
   mark_shipped: "production",
   collected: "production",
+  run_team_store: "production",
 }
 
 /**

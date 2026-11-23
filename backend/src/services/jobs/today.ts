@@ -57,6 +57,9 @@ async function jobIds(container: MedusaContainer): Promise<string[]> {
   for (const o of (orders as any[]) ?? []) {
     const meta = (o.metadata ?? {}) as Record<string, unknown>
     if (meta.fulfillment_order === true) continue
+    // A team-store buyer's order: the store's run quote is the one job
+    // (Docs/TEAM_STORES_SPEC.md "Jobs list noise"); open stores live on /app/team-stores.
+    if (typeof meta.team_store_id === "string" && meta.team_store_id) continue
     if (recent(o.created_at)) recentIds.add(o.id)
     if (o.status === "canceled") {
       if (recentIds.has(o.id)) lostIds.push(o.id)

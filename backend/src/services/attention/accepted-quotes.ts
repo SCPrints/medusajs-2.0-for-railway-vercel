@@ -28,6 +28,8 @@ export function selectAcceptedWithoutOrder(
     const meta = row.metadata ?? {}
     if (typeof meta.order_id === "string" && meta.order_id) continue
     if (meta.accepted_no_order_flagged_at) continue
+    // A team store's run quote is accepted by design and never becomes an order.
+    if (meta.team_store_id) continue
     const at = row.accepted_at instanceof Date ? row.accepted_at : new Date(row.accepted_at)
     if (!Number.isFinite(at.getTime())) continue
     // ponytail: 30-day window so the first run doesn't flag every pre-Oct-16

@@ -144,6 +144,9 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
       toast.success("Marked collected")
       return { done: true }
     }
+    case "run_team_store":
+      // The run's orders move together from the store's page (Docs/TEAM_STORES_SPEC.md).
+      return { navigate: `/app/team-stores?quote=${encodeURIComponent(ctx.quote_id ?? ctx.job_id)}` }
     default:
       return { done: true }
   }

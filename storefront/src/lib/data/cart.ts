@@ -13,6 +13,7 @@ import { redirect } from "next/navigation"
 import { getAuthHeaders, getCartId, removeCartId, setCartId } from "./cookies"
 import { getProductsById } from "./products"
 import { getRegion } from "./regions"
+import { getTeamStorePassword } from "./team-stores"
 
 const CART_DEBUG_TAG = "[DEBUG-CART-a91f]"
 const cartDebug = (message: string, extra?: Record<string, unknown>) => {
@@ -703,6 +704,36 @@ export async function addBundleToCartSafe(input: {
         error instanceof Error && error.message
           ? error.message
           : "Could not add this pack to your cart right now.",
+    }
+  }
+}
+
+/**
+ * Add team-store items at the store's fixed price. The backend reads price,
+ * design and store from its own rows (POST /store/carts/:id/team-store-items)
+ * and refuses a cart that holds anything else.
+ */
+export async function addTeamStoreItemsToCart(input: {
+  countryCode: string
+  teamStoreId: string
+  handle: string
+  lines: Array<{ itemId: string; variantId: string; quantity: number }>
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const cart = await getOrSetCart(input.countryCode)
+  if (!cart?.id) return { ok: false, error: "Error retrieving or creating cart." }
+  try {
+    const password = await getTeamStorePassword(input.handle)
+    await postJsonMedusa(`/store/carts/${cart.id}/team-store-items`, {
+      team_store_id: input.teamStoreId,
+      ...(password ? { password } : {}),
+      lines: input.lines.map((l) => ({ item_id: l.itemId, variant_id: l.variantId, quantity: l.quantity })),
+    })
+    revalidateTag("cart", "max")
+    return { ok: true }
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error && error.message ? error.message : "Could not add these to your cart right now.",
     }
   }
 }

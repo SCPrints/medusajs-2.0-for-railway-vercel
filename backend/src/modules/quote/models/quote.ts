@@ -26,10 +26,11 @@ const Quote = model
     ]).default("new"),
     // "custom_hats" = the hat brief builder's quote submissions.
     // "customizer_poa" = auto-created from the Studio when an embroidery design
-    // exceeds the auto-priced stitch cap (POA). Column is plain text in the DB
+    // exceeds the auto-priced stitch cap (POA). "team_store" = a team store's
+    // production run, created at close and never converted. Column is plain text in the DB
     // (no constraint) — extending this enum is app-level.
     source: model
-      .enum(["byo", "contact", "admin", "custom_hats", "customizer_poa"])
+      .enum(["byo", "contact", "admin", "custom_hats", "customizer_poa", "team_store"])
       .default("byo"),
     customer_id: model.text().nullable(),
     email: model.text(),

@@ -182,6 +182,9 @@ const isLineEligible = (line: CartLineForRecompute): boolean => {
   // both trigger a cart-wide recompute), or we'd charge an amount they never
   // agreed to. Stamped by the quote-accept route.
   if ((line.metadata as any)?.quote_locked_price === true) return false
+  // Team-store line: the store's fixed price (lib/team-store.ts). Never
+  // re-tiered, tier-priced or ladder-priced.
+  if ((line.metadata as any)?.team_store_locked_price === true) return false
   // Standalone embroidery-panel line (`embroidery-line-items` route): its
   // unit_price bakes in a stitch-priced embroidery add-on that this helper
   // can't reconstruct (breakdown lives on `metadata.decorationDesign`, not

@@ -53,6 +53,7 @@ export type NextActionKind =
   | "mark_shipped"
   | "collected"
   | "follow_up"
+  | "run_team_store"
   | "none"
 
 export type NextAction = {
@@ -73,6 +74,11 @@ export type JobSnapshot = {
     has_prices: boolean
     design_changes_requested_at: string | null
     design_approved_at: string | null
+    /** A team store's production run (source "team_store"): the buyers'
+     * orders already exist, so it is never converted to an order. */
+    team_store_run?: boolean
+    /** Every order in the run is delivered (team_store.status = completed). */
+    team_store_done?: boolean
   } | null
   order?: {
     created_at: string | null
@@ -226,6 +232,10 @@ function deriveBaseState(s: JobSnapshot): JobState {
   // ── No order yet: the quote drives it ────────────────────────────────────
   if (!o) {
     if (!q) return wait(null, null, { kind: "none", label: "—" })
+    if (q.team_store_run) {
+      if (q.team_store_done) return wait(null, null, { kind: "none", label: "Completed" })
+      return wait("us", q.accepted_at, { kind: "run_team_store", label: "Run production on the team store", tab: "production" })
+    }
     if (q.status === "accepted") {
       return wait("us", q.accepted_at, { kind: "convert_to_order", label: "Convert to order", tab: "overview" })
     }

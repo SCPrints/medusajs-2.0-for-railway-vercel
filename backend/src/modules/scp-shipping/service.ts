@@ -12,6 +12,7 @@ import {
   SHIPPING_PACKAGING_OVERHEAD_GRAMS,
 } from "../../lib/constants"
 import { resolveShippingRate } from "../../lib/shippit-quote"
+import { isBulkTeamStoreCart } from "../../lib/team-store"
 
 type InjectedDependencies = {
   logger: Logger
@@ -76,6 +77,12 @@ class ScpShippingProviderService extends AbstractFulfillmentProviderService {
           (err as Error).message
         }`
       )
+    }
+
+    // Team store, bulk delivery: the box goes to the club with the whole run,
+    // free to the buyer (shipping is built into the item price — Decision 3).
+    if (isBulkTeamStoreCart(items as Array<{ metadata?: Record<string, unknown> | null }>)) {
+      return { calculated_amount: 0, is_calculated_price_tax_inclusive: true }
     }
 
     const rate = await resolveShippingRate(

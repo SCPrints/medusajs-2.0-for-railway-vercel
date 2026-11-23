@@ -36,6 +36,13 @@ export const SERVER_TRUST_METADATA_KEYS = [
   "quote_locked_price",
   "price_override",
   "decorationDesign",
+  // Team stores (lib/team-store.ts): the cart route stamps these server-side.
+  // A forged copy would lock a price, skip the cart-mix rule or zero the
+  // shipping (team_store_delivery: "bulk").
+  "team_store_locked_price",
+  "team_store_id",
+  "team_store_item_id",
+  "team_store_delivery",
 ] as const
 
 export const CLIENT_LINE_METADATA_KEYS = [
