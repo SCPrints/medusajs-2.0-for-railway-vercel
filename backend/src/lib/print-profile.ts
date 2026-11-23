@@ -149,10 +149,10 @@ export const SYSTEM_PROFILES: PrintProfileShape[] = [
     name: "Cap / Headwear",
     handle: "cap-headwear",
     description:
-      "Caps, snapbacks, truckers, buckets. Front (crown) only, A6 — the realistic limit on a curved crown.",
+      "Caps, snapbacks, truckers, buckets. Front (crown) and back, A6 — the realistic limit on a curved cap.",
     is_system: true,
     position: 3,
-    areas: [area("front", BOTH, A6_ONLY, 1)],
+    areas: [area("front", BOTH, A6_ONLY, 1), area("back", BOTH, A6_ONLY, 1)],
   },
   {
     name: "Beanie",
