@@ -37,10 +37,18 @@ describe("planCatalogSync", () => {
         feed("F", { name: "Tie Dye Tee" }),
         feed("G", { name: "Cargo Pants - knee pads not included" }),
         feed("H", { name: "Bootcut Pant" }),
+        feed("I", { name: "Shield Safety Glass (12 PK)" }),
+        feed("J", { name: "Foot Bed" }),
+        feed("K", { name: "Visor And Browguard" }),
+        feed("L", { name: "Renegade Safety Jogger" }),
+        feed("M", { name: "Changeable Drawcord And Threader (5PK)" }),
+        feed("N", { name: "Chef's Button" }),
+        feed("O", { name: "Mens Fleece Jogger" }),
+        feed("P", { name: "Button Down Shirt" }),
       ],
       []
     )
-    expect(plan.toAdd.map((f) => f.code)).toEqual(["E", "F", "G", "H"])
+    expect(plan.toAdd.map((f) => f.code)).toEqual(["E", "F", "G", "H", "O", "P"])
   })
 
   it("matches by code even when the handle changed (renamed style)", () => {

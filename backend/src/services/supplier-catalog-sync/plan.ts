@@ -52,7 +52,7 @@ const norm = (s: string | null | undefined) => String(s ?? "").trim().toLowerCas
 // eye/ear PPE and small parts match ("Belt Loop Shorts", "Tie Dye",
 // "knee pads not included" do not).
 const UNPRINTABLE =
-  /\b(socks?|gloves?|(gum)?boots?(?![- ]?cut)|boot covers?|shoes?|sneakers?|footwear|sandals?|goggles?|safety glasses|specs?|spectacles|ear ?muffs?|ear ?plugs?|knee ?pads?(?! not included)|zip pullers?|cummerbunds?|(neck)?ties?(?![- ]?(dye|back|front|up|waist))|belts?(?! ?loops?)|underwear|briefs?|boxers?|plastic pockets?)\b/i
+  /\b(socks?|gloves?|(gum)?boots?(?![- ]?cut)|boot covers?|shoes?|sneakers?|footwear|sandals?|goggles?|safety glass(es)?|browguards?|foot ?beds?|safety joggers?|threaders?|chef'?s buttons?|specs?|spectacles|ear ?muffs?|ear ?plugs?|knee ?pads?(?! not included)|zip pullers?|cummerbunds?|(neck)?ties?(?![- ]?(dye|back|front|up|waist))|belts?(?! ?loops?)|underwear|briefs?|boxers?|plastic pockets?)\b/i
 
 export const isUnprintable = (name: string) => UNPRINTABLE.test(name)
 
