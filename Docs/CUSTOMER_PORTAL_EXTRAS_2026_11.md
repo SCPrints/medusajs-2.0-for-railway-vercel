@@ -99,8 +99,9 @@ Left out of batch 3: Studio sample button (cart line only); `sample_of` link bac
 compliance CSV; mailto links for allowance (the roster has no email column); people added to the roster after an allowance is created get no link;
 split delivery does not set the order's shipping address; brand-kit swatches in the Studio.
 
-Open decisions for Sean: transit allowance for the delivery window (3–6 business days metro today); price rule for rush and for printed names/numbers;
-whether problems should be limited to shipped orders; whether owners may still add an existing customer to an organisation without an invite.
+Decided by Sean, 23 Nov 2026 (all kept as built): transit stays 3–6 business days metro (the estimate already says "Regional can take longer");
+rush and printed names/numbers stay requests staff price (no price rule until usage shows a need); "Something wrong?" stays on every placed order;
+organisation members join by invite only; cart quote PDF stays valid 30 days; size lists stay paste/CSV (an Excel file gets the copy-and-paste message).
 
-Not built: public team stores (many payers) — [TEAM_STORES_SPEC.md](TEAM_STORES_SPEC.md) still waits on Sean's eight decisions.
+Not built: public team stores (many payers). All eight decisions in [TEAM_STORES_SPEC.md](TEAM_STORES_SPEC.md) are made (the recommended defaults); ready to build.
 Dropped by Sean: QR scan-to-re-order.
