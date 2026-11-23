@@ -65,6 +65,11 @@ const Addresses = ({
       {isOpen ? (
         <form action={formAction}>
           <div className="pb-8">
+            {cart?.metadata?.team_store_delivery === "bulk" ? (
+              <p className="mb-4 rounded-md bg-ui-bg-subtle p-3 text-sm" data-testid="team-store-bulk-note">
+                This team store order is delivered to your club with everyone else&apos;s, free. Fill in your name and phone so the club can hand it to you; we send it to the club&apos;s address.
+              </p>
+            ) : null}
             <ShippingAddress
               customer={customer}
               checked={sameAsBilling}

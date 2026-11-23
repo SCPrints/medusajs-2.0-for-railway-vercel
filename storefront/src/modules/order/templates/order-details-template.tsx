@@ -68,6 +68,12 @@ const OrderDetailsTemplate: React.FC<OrderDetailsTemplateProps> = ({
       >
         <OrderDetails order={order} showStatus />
         <ProductionStageTracker order={order} />
+        {typeof order.metadata?.team_store_closes_at === "string" ? (
+          <p className="rounded-md bg-ui-bg-subtle p-3 text-sm" data-testid="team-store-note">
+            Team store order{typeof order.metadata?.team_store_title === "string" ? ` (${order.metadata.team_store_title})` : ""}: it prints when the store closes on{" "}
+            {new Date(order.metadata.team_store_closes_at).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "Australia/Sydney" })}.
+          </p>
+        ) : null}
         <ReorderActions order={order} />
         <OrderWatchers orderId={order.id} />
         <Items items={order.items} />

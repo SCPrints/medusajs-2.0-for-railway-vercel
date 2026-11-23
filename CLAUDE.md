@@ -344,6 +344,29 @@ Staff curate any number of named product rails shown on the storefront home page
 
 **Key choice**: products are referenced by **handle**, not id (same as bundles) — curation survives supplier re-imports. Handles that no longer resolve are silently skipped on the storefront and flagged with an **"Unresolved"** badge in the admin picker so staff can fix stale curation. No env gate (additive, fallback-safe); no module link to products (soft handle pointer). `sdk.store.product.list` accepts `handle: string[]`, so one call hydrates every section's products with region pricing.
 
+### Team stores (club / school / company pre-order stores) — built 23 Nov 2026, OFF
+A private store link (`/team-store/<handle>`, noindex, optional password) with an organisation's own garments at fixed prices. Each buyer pays for their own order; the store's orders print as one run when it closes. Spec + Sean's eight decisions: `Docs/TEAM_STORES_SPEC.md` (kept untracked: the repo is public). Everything 404s / no-ops / sends nothing until `TEAM_STORES_ENABLED=true` (backend); the admin pages work regardless.
+
+| Component | Path |
+| --- | --- |
+| Module (`team_store` + `team_store_item`) + migration | [backend/src/modules/team-store/](backend/src/modules/team-store/) |
+| Pure rules (cart mix, bulk cart, variants, open/close timing, run summary) + tests | [backend/src/lib/team-store.ts](backend/src/lib/team-store.ts) · [team-store.spec.ts](backend/src/lib/__tests__/team-store.spec.ts) |
+| Close / run / housekeeping, emails | [backend/src/services/team-store/run.ts](backend/src/services/team-store/run.ts) |
+| Hourly job (opens at `opens_at`, closes at `closes_at`, completes delivered runs) | [backend/src/jobs/close-team-stores.ts](backend/src/jobs/close-team-stores.ts) |
+| Admin REST | [backend/src/api/admin/team-stores/](backend/src/api/admin/team-stores/) |
+| Cart route (fixed price, `team_store_locked_price`) | [backend/src/api/store/carts/[id]/team-store-items/route.ts](backend/src/api/store/carts/[id]/team-store-items/route.ts) |
+| Cart-mix guard + bulk-delivery address | [backend/src/api/middlewares/team-store-cart-guard.ts](backend/src/api/middlewares/team-store-cart-guard.ts) |
+| Admin pages `/app/team-stores` (under Customers) | [backend/src/admin/routes/team-stores/](backend/src/admin/routes/team-stores/) |
+| Storefront store + approval pages | [storefront/src/app/[countryCode]/(main)/team-store/](storefront/src/app/[countryCode]/(main)/team-store/) · [storefront/src/modules/team-store/](storefront/src/modules/team-store/) · [storefront/src/lib/data/team-stores.ts](storefront/src/lib/data/team-stores.ts) |
+
+Rules that matter:
+- **Studio reuse**: an item's "Design in Studio" opens the staff Studio in quote mode with `quote_id=<tsitem_…>` and a `team-store-design:` signature; `/store/quotes/:id/design-items` hands `tsitem_` ids to [design-items.ts](backend/src/services/team-store/design-items.ts). No customiser changes.
+- **Price lock**: lines carry `team_store_locked_price: true`, exempt in `isLineEligible` (recompute) and `isExempt` (checkout invariant). `team_store_*` keys are server-trust keys (stripped from core line-item routes).
+- **One store per cart**: judged from the lines, not `cart.metadata`. Every add route refuses a team-store cart (middleware + `addScpLinesToCart`); the team-store route refuses a cart with anything else.
+- **Bulk delivery**: every line `team_store_delivery: "bulk"` → $0 shipping (scp provider + `cart-shipping-options`), and the shipping address is replaced with the store's `organisation_destination` (buyer's name + phone kept).
+- **The run is a job**: at close a quote with `source: "team_store"`, status `accepted`, one line per item × size. It is never converted (guard in `convertQuoteToOrder`, skipped by the accepted-quote sweep); its next action is "Run production on the team store". Buyer orders (`order.metadata.team_store_id`) are hidden from the Jobs list.
+- **Production**: "Start the run" stamps artwork `approved` on every order with the organiser's store approval as the override reason (no proof emails; the due-date subscriber fires). Blanks and production then move with the bulk stage route.
+
 ### Group orders (team / club bulk buys)
 A customer creates a "group order" off a base product + design, shares a public token, and parents/players submit individual sizes. The owner closes the order; the converter builds one cart with line items per participant.
 
@@ -821,6 +844,7 @@ Always returns 204 so failures never break UX. Query length validated 1-500 char
 | `PROOF_REMINDER_BUSINESS_DAYS` | Business days a proof waits before the customer gets its one reminder. | `2` |
 | `PRODUCTION_LEAD_BUSINESS_DAYS` | Business days from artwork approval to the automatic production due date. | `7` |
 | `PRODUCTION_LEAD_BUSINESS_DAYS_PRIORITY` / `_EXPRESS` | Same, for orders whose quote sold a rush tier in the Job pricer (`order.metadata.rush_tier`, stamped at convert with `is_rush`). Defaults follow the storefront's DTF promise. | `3` / `1` |
+| `TEAM_STORES_ENABLED` | Team stores on/off. Off: store routes 404, the hourly close job no-ops, and no team-store email is sent. Admin pages work either way. | `false` |
 | `PRICING_INVARIANT_MODE` | Checkout pricing invariant ([backend/src/lib/checkout-price-invariant.ts](backend/src/lib/checkout-price-invariant.ts)) — middleware on `POST /store/carts/:id/complete` re-derives every line's expected price via the canonical decoration pricing and flags mismatches, $0-decoration lines, POA embroidery, and below-cost lines. `off` = never runs; `alert` = log + PostHog only (shadow mode); `block` = 409 the checkout on block-severity findings (flip only after a clean shadow run). Exempt: `quote_locked_price`, `decorationDesign`, `metadata.price_override` lines. Fail-open on internal errors. | `alert` |
 
 #### Customer-lifecycle send-gate flags (CRM)
