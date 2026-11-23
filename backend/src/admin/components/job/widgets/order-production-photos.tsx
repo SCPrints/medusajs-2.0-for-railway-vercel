@@ -37,6 +37,33 @@ const fileToBase64 = (file: File): Promise<string> =>
     reader.readAsDataURL(file)
   })
 
+const MAX_EDGE_PX = 2000
+
+/**
+ * Shrink a phone photo to 2000px on its long edge (JPEG) before upload: a
+ * 5 MB photo becomes ~400 KB, so it uploads fast on shop wifi and loads fast
+ * in the customer's email and order page. Falls back to the original file if
+ * the browser can't decode it.
+ */
+const shrinkPhoto = async (file: File): Promise<File> => {
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" })
+    const scale = Math.min(1, MAX_EDGE_PX / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement("canvas")
+    canvas.width = Math.round(bitmap.width * scale)
+    canvas.height = Math.round(bitmap.height * scale)
+    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.85)
+    )
+    if (!blob || blob.size >= file.size) return file
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" })
+  } catch {
+    return file
+  }
+}
+
 const OrderProductionPhotosWidget = ({
   data: order,
 }: {
@@ -70,17 +97,18 @@ const OrderProductionPhotosWidget = ({
     load()
   }, [load])
 
-  const onUpload = async (file: File) => {
-    if (file.size > MAX_FILE_BYTES) {
-      toast.error("Photo exceeds 8 MB limit")
-      return
-    }
-    if (!file.type.startsWith("image/")) {
+  const onUpload = async (picked: File) => {
+    if (!picked.type.startsWith("image/")) {
       toast.error("Only image files are accepted")
       return
     }
     setUploading(true)
     try {
+      const file = await shrinkPhoto(picked)
+      if (file.size > MAX_FILE_BYTES) {
+        toast.error("Photo exceeds 8 MB limit")
+        return
+      }
       const dataUrl = await fileToBase64(file)
       const res = await fetch(`/admin/orders/${orderId}/production-photos`, {
         method: "POST",
@@ -134,11 +162,11 @@ const OrderProductionPhotosWidget = ({
           <HelpTooltip
             text={{
               title: "Production photos",
-              body: "Snap a phone photo from the press or embroidery machine while the order is in production. The most recently uploaded photo is included in the customer's next 'in production' email — they see exactly what their gear looks like coming off the press.",
+              body: "Snap a phone photo from the press or embroidery machine while the order is in production. The customer sees every photo on their order page, and the most recent one is included in their next stage email.",
               bullets: [
-                "Max 8 MB per photo — phone defaults are usually fine.",
+                "Photos are shrunk before upload, so any phone photo is fine.",
                 "Only image files (JPEG, PNG, WEBP).",
-                "Captions are optional; they appear under the photo in the customer email.",
+                "Captions are optional; they appear under the photo for the customer.",
                 "Delete is permanent — the file stays in MinIO but is unlinked from the order.",
               ],
             }}
@@ -160,11 +188,18 @@ const OrderProductionPhotosWidget = ({
         </div>
       </div>
 
+      {!loading && photos.length === 0 && !showUpload ? (
+        <Text size="small" className="px-6 pb-4 text-ui-fg-subtle">
+          No photos yet. Take one at the press or the embroidery machine: the
+          customer sees it on their order page.
+        </Text>
+      ) : null}
+
       {showUpload || photos.length > 0 ? (
         <div className="px-6 pb-4 flex flex-col gap-y-4">
         <div className="rounded-md border border-ui-border-base bg-ui-bg-subtle p-3 flex flex-col gap-y-2">
           <Input
-            placeholder="Caption (optional) — included in the customer email"
+            placeholder="Caption (optional), shown to the customer"
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             disabled={uploading}
@@ -175,10 +210,12 @@ const OrderProductionPhotosWidget = ({
               type="file"
               accept="image/*"
               capture="environment"
+              multiple
               disabled={uploading}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) onUpload(file)
+              onChange={async (e) => {
+                for (const file of Array.from(e.target.files ?? [])) {
+                  await onUpload(file)
+                }
               }}
               className="text-sm text-ui-fg-base"
             />

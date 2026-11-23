@@ -8,6 +8,7 @@ import Items from "@modules/order/components/items"
 import OrderDetails from "@modules/order/components/order-details"
 import OrderSummary from "@modules/order/components/order-summary"
 import OrderWatchers from "@modules/order/components/order-watchers"
+import ProductionPhotos from "@modules/order/components/production-photos"
 import ProductionStageTracker from "@modules/order/components/production-stage-tracker"
 import ReorderActions from "@modules/order/components/reorder-actions"
 import ShippingDetails from "@modules/order/components/shipping-details"
@@ -68,6 +69,7 @@ const OrderDetailsTemplate: React.FC<OrderDetailsTemplateProps> = ({
       >
         <OrderDetails order={order} showStatus />
         <ProductionStageTracker order={order} />
+        <ProductionPhotos order={order} />
         {typeof order.metadata?.team_store_closes_at === "string" ? (
           <p className="rounded-md bg-ui-bg-subtle p-3 text-sm" data-testid="team-store-note">
             Team store order{typeof order.metadata?.team_store_title === "string" ? ` (${order.metadata.team_store_title})` : ""}: it prints when the store closes on{" "}

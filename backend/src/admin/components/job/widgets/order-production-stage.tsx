@@ -197,6 +197,27 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
         return
       }
     }
+    // Same soft gate for photos: ask (don't block) when a job heads out with
+    // no photo for the customer. Read fresh, photos are added in another panel.
+    if (
+      downstreamChanged &&
+      ["quality_check", "shipped", "delivered"].includes(pendingDownstream) &&
+      currentDownstream !== "shipped"
+    ) {
+      const photos = await fetch(`/admin/orders/${orderId}/production-photos`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null)
+      if (
+        photos &&
+        (photos.photos ?? []).length === 0 &&
+        !window.confirm(
+          "No photo of this job yet. Customers see production photos on their order page.\n\n" +
+            "OK = carry on without a photo. Cancel = go back and add one (Production photos, just below)."
+        )
+      ) {
+        return
+      }
+    }
     setSaving(true)
     setError(null)
     try {
