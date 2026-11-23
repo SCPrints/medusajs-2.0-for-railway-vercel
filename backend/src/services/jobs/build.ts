@@ -27,6 +27,7 @@ import { buildQuoteMockups } from "../../lib/quote-mockups"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { STRIPE_PAYMENT_LINK_MODULE } from "../../modules/stripe-payment-link"
 import { TASK_MODULE } from "../../modules/task"
+import { ADMIN_WORKSPACE_MODULE } from "../../modules/admin-workspace"
 import { jobTaskFilter } from "../../lib/job-tasks"
 import { buildProofImages } from "../artwork-approval/proof-email"
 import { splitAttachmentBlock } from "../inbound-email/attachments"
@@ -339,6 +340,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
           has_prices: lines.some((l) => l.unit_price != null) || num(quote.total_estimate) != null,
           design_changes_requested_at: iso(qmeta.design_changes_requested_at),
           design_approved_at: iso(qmeta.design_approved_at),
+          design_approval_sent_at: iso(qmeta.design_approval_sent_at),
           team_store_run: quote.source === "team_store",
           team_store_done: qmeta.team_store_completed === true,
         }
@@ -424,6 +426,17 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
   const displayId = typeof order?.display_id === "number" ? order.display_id : null
   const publicId = quote?.public_id ?? null
   const customerEmail: string | null = customerRow?.email ?? order?.email ?? quote?.email ?? null
+  // Resend's bounce webhook suppresses the address; without this a bounced
+  // proof looked sent. Changing the customer's email clears it.
+  if (customerEmail && !isWalkInEmail(customerEmail)) {
+    const bounced = await (container.resolve(ADMIN_WORKSPACE_MODULE) as any)
+      .listEmailSuppressions({ email: customerEmail.trim().toLowerCase(), reason: "bounce" }, { take: 1 })
+      .catch(() => [])
+    if (bounced?.[0]) {
+      const on = new Date(bounced[0].created_at).toLocaleDateString("en-AU", { day: "numeric", month: "short", timeZone: "Australia/Sydney" })
+      flags.push({ kind: "bounced", label: `Email to ${customerEmail} bounced (${on}), check the address` })
+    }
+  }
   const contactLabel = isWalkInEmail(customerEmail)
     ? customerRow?.phone ?? quote?.contact_phone ?? "Walk-in"
     : customerEmail

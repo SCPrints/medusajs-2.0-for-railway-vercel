@@ -11,6 +11,7 @@ import { SUPPORT_REPLY_TO_EMAIL } from "../../../../../lib/constants"
 import { quoteInboxAddress } from "../../../../../lib/order-inbox-alias"
 import { buildQuoteDecorations } from "../../../../../lib/quote-decorations"
 import { buildQuoteMockups } from "../../../../../lib/quote-mockups"
+import { clearAttention } from "../../../../../services/attention/notify"
 import { signQuoteAccept } from "../../../../../services/quote-accept/sign"
 import { signQuoteApproval } from "../../../../../services/quote-approval/sign"
 
@@ -161,9 +162,22 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // and sat on "Price it" at the top of Today until someone found the
   // status dropdown.
   const markQuoted = !!quoteBlock && quote.status === "new"
-  if (markQuoted) {
-    await service.updateQuotes([{ id, status: "quoted", quoted_at: new Date() }])
-  }
+  // design_approval_sent_at answers an earlier change request, so the job
+  // stops saying "Revise the design" once the new version has gone out.
+  // Spread metadata: a bare object replaces the whole jsonb column.
+  await service.updateQuotes([
+    {
+      id,
+      ...(markQuoted ? { status: "quoted", quoted_at: new Date() } : {}),
+      metadata: { ...(quote.metadata ?? {}), design_approval_sent_at: new Date().toISOString() },
+    },
+  ])
+  await clearAttention(req.scope, {
+    kind: "changes_requested",
+    quote_id: id,
+    order_id: typeof quote.metadata?.order_id === "string" ? quote.metadata.order_id : null,
+    by: (req as any).auth_context?.actor_id ?? null,
+  })
 
   // Best-effort timeline event so staff see the request went out.
   try {

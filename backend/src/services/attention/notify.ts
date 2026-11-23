@@ -12,6 +12,7 @@ import { AUDIT_ACTION, AUDIT_ENTITY } from "../../lib/audit-entities"
 import { writeAudit } from "../../lib/audit-log"
 import { orderInboxAddress, quoteInboxAddress } from "../../lib/order-inbox-alias"
 import { captureEvent } from "../../lib/posthog"
+import { jobTaskFilter } from "../../lib/job-tasks"
 import { TASK_MODULE } from "../../modules/task"
 import { EmailTemplates } from "../../modules/email-notifications/templates"
 import type { JobAttentionKind } from "../../modules/email-notifications/templates/job-attention"
@@ -250,4 +251,28 @@ export async function raiseAttention(
   }
 
   return result
+}
+
+/**
+ * Closes the job's open attention tasks of one kind once staff have dealt
+ * with them (e.g. a revised proof went out). Matches the order or its quote,
+ * since a quote-stage task stays on the job after conversion. Never throws.
+ */
+export async function clearAttention(
+  container: MedusaContainer,
+  input: { kind: JobAttentionKind; order_id?: string | null; quote_id?: string | null; by?: string | null }
+): Promise<number> {
+  if (!input.order_id && !input.quote_id) return 0
+  const taskService = container.resolve(TASK_MODULE) as any
+  try {
+    const open = await taskService.listTasks(jobTaskFilter(input.order_id ?? null, input.quote_id ?? null), { take: 50 })
+    const mine = (open as any[]).filter((t) => t?.metadata?.attention_kind === input.kind)
+    for (const t of mine) {
+      await taskService.updateTasks({ id: t.id, status: "done", completed_at: new Date(), completed_by: input.by ?? "system_attention" })
+    }
+    return mine.length
+  } catch (err: any) {
+    container.resolve(ContainerRegistrationKeys.LOGGER).warn(`attention: clear ${input.kind} failed: ${err?.message ?? err}`)
+    return 0
+  }
 }

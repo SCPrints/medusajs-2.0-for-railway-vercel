@@ -41,6 +41,15 @@ const base = (over: Partial<JobSnapshot>): JobSnapshot => ({
 })
 
 describe("deriveJobState", () => {
+  it("design change request → Revise the design, until the new design is sent", () => {
+    const asked = quote({ design_changes_requested_at: "2026-10-19T00:00:00.000Z" })
+    expect(deriveJobState(base({ quote: asked })).next_action.kind).toBe("revise_design")
+    const resent = quote({ ...asked, design_approval_sent_at: "2026-10-20T00:00:00.000Z" })
+    const st = deriveJobState(base({ quote: resent }))
+    expect(st.next_action.kind).toBe("nudge_quote")
+    expect(st.waiting_on).toBe("customer")
+  })
+
   it("Dean: accepted, no order, emailed twice → waiting on us, Convert to order", () => {
     const st = deriveJobState(
       base({

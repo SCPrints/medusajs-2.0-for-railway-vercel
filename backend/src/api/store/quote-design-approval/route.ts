@@ -7,7 +7,7 @@ import { getPostHog } from "../../../lib/posthog"
 import { writeAudit } from "../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../lib/audit-entities"
 import { notifyQuoteCustomerAction } from "../../../lib/notify-quote-action"
-import { raiseAttention } from "../../../services/attention/notify"
+import { clearAttention, raiseAttention } from "../../../services/attention/notify"
 import { buildQuoteMockups } from "../../../lib/quote-mockups"
 import { buildQuoteDecorations } from "../../../lib/quote-decorations"
 import { verifyQuoteApproval } from "../../../services/quote-approval/sign"
@@ -186,6 +186,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     action: body.approved ? "design_approved" : "design_changes_requested",
     comment: body.comment ?? null,
   })
+  // Approval answers any open change request.
+  if (body.approved) {
+    await clearAttention(req.scope, { kind: "changes_requested", quote_id: quote.id, by: "customer" })
+  }
   // …and a task for the owner so it shows in their queue, not just their inbox.
   if (!body.approved) {
     await raiseAttention(req.scope, {

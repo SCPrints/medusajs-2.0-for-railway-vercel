@@ -74,6 +74,8 @@ export type JobSnapshot = {
     has_prices: boolean
     design_changes_requested_at: string | null
     design_approved_at: string | null
+    /** Staff last sent the design for approval (answers a change request). */
+    design_approval_sent_at?: string | null
     /** A team store's production run (source "team_store"): the buyers'
      * orders already exist, so it is never converted to an order. */
     team_store_run?: boolean
@@ -243,7 +245,11 @@ function deriveBaseState(s: JobSnapshot): JobState {
       return wait("us", q.created_at, { kind: "price_it", label: "Price it", tab: "overview" })
     }
     // quoted
-    if (q.design_changes_requested_at && ts(q.design_changes_requested_at) > ts(q.design_approved_at)) {
+    if (
+      q.design_changes_requested_at &&
+      ts(q.design_changes_requested_at) > ts(q.design_approved_at) &&
+      ts(q.design_changes_requested_at) > ts(q.design_approval_sent_at)
+    ) {
       return wait("us", q.design_changes_requested_at, { kind: "revise_design", label: "Revise the design", tab: "artwork" })
     }
     const since = later(q.quoted_at, s.last_outbound_at)
