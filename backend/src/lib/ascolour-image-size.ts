@@ -13,8 +13,11 @@
  */
 const SMALL = /^https:\/\/cdn11\.bigcommerce\.com\/.+\.386\.513\.(jpe?g|png|webp)(\?|$)/i
 
+/** A 386×513 link: never trust it as a colour's photo, it may 404 for visitors. */
+export const isSmallAsColourUrl = (url: string) => SMALL.test(url)
+
 const imageId = (url: string) => url.match(/\/images\/(\d+)\//)?.[1]
-const shotKey = (url: string) =>
+export const shotKey = (url: string) =>
   (url.split("?")[0].split("/").pop() ?? "").split("__")[0].toUpperCase()
 
 export const fullSizeAsColourUrl = (

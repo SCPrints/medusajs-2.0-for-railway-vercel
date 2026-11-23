@@ -36,6 +36,7 @@ import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { checkImageUrl } from "../services/image-audit/check"
 import { writeProductImages, imageKey, type Liveness } from "../lib/safe-product-images"
+import { isSmallAsColourUrl } from "../lib/ascolour-image-size"
 
 const PAGE_SIZE = 100
 const SITEMAP_BASE = "https://ascolour.com/xmlsitemap.php?type=products&page="
@@ -161,7 +162,9 @@ export default async function scrapeAsColourWebsiteImages({ container }: ExecArg
       if (onlyStyles.size && !onlyStyles.has(styleUpper)) continue
 
       const currentUrls: string[] = (product.images ?? []).map((i: any) => i.url).filter(Boolean)
-      const currentTokens = currentUrls.map(fileNameUpper)
+      // A 386×513 link doesn't count as having the photo: it can 404 for visitors
+      // while passing every liveness check from Fly (5086 Chalk, 2026-11-23).
+      const currentTokens = currentUrls.filter((u) => !isSmallAsColourUrl(u)).map(fileNameUpper)
 
       // Which (colour, view) pairs is the product MISSING? A colour needs both a
       // front and a back; having only one (e.g. Navy front, no back) is a gap.

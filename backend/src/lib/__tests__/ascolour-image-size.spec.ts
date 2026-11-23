@@ -1,4 +1,4 @@
-import { fullSizeAsColourUrl } from "../ascolour-image-size"
+import { fullSizeAsColourUrl, shotKey } from "../ascolour-image-size"
 
 const base = "https://cdn11.bigcommerce.com/s-lqiq2tqil5/products/1158/images/"
 
@@ -26,5 +26,14 @@ describe("fullSizeAsColourUrl", () => {
     expect(fullSizeAsColourUrl(api[0].urlZoom, api)).toBeNull()
     expect(fullSizeAsColourUrl("https://example.com/a.386.513.jpg", api)).toBeNull()
     expect(fullSizeAsColourUrl(`${base}1/5086_HEAVY_FADED_MINUS_TEE_FADED_OLIVE__1.1.386.513.jpg?c=1`, api)).toBeNull()
+  })
+})
+
+describe("shotKey", () => {
+  it("matches a website photo to the API link of the same colour + view", () => {
+    expect(
+      shotKey("https://cdn11.bigcommerce.com/s-hsi95a83fz/images/stencil/1500w/products/1/2/5086_HEAVY_FADED_MINUS_TEE_FADED_CHALK__53155.1793827324.jpg")
+    ).toBe(shotKey(`${base}29979/5086_HEAVY_FADED_MINUS_TEE_FADED_CHALK__70328.1786493365.386.513.jpg?c=1`))
+    expect(shotKey(`${base}1/5086_X_FADED_CHALK_BACK__1.1.386.513.jpg`)).not.toBe(shotKey(`${base}1/5086_X_FADED_CHALK__1.1.386.513.jpg`))
   })
 })

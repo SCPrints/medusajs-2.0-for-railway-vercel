@@ -52,7 +52,7 @@ import AsColourService from "../modules/ascolour/service"
 import { AsColourImage } from "../modules/ascolour/types"
 import { checkImageUrl } from "../services/image-audit/check"
 import { writeProductImages, imageKey, type Liveness } from "../lib/safe-product-images"
-import { fullSizeAsColourUrl } from "../lib/ascolour-image-size"
+import { fullSizeAsColourUrl, isSmallAsColourUrl, shotKey } from "../lib/ascolour-image-size"
 
 const PAGE_SIZE = 100
 const HEAD_CONCURRENCY = 8
@@ -209,7 +209,13 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
         }
         await mapPool(currentUrls, HEAD_CONCURRENCY, async (url) => {
           const big = fullSizeAsColourUrl(url, api as any[])
-          if (big && (await checkImageUrl(big, timeoutMs)).ok) swaps.set(url, big)
+          if (big && (await checkImageUrl(big, timeoutMs)).ok) { swaps.set(url, big); return }
+          // No full-size copy on the API store (AS Colour's own links 404, 5086
+          // Chalk): fall back to a working photo of the same shot the product
+          // already has, e.g. one the website scraper added.
+          if (!isSmallAsColourUrl(url)) return
+          const twin = currentUrls.find((o) => !isSmallAsColourUrl(o) && shotKey(o) === shotKey(url))
+          if (twin && (await checkImageUrl(twin, timeoutMs)).ok) swaps.set(url, twin)
         })
       }
       if (swaps.size) {
