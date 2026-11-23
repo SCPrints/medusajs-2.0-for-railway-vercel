@@ -173,6 +173,7 @@ import { useProductOptionsOptional } from "@modules/products/context/product-opt
 import { useCustomizeModeOptional } from "@modules/products/context/customize-mode-context"
 import { sortApparelSizeLabels } from "@modules/products/lib/apparel-size-order"
 import {
+  getColourGarmentImageUrls,
   getGarmentImageUrlForPrintSide,
   getVariantOptionValue,
   isBeanieGarmentProduct,
@@ -1617,7 +1618,14 @@ export default function CustomizerTemplate({
     const frontMain = imgs.filter((u) => /_(front|main)__/.test(fileOf(u)))
     const back = imgs.filter((u) => /_back__/.test(fileOf(u)))
     const wantBack = currentSide === "back"
+    // Same-colour shots first, so a dead colour photo falls back to another
+    // photo of that colour rather than the generic (usually white) model shot.
+    const sameColour =
+      currentSide === "front" || currentSide === "back"
+        ? getColourGarmentImageUrls(selectedProduct, selectedVariant, currentSide)
+        : []
     const ordered = [
+      ...sameColour,
       ...(wantBack ? [...back, ...frontMain] : [...frontMain, ...back]),
       selectedProduct?.thumbnail ?? "",
       defaultGarmentImage ?? "",
@@ -1625,8 +1633,8 @@ export default function CustomizerTemplate({
     ].filter((u): u is string => typeof u === "string" && u.length > 0)
     return Array.from(new Set(ordered))
       .filter((u) => u !== garmentImageUrl)
-      .slice(0, 8)
-  }, [selectedProduct, currentSide, defaultGarmentImage, garmentImageUrl])
+      .slice(0, 12)
+  }, [selectedProduct, selectedVariant, currentSide, defaultGarmentImage, garmentImageUrl])
 
   const garmentDisplayTitle = selectedProduct?.title ?? defaultGarmentTitle
 

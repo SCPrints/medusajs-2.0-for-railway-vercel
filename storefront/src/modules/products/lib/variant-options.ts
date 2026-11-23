@@ -1115,6 +1115,34 @@ export function resolveCartLineImageUrl(
 }
 
 /**
+ * Every product image of the variant's colour, best view for `side` first
+ * (front side: fronts → neutral → side shots → backs; back side: backs first).
+ * The customizer canvas tries these before generic shots when the chosen colour
+ * photo is dead: AS Colour products often carry a dead copy of a colour's front
+ * next to a live one, and skipping straight to the generic front showed staff a
+ * white model tee for a Faded Brown job (2026-11-23).
+ */
+export function getColourGarmentImageUrls(
+  product: HttpTypes.StoreProduct | undefined,
+  variant: HttpTypes.StoreProductVariant | undefined,
+  side: PrintGarmentSide
+): string[] {
+  const colorTitle = product?.options?.find((o) => isColorOptionTitle(o.title))?.title
+  const colour =
+    product && variant && colorTitle ? getVariantOptionValue(variant, colorTitle, product) : undefined
+  if (!product || !colour) return []
+  const labels = getProductColorLabels(product)
+  const rank = (u: string) => {
+    const r = garmentUrlViewRank(u)
+    return side === "back" ? (r === 3 ? -1 : r) : r
+  }
+  return (product.images ?? [])
+    .map((image) => image.url)
+    .filter((u): u is string => Boolean(u) && urlMatchesColorAmongSiblings(u!, colour, labels))
+    .sort((a, b) => rank(a) - rank(b))
+}
+
+/**
  * Garment mockup URL for the customizer canvas and mockup renders, matched to print side.
  * Front/back: variant `garment_images`, colour-matched product images, then filename heuristics.
  * Sleeves: static placeholders (no per-product sleeve photography in catalog).

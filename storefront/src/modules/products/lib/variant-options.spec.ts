@@ -2,6 +2,7 @@ import { HttpTypes } from "@medusajs/types"
 
 import {
   garmentUrlViewRank,
+  getColourGarmentImageUrls,
   getGarmentImageUrlForPrintSide,
   getPrimaryGarmentImageUrl,
   getProductColorLabels,
@@ -422,5 +423,40 @@ describe("back view reuses the colour's front when no back photo exists (totes)"
       expect(file).toContain("_TOTE_KHAKI__")
       expect(file).not.toContain("_THUMB")
     })
+  })
+})
+
+describe("same-colour fallbacks for the customizer canvas (5086 Faded Brown, 2026-11-23)", () => {
+  // Real order: the dead `_FADED_BROWN__58904` front sits before the live
+  // `_FADED_BROWN__79055` one. The canvas picked the dead one, then fell back to
+  // the generic white FRONT shot. Every Faded Brown photo must be offered first.
+  const files = [
+    "5086_HEAVY_FADED_MINUS_TEE_BACK__90728.jpg",
+    "5086_HEAVY_FADED_MINUS_TEE_FRONT__16026.jpg",
+    "5086_HEAVY_FADED_MINUS_TEE_FADED_BROWN__58904.386.513.jpg",
+    "5086_HEAVY_FADED_MINUS_TEE_FADED_BROWN_BACK__43268.jpg",
+    "5086_HEAVY_FADED_MINUS_TEE_FADED_BLACK__13354.jpg",
+    "5086_HEAVY_FADED_MINUS_TEE_FADED_BROWN__79055.1280.1280.jpg",
+  ]
+  const product = {
+    ...buildProduct(files.map((f) => `${CDN}/${f}`)),
+    options: [
+      { id: "opt_colour", title: "Colour", values: [{ value: "FADED BROWN" }, { value: "FADED BLACK" }] },
+      { id: "opt_size", title: "Size" },
+    ],
+  } as unknown as HttpTypes.StoreProduct
+
+  it("front: both Faded Brown fronts, then the back; nothing generic or other-colour", () => {
+    expect(getColourGarmentImageUrls(product, buildVariant("FADED BROWN"), "front").map(fileOf)).toEqual([
+      "5086_HEAVY_FADED_MINUS_TEE_FADED_BROWN__58904.386.513.JPG",
+      "5086_HEAVY_FADED_MINUS_TEE_FADED_BROWN__79055.1280.1280.JPG",
+      "5086_HEAVY_FADED_MINUS_TEE_FADED_BROWN_BACK__43268.JPG",
+    ])
+  })
+
+  it("back: the Faded Brown back leads", () => {
+    expect(fileOf(getColourGarmentImageUrls(product, buildVariant("FADED BROWN"), "back")[0])).toBe(
+      "5086_HEAVY_FADED_MINUS_TEE_FADED_BROWN_BACK__43268.JPG"
+    )
   })
 })
