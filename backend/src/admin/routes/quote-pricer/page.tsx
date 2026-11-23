@@ -637,12 +637,16 @@ export function QuotePricerPage({ targetQuoteId, onDone }: { targetQuoteId: stri
       `/admin/customers/${customerId}?fields=%2Bgroups.id,%2Bgroups.name,%2Bgroups.metadata`
     )
     const t = tierForCustomer({ groups: customer.groups ?? [] })
-    setState((s) => ({ ...s, tierSlug: t?.slug ?? s.tierSlug }))
+    // No tier = the public ladder, never the previous customer's tier (it under-quoted).
+    setState((s) => ({ ...s, tierSlug: t?.slug ?? "standard" }))
     return t
   }
   const pickCustomer = (c: POSCustomer | null) => {
     setNewCustomer(c)
-    if (!c) return
+    if (!c) {
+      patch({ tierSlug: "standard" })
+      return
+    }
     if (c.email) setNewEmail(c.email)
     void applyCustomerTier(c.id)
       .then((t) => t && toast.info(`Pricing at ${t.name}`))

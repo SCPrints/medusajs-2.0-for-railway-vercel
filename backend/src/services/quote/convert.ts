@@ -350,7 +350,7 @@ export const convertQuoteToOrder = async (
   // billing so the invoice "Bill to" is right; overlays shipping only when the
   // address has no name of its own (studio geo, or a nameless saved address).
   const contactName = String(
-    quote.contact_name ?? meta.accepted_by_name ?? ""
+    quote.contact_name || args.approverName || meta.accepted_by_name || ""
   ).trim()
   const [first, ...rest] = contactName.split(/\s+/).filter(Boolean)
   const identity: Record<string, unknown> = {
