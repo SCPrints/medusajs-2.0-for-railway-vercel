@@ -463,7 +463,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     res.json({
-      products: ordered.map(toProductResponse),
+      products: await withPrices(req, ordered.map(toProductResponse)),
       count: filtered.length,
       limit,
       offset,
@@ -526,12 +526,54 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   res.json({
-    products: raw.map(toProductResponse),
+    products: await withPrices(req, raw.map(toProductResponse)),
     count: dbCount ?? raw.length + underlyingSkip,
     limit,
     offset,
     truncated: false,
   })
+}
+
+/** Supplier style code, from whichever importer's metadata block the product has. */
+function supplierCode(m: Record<string, any> | null | undefined): string | null {
+  const code =
+    m?.ascolour?.styleCode ??
+    m?.fashionbiz?.code ??
+    m?.aussiepacific?.style_code ??
+    m?.jbs_wear?.style_code ??
+    m?.thread_lab?.style_code ??
+    m?.shaka_wear?.style_code
+  return typeof code === "string" && code ? code : null
+}
+
+/**
+ * Adds `price_from`: the lowest single-unit AUD base price (1-9 tier, no price
+ * list) across the product's variants, in dollars inc GST. One query per page.
+ */
+async function withPrices<T extends { id: string }>(
+  req: MedusaRequest,
+  products: T[]
+): Promise<Array<T & { price_from: number | null }>> {
+  const prices = new Map<string, number>()
+  if (products.length) {
+    try {
+      const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
+      const { rows } = await pg.raw(
+        `select v.product_id, min(pr.amount) as amount
+           from product_variant v
+           join product_variant_price_set l on l.variant_id = v.id and l.deleted_at is null
+           join price pr on pr.price_set_id = l.price_set_id and pr.deleted_at is null
+          where v.product_id = any(?) and v.deleted_at is null and pr.price_list_id is null
+            and pr.currency_code = 'aud' and pr.rules_count = 0 and coalesce(pr.min_quantity, 1) <= 1
+          group by v.product_id`,
+        [products.map((p) => p.id)]
+      )
+      for (const r of rows ?? []) prices.set(r.product_id, Number(r.amount))
+    } catch {
+      // Price is a nice-to-have on the card; never fail the list over it.
+    }
+  }
+  return products.map((p) => ({ ...p, price_from: prices.get(p.id) ?? null }))
 }
 
 function toProductResponse(p: RawProduct) {
@@ -569,6 +611,7 @@ function toProductResponse(p: RawProduct) {
       typeof p.metadata?.print_profile === "string"
         ? (p.metadata.print_profile as string)
         : null,
+    supplier_code: supplierCode(p.metadata),
     quality: computeQuality(p),
   }
 }

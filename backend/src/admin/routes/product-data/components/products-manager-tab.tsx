@@ -9,6 +9,7 @@ import {
   Input,
   Label,
   Select,
+  Switch,
   Table,
   Text,
   toast,
@@ -124,8 +125,14 @@ type Product = {
   sales_channels: Array<{ id: string; name: string | null }>
   brand: { id: string; name: string | null; handle: string | null } | null
   print_profile: string | null
+  supplier_code: string | null
+  /** Lowest single-unit price in dollars inc GST, or null if none set. */
+  price_from: number | null
   quality: Quality
 }
+
+type ViewMode = "table" | "pictures"
+const VIEW_KEY = "scp:product-data:view"
 
 /** "short-sleeve-garment" → "Short Sleeve Garment"; "custom" → "Custom". */
 const humanizeProfileHandle = (handle: string | null): string => {
@@ -227,6 +234,24 @@ const ProductsManagerTab = () => {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [refreshNonce, setRefreshNonce] = useState(0)
+
+  /* ─ table vs picture grid (remembered per browser) ─ */
+  const [view, setViewState] = useState<ViewMode>(() => {
+    try {
+      return localStorage.getItem(VIEW_KEY) === "pictures" ? "pictures" : "table"
+    } catch {
+      return "table"
+    }
+  })
+  const setView = (v: ViewMode) => {
+    setViewState(v)
+    try {
+      localStorage.setItem(VIEW_KEY, v)
+    } catch {
+      /* private window: just don't remember */
+    }
+  }
+  const [savingIds, setSavingIds] = useState(() => new Set<string>())
 
   /* ─ selection ─ */
   const [selectedIds, setSelectedIds] = useState(() => new Set<string>())
@@ -543,6 +568,43 @@ const ProductsManagerTab = () => {
     [selectedIds]
   )
 
+  /* ─ one product's Live/Hidden switch: saves straight away ─ */
+  const setOneStatus = useCallback(
+    async (id: string, status: "published" | "draft") => {
+      const before = products.find((p) => p.id === id)?.status ?? null
+      const patch = (s: string | null) =>
+        setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, status: s } : p)))
+      patch(status)
+      setSavingIds((prev) => new Set(prev).add(id))
+      try {
+        const res = await fetch("/admin/products-manager/bulk", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            product_ids: [id],
+            action: "change_status",
+            payload: { status },
+          }),
+        })
+        const data = res.ok ? ((await res.json()) as BulkResult) : null
+        if (!data || data.failed.length) {
+          throw new Error(data?.failed[0]?.error ?? `HTTP ${res.status}`)
+        }
+      } catch (err: any) {
+        patch(before)
+        toast.error(`Couldn't update that product: ${err?.message ?? err}`)
+      } finally {
+        setSavingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+      }
+    },
+    [products]
+  )
+
   const runDelete = useCallback(async () => {
     const ids = [...selectedIds]
     if (ids.length === 0) return
@@ -716,15 +778,49 @@ const ProductsManagerTab = () => {
         disabled={loading}
       />
 
-      <ResultsTable
-        products={products}
-        loading={loading}
-        loadError={loadError}
-        selectedIds={selectedIds}
-        toggleOne={toggleOne}
-        toggleAllOnPage={toggleAllOnPage}
-        headerChecked={headerChecked}
-      />
+      <div className="flex items-center justify-end gap-2">
+        <Text size="small" className="text-ui-fg-muted">
+          View
+        </Text>
+        <Button
+          size="small"
+          variant={view === "table" ? "primary" : "secondary"}
+          onClick={() => setView("table")}
+        >
+          Table
+        </Button>
+        <Button
+          size="small"
+          variant={view === "pictures" ? "primary" : "secondary"}
+          onClick={() => setView("pictures")}
+        >
+          Pictures
+        </Button>
+      </div>
+
+      {view === "pictures" ? (
+        <PictureGrid
+          products={products}
+          loading={loading}
+          loadError={loadError}
+          selectedIds={selectedIds}
+          toggleOne={toggleOne}
+          toggleAllOnPage={toggleAllOnPage}
+          headerChecked={headerChecked}
+          savingIds={savingIds}
+          onSetStatus={setOneStatus}
+        />
+      ) : (
+        <ResultsTable
+          products={products}
+          loading={loading}
+          loadError={loadError}
+          selectedIds={selectedIds}
+          toggleOne={toggleOne}
+          toggleAllOnPage={toggleAllOnPage}
+          headerChecked={headerChecked}
+        />
+      )}
 
       <PaginationBar
         offset={offset}
@@ -1133,6 +1229,124 @@ const BulkActionBar = (props: BulkActionBarProps) => {
           </div>
         ) : null}
       </div>
+    </Container>
+  )
+}
+
+/* ─────────────── picture grid ─────────────── */
+
+type PictureGridProps = ResultsTableProps & {
+  savingIds: Set<string>
+  onSetStatus: (id: string, status: "published" | "draft") => void
+}
+
+const PictureGrid = (props: PictureGridProps) => {
+  if (props.loadError) {
+    return (
+      <Container className="px-6 py-4">
+        <Text size="small" className="text-ui-tag-red-icon">
+          {props.loadError}
+        </Text>
+      </Container>
+    )
+  }
+  return (
+    <Container className="flex flex-col gap-4 p-4">
+      <label className="flex w-fit cursor-pointer items-center gap-2">
+        <Checkbox
+          checked={props.headerChecked}
+          onCheckedChange={(c) => props.toggleAllOnPage(c === true)}
+          disabled={props.products.length === 0 || props.loading}
+        />
+        <Text size="small">Select all on this page</Text>
+        <Text size="small" className="text-ui-fg-muted">
+          (then use Bulk actions → Change status)
+        </Text>
+      </label>
+      {props.loading && props.products.length === 0 ? (
+        <Text size="small" className="text-ui-fg-muted">
+          Loading…
+        </Text>
+      ) : props.products.length === 0 ? (
+        <Text size="small" className="text-ui-fg-muted">
+          No products match your filter.
+        </Text>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {props.products.map((p) => {
+            const live = p.status === "published"
+            const saving = props.savingIds.has(p.id)
+            const selected = props.selectedIds.has(p.id)
+            return (
+              <div
+                key={p.id}
+                className={`flex flex-col overflow-hidden rounded-lg border ${
+                  selected ? "border-ui-border-interactive" : "border-ui-border-base"
+                } ${live ? "" : "opacity-60"}`}
+              >
+                <div className="relative aspect-square bg-white">
+                  {p.thumbnail ? (
+                    <img
+                      src={p.thumbnail}
+                      alt=""
+                      loading="lazy"
+                      className="size-full object-contain"
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center">
+                      <Text size="small" className="text-ui-fg-muted">
+                        No picture
+                      </Text>
+                    </div>
+                  )}
+                  <div className="absolute left-2 top-2 rounded bg-white/90 p-1">
+                    <Checkbox
+                      checked={selected}
+                      onCheckedChange={(c) => props.toggleOne(p.id, c === true)}
+                      aria-label={`Select ${p.title ?? "product"}`}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-1 flex-col gap-1 p-3">
+                  <AppLink
+                    href={`/app/products/${p.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-medium text-ui-fg-base hover:underline"
+                  >
+                    {p.title ?? "(no title)"}
+                  </AppLink>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    {[p.brand?.name, p.type?.value].filter(Boolean).join(" · ") || "No brand or type"}
+                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    {[
+                      p.supplier_code,
+                      p.price_from != null ? `from $${p.price_from.toFixed(2)}` : null,
+                      `${p.variant_count} variant${p.variant_count === 1 ? "" : "s"}`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                  <label className="mt-auto flex cursor-pointer items-center justify-between gap-2 pt-2">
+                    <Text size="small" weight="plus">
+                      {saving ? "Saving…" : live ? "Live" : "Hidden"}
+                    </Text>
+                    <Switch
+                      checked={live}
+                      disabled={saving}
+                      onCheckedChange={(c) =>
+                        props.onSetStatus(p.id, c ? "published" : "draft")
+                      }
+                      aria-label={`${p.title ?? "Product"} live on the website`}
+                    />
+                  </label>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </Container>
   )
 }
