@@ -962,6 +962,35 @@ export function QuotePricerPage({ targetQuoteId, onDone }: { targetQuoteId: stri
     patch({ extras: [...(state.extras ?? []), { id: genId("x"), label: preset?.label ?? "", qty: "1", unitSell: preset?.unitSell ?? "", unitCost: preset?.unitCost ?? "" }] })
   const patchExtra = (id: string, p: Partial<JobExtra>) => patch({ extras: (state.extras ?? []).map((x) => (x.id === id ? { ...x, ...p } : x)) })
   const removeExtra = (id: string) => patch({ extras: (state.extras ?? []).filter((x) => x.id !== id) })
+
+  // Postage suggestion: the same Shippit / AusPost price the website charges,
+  // for this job's garments to the quote's delivery address. Staff decide
+  // whether to apply it; nothing goes on the quote until they do.
+  type FreightEstimate = { amount: number; cost_ex: number | null; rate_source: string; fallback_reason: string | null; units: number; grams: number; parcels: number; to: string | null }
+  const [freight, setFreight] = useState<FreightEstimate | null>(null)
+  const [freightBusy, setFreightBusy] = useState(false)
+  const estimateFreight = async () => {
+    if (!targetQuote?.id) return
+    setFreightBusy(true)
+    try {
+      const items = state.groups.map((g) => ({
+        product_id: (g.product ?? g.mockupProduct)?.id ?? null,
+        quantity: g.rows.reduce((n, r) => n + Object.values(r.cells).reduce((m, v) => m + (Number(v) || 0), 0), 0),
+      }))
+      setFreight(await adminPost<FreightEstimate>(`/admin/quotes/${targetQuote.id}/freight-estimate`, { items }))
+    } catch (err: any) {
+      toast.error(err?.message ?? "Couldn't get a postage price")
+    } finally {
+      setFreightBusy(false)
+    }
+  }
+  const applyFreight = (f: FreightEstimate) => {
+    const fields = { qty: "1", unitSell: f.amount.toFixed(2), unitCost: f.cost_ex != null ? f.cost_ex.toFixed(2) : "" }
+    const existing = (state.extras ?? []).find((x) => /^freight to customer/i.test(x.label))
+    if (existing) patchExtra(existing.id, fields)
+    else patch({ extras: [...(state.extras ?? []), { id: genId("x"), label: "Freight to customer", ...fields }] })
+    setFreight(null)
+  }
   const priced = useMemo(() => priceGroupedJob(buildJob()), [buildJob])
 
   // Band table: "this group at each band" = its first row's first cell at the
@@ -1780,6 +1809,10 @@ export function QuotePricerPage({ targetQuoteId, onDone }: { targetQuoteId: stri
           <div className="rounded-md border border-ui-border-base">
             <div className="px-3 py-2 bg-ui-bg-subtle text-xs text-ui-fg-muted font-medium flex items-center justify-between">
               <span>Extras (colour change, sample, freight, artwork…)</span>
+              <span className="flex items-center gap-1.5">
+              {targetQuote?.id ? (
+                <Button size="small" variant="secondary" className="h-7" isLoading={freightBusy} onClick={estimateFreight}>Postage estimate</Button>
+              ) : null}
               <Select value="" onValueChange={(v) => addExtra(v === "__blank" ? undefined : EXTRA_PRESETS.find((p) => p.label === v))}>
                 <Select.Trigger className="h-7 w-44"><Select.Value placeholder="+ Add extra" /></Select.Trigger>
                 <Select.Content>
@@ -1787,7 +1820,21 @@ export function QuotePricerPage({ targetQuoteId, onDone }: { targetQuoteId: stri
                   <Select.Item value="__blank">Blank extra</Select.Item>
                 </Select.Content>
               </Select>
+              </span>
             </div>
+            {freight ? (
+              <div className="px-3 py-2 flex flex-wrap items-center gap-2 border-b border-ui-border-base text-xs">
+                <span>
+                  {freight.rate_source === "shippit"
+                    ? `AusPost $${freight.amount.toFixed(2)} inc GST to ${freight.to}`
+                    : `$${freight.amount.toFixed(2)} inc GST from the weight table (${freight.to ? "no AusPost price for that address" : "no delivery address on the job yet"})`}
+                  {` · ${freight.units} garment${freight.units === 1 ? "" : "s"}, ${(freight.grams / 1000).toFixed(1)} kg${freight.parcels > 1 ? `, ${freight.parcels} parcels` : ""}`}
+                  {freight.cost_ex != null ? ` · costs us $${freight.cost_ex.toFixed(2)} ex GST` : ""}
+                </span>
+                <Button size="small" className="h-7" onClick={() => applyFreight(freight)}>Apply</Button>
+                <Button size="small" variant="transparent" className="h-7" onClick={() => setFreight(null)}>Dismiss</Button>
+              </div>
+            ) : null}
             {(state.extras ?? []).length === 0 ? (
               <Text size="xsmall" className="text-ui-fg-muted px-3 py-2">None.</Text>
             ) : (

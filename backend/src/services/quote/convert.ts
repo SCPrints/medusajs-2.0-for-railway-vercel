@@ -23,6 +23,7 @@ import { AUDIT_ACTION, AUDIT_ENTITY } from "../../lib/audit-entities"
 import { captureEvent } from "../../lib/posthog"
 import { findCustomerIdByEmail } from "../../lib/customer-fill"
 import { onlyVariantFor, quoteLineNeedsSizes, sizesPendingFromQuoteLine } from "../../lib/sizes-pending"
+import { freightAmount, isFreightLine } from "../../lib/quote-freight"
 
 export type ConvertQuoteResult = {
   order_id: string
@@ -216,7 +217,14 @@ export const convertQuoteToOrder = async (
   }
   const needsSizes = (li: Record<string, any>) => quoteLineNeedsSizes(li) && !oneSize.has(li)
 
-  const addable = lineItems.filter(
+  // Postage lines ("Postage", "Freight to customer") become the order's
+  // shipping, not items: shipping total and reports match website orders.
+  const freightLines = lineItems.filter(
+    (li) => Number(li?.quantity ?? 0) > 0 && isFreightLine(li) && freightAmount(li) != null
+  )
+  const goods = lineItems.filter((li) => !freightLines.includes(li))
+
+  const addable = goods.filter(
     (li) =>
       typeof li?.variant_id === "string" &&
       Number(li?.quantity ?? 0) > 0 &&
@@ -227,7 +235,7 @@ export const convertQuoteToOrder = async (
   // lines (the POS manual-discount line is exactly this shape), so carry them
   // onto the order instead of silently dropping billable amounts. The
   // customer's accept link converts through here too, so it keeps them.
-  const customAddable = lineItems.filter(
+  const customAddable = goods.filter(
     (li) =>
       !addable.includes(li) &&
       typeof li?.title === "string" &&
@@ -236,7 +244,7 @@ export const convertQuoteToOrder = async (
       li?.unit_price != null &&
       Number.isFinite(Number(li.unit_price))
   )
-  const skipped = lineItems.filter(
+  const skipped = goods.filter(
     (li) => !addable.includes(li) && !customAddable.includes(li)
   )
   if (addable.length === 0 && customAddable.length === 0) {
@@ -366,6 +374,27 @@ export const convertQuoteToOrder = async (
     ? new Date(Date.now() + termsDays * 86_400_000).toISOString()
     : null
 
+  // The website's Standard Shipping option (scp provider): the fulfilment
+  // bridge takes its shipping option from the order's shipping method.
+  let shippingOptionId: string | null = null
+  if (freightLines.length) {
+    try {
+      const fulfillment = container.resolve(Modules.FULFILLMENT) as any
+      const [opt] = await fulfillment.listShippingOptions({ provider_id: "scp_scp" }, { take: 1 })
+      shippingOptionId = opt?.id ?? null
+    } catch {
+      /* the shipping method still records the charge */
+    }
+  }
+  const shippingMethods = freightLines.map((li) => ({
+    name: String(li.title).trim(),
+    amount: freightAmount(li)!,
+    // Quoted prices are GST-inclusive, same as the custom lines above.
+    is_tax_inclusive: true,
+    ...(shippingOptionId ? { shipping_option_id: shippingOptionId } : {}),
+    data: { source: "quote", quote_line_id: li.id ?? null },
+  }))
+
   // ── Create draft → convert (POS recipe) ──────────────────────────────────
   // A job with no email sits on the walk-in placeholder; draftCustomer swaps in
   // the linked customer's real email if they have one, else keeps the order on
@@ -396,6 +425,7 @@ export const convertQuoteToOrder = async (
         ...(typeof meta.needed_by === "string" && meta.needed_by ? { needed_by: meta.needed_by } : {}),
       },
       items: itemPayloads,
+      ...(shippingMethods.length ? { shipping_methods: shippingMethods } : {}),
     } as any,
   })
   const orderId = (draftResult as any)?.result?.id
