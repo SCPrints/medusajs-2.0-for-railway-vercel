@@ -23,6 +23,10 @@
  *   5. Repoint the thumbnail to a live MAIN/FRONT shot.
  *   6. Write only if the set actually changed.
  *
+ * Before that, every 386×513 link is swapped for the 1280×1280 link of the
+ * same photo when that loads (see lib/ascolour-image-size.ts: the small resize
+ * passes the liveness check from Fly yet 404s for many visitors).
+ *
  * Idempotent and safe to re-run. Verifies nothing it writes is dead.
  *
  * Usage:
@@ -47,6 +51,7 @@ import AsColourService from "../modules/ascolour/service"
 import { AsColourImage } from "../modules/ascolour/types"
 import { checkImageUrl } from "../services/image-audit/check"
 import { writeProductImages, imageKey, type Liveness } from "../lib/safe-product-images"
+import { fullSizeAsColourUrl } from "../lib/ascolour-image-size"
 
 const PAGE_SIZE = 100
 const HEAD_CONCURRENCY = 8
@@ -155,6 +160,7 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
   let scanned = 0
   let healthy = 0
   let repaired = 0
+  let upgraded = 0
   let stillBroken = 0
   let apiFailed = 0
   let stopped = false
@@ -186,10 +192,36 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
       scanned++
       if (limit && scanned > limit) { stopped = true; break }
 
-      const currentUrls: string[] = (product.images ?? [])
+      let currentUrls: string[] = (product.images ?? [])
         .map((i: any) => i.url as string)
         .filter(Boolean)
       if (!currentUrls.length) { healthy++; continue }
+
+      // 0. Swap 386×513 links for the full-size link of the same photo, when it loads.
+      const swaps = new Map<string, string>()
+      await mapPool(currentUrls, HEAD_CONCURRENCY, async (url) => {
+        const big = fullSizeAsColourUrl(url)
+        if (big && (await checkImageUrl(big, timeoutMs)).ok) swaps.set(url, big)
+      })
+      if (swaps.size) {
+        try {
+          const res = await writeProductImages(container, product.id, currentUrls.map((u) => swaps.get(u) ?? u), {
+            currentUrls,
+            explicitRemovals: [...swaps.keys()],
+            thumbnail: swaps.get(product.thumbnail) ?? undefined,
+            knownLiveness: new Map([...swaps.values()].map((u) => [imageKey(u), "live" as Liveness])),
+            dryRun,
+            logger,
+          })
+          logger.info(
+            `  ${product.handle} (${styleCode}): ${dryRun ? "would swap" : "swapped"} ${swaps.size} small photo(s) for full size (${res.before} → ${res.after} images)`
+          )
+          if (dryRun || res.wrote) upgraded++
+          if (res.wrote) currentUrls = res.final
+        } catch (err: any) {
+          logger.warn(`  ${product.handle} (${styleCode}): full-size swap failed — ${err?.message ?? err}`)
+        }
+      }
 
       // 1. Liveness-check current images.
       const currentChecks = await mapPool(currentUrls, HEAD_CONCURRENCY, async (url) => ({
@@ -283,6 +315,6 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
 
   logger.info("---")
   logger.info(
-    `Done. scanned=${scanned}, ${dryRun ? "would repair" : "repaired"}=${repaired}, healthy/untouched=${healthy}, still-broken(manual)=${stillBroken}, api-fetch-failed=${apiFailed}.`
+    `Done. scanned=${scanned}, ${dryRun ? "would swap to full size" : "swapped to full size"}=${upgraded}, ${dryRun ? "would repair" : "repaired"}=${repaired}, healthy/untouched=${healthy}, still-broken(manual)=${stillBroken}, api-fetch-failed=${apiFailed}.`
   )
 }
