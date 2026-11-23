@@ -85,6 +85,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const subject = typeof body.subject === "string" ? body.subject.trim() : null
   const message = typeof body.message === "string" ? body.message.trim() : ""
   const attachments = parseAttachments(body.attachments)
+  // Optional "When do you need it by?" (YYYY-MM-DD), copied onto the job.
+  const neededBy =
+    typeof body.needed_by === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.needed_by.trim()) ? body.needed_by.trim() : null
 
   if (!email || !message) {
     return res.status(400).json({
@@ -147,6 +150,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     message,
     attachments,
     bot: relay.bot,
+    needed_by: neededBy,
   }).catch((error) => {
     console.error("Contact submission: creating the job failed", error)
     return null

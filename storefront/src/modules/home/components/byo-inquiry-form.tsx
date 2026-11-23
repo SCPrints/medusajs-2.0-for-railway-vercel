@@ -196,6 +196,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
       subject: BYO_SUBJECT,
       message: buildMessage(userMessage),
       source: "byo" as const,
+      ...(data.get("needed-by") ? { needed_by: String(data.get("needed-by")) } : {}),
       [HONEYPOT_FIELD]: data.get(HONEYPOT_FIELD),
       mood_board: moodBoard.map((m) => ({
         filename: m.filename,
@@ -414,6 +415,13 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
           </div>
         )}
       </fieldset>
+
+      <div>
+        <label htmlFor="byo-needed-by" className={labelClass}>
+          When do you need it by? <span className="font-normal text-ui-fg-muted">(optional)</span>
+        </label>
+        <input id="byo-needed-by" name="needed-by" type="date" className={inputClass} />
+      </div>
 
       <div>
         <label htmlFor="byo-message" className={labelClass}>

@@ -206,6 +206,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
       company: company || null,
       subject: "Custom hat request",
       source: "custom_hats" as const,
+      ...(/^\d{4}-\d{2}-\d{2}$/.test(timeline) ? { needed_by: timeline } : {}),
       [HONEYPOT_FIELD]: data.get(HONEYPOT_FIELD),
       message: buildMessage(contactMessage),
       line_items: lineItems,
@@ -461,7 +462,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
           </div>
           <div>
             <label htmlFor="hat-timeline" className={labelClass}>In-hands date <span className="font-normal text-ui-fg-subtle">(optional)</span></label>
-            <input id="hat-timeline" name="timeline" type="text" placeholder='e.g. "mid August"' className={inputClass} />
+            <input id="hat-timeline" name="timeline" type="date" className={inputClass} />
           </div>
         </div>
         <div>

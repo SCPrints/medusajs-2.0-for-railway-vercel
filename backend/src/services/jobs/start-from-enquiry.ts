@@ -18,6 +18,8 @@ export type EnquiryInput = {
   created_at?: string | Date | null
   /** The storefront's bot check flagged it: shown as "Possible bot" in New. */
   bot?: boolean
+  /** The customer's own date (YYYY-MM-DD): drives Late / At risk on the job. */
+  needed_by?: string | null
 }
 
 /**
@@ -64,6 +66,7 @@ export async function startJobFromEnquiry(
         enquiry_received_at: receivedAt,
         ...(attachments.length ? { mood_board_urls: attachments } : {}),
         ...(s.bot ? { bot_flagged: true } : {}),
+        ...(s.needed_by ? { needed_by: s.needed_by } : {}),
       },
     },
   ])

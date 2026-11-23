@@ -135,6 +135,7 @@ export default function ContactForm() {
       phone: formData.get("phone"),
       subject: formData.get("subject"),
       message: formData.get("message"),
+      needed_by: formData.get("needed-by") || undefined,
       [HONEYPOT_FIELD]: formData.get(HONEYPOT_FIELD),
       attachments: attachments
         .filter((a) => a.status === "done" && a.url)
@@ -290,6 +291,21 @@ export default function ContactForm() {
             id="subject"
             name="subject"
             type="text"
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-gray-900"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="needed-by"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            When do you need it by? <span className="font-normal text-gray-500">(optional)</span>
+          </label>
+          <input
+            id="needed-by"
+            name="needed-by"
+            type="date"
             className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-hidden focus:ring-2 focus:ring-gray-900"
           />
         </div>
