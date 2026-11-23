@@ -41,6 +41,13 @@ const base = (over: Partial<JobSnapshot>): JobSnapshot => ({
 })
 
 describe("deriveJobState", () => {
+  it("customer-supplied garments: Send proof, then straight to production (no blanks)", () => {
+    const byo = order({ paid: true, has_decorated_lines: false, needs_proof: true })
+    expect(deriveJobState(base({ order: byo })).next_action.kind).toBe("send_proof")
+    const approved = order({ ...byo, tracks: { artwork: "approved", blanks: "not_started", downstream: "received" } })
+    expect(deriveJobState(base({ order: approved })).next_action.kind).toBe("start_production")
+  })
+
   it("an enquiry closed as a duplicate reads 'Handled on #122'", () => {
     const st = deriveJobState(base({ quote: quote({ status: "lost", duplicate_of_label: "#122" }) }))
     expect(st.lost).toBe(true)

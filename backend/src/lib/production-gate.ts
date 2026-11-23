@@ -14,6 +14,12 @@ export function isDecoratedLine(line: { metadata?: Record<string, unknown> | nul
   return isObject(m.customizerDesign) || isObject(m.decorationDesign) || m.pos_line_kind === "customizer"
 }
 
+/** A garment the customer brings in (BYO): printed by us, so it needs a proof, but no blanks to buy. */
+export function isCustomerSuppliedLine(line: { title?: unknown; metadata?: Record<string, unknown> | null }): boolean {
+  const text = `${line.title ?? ""} ${line.metadata?.description ?? ""}`
+  return /customer[\s-]*supplied|bring your own|\bBYO\b/i.test(text)
+}
+
 /**
  * Pure: why an order isn't ready to start production, or [] when it is (or
  * when this move doesn't start production). Uses the stages the request is

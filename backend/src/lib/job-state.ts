@@ -97,6 +97,9 @@ export type JobSnapshot = {
     blanks_stage_changed_at: string | null
     production_stage_changed_at: string | null
     has_decorated_lines: boolean
+    /** Artwork needs the customer's OK: Studio designs, customer-supplied garments, or an
+     * uploaded mockup. Wider than has_decorated_lines, which also means blanks to buy. */
+    needs_proof?: boolean
     /** Units on lines still waiting for sizes (lib/sizes-pending.ts). */
     sizes_pending_units?: number
     gate_failures: string[]
@@ -306,7 +309,7 @@ function deriveBaseState(s: JobSnapshot): JobState {
     })
   }
 
-  if (o.has_decorated_lines && t.artwork !== "approved") {
+  if ((o.needs_proof ?? o.has_decorated_lines) && t.artwork !== "approved") {
     if (t.artwork === "awaiting_approval") {
       return wait("customer", o.artwork_stage_changed_at, { kind: "wait_proof", label: "Proof sent", tab: "artwork" })
     }

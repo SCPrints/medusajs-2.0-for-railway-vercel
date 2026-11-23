@@ -16,7 +16,7 @@ import {
 import { groupJobLines, optionsFromVariantTitle, type RawJobLine } from "../../lib/job-lines"
 import { dateRisk } from "../../lib/job-today"
 import type { JobActivity, JobLine, JobPricing, JobView } from "../../lib/job-view"
-import { isDecoratedLine } from "../../lib/production-gate"
+import { isCustomerSuppliedLine, isDecoratedLine } from "../../lib/production-gate"
 import { isSizesPendingLine, quoteLineNeedsSizes, sizesPendingUnits } from "../../lib/sizes-pending"
 import { rushTierOf } from "../../lib/production-due-date"
 import { resolveTracksFromMeta } from "../../lib/production-stage"
@@ -363,6 +363,10 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
             blanks_stage_changed_at: iso(ometa.blanks_stage_changed_at),
             production_stage_changed_at: iso(ometa.production_stage_changed_at),
             has_decorated_lines: hasDecorated,
+            needs_proof:
+              hasDecorated ||
+              !!revisedProofAt ||
+              (order.items ?? []).some(isCustomerSuppliedLine),
             sizes_pending_units: sizesPendingUnits(order.items ?? []),
             outstanding: orderTotal != null ? Math.max(0, orderTotal - paid) : null,
             balance_due_at: iso(ometa.balance_due_at),
