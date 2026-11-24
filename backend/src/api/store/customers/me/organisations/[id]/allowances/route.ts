@@ -19,6 +19,8 @@ const bodySchema = z.object({
   delivery: z.enum(["bulk", "home"]).optional(),
 })
 
+const kindOf = (b: { kind?: "batch" | "ongoing" }) => b.kind ?? "batch"
+
 /**
  * GET /store/customers/me/organisations/:id/allowances   (owner / purchaser)
  *   → { allowances: [{ id, name, unit, closes_at, closed, items, people, picked, added_to_cart, created_at }] }
@@ -78,11 +80,12 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     if (c.sizes.length === 0) throw new MedusaError(MedusaError.Types.INVALID_DATA, `"${c.name}" has no sizes to choose from.`)
   }
 
-  const people = ((await service.listOrganisationRosterMembers(
+  // New-starter packs start empty: people are added one at a time (…/people).
+  const people = kindOf(body) === "ongoing" ? [] : ((await service.listOrganisationRosterMembers(
     { organisation_id: membership.organisation_id, is_active: true, ...(body.unit ? { unit: body.unit } : {}) } as any,
     { take: 1000, order: { name: "ASC" } }
   )) as any[])
-  const kind = body.kind ?? "batch"
+  const kind = kindOf(body)
   if (people.length === 0 && kind === "batch") {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, body.unit ? "Nobody in that unit yet." : "Add people to your roster first.")
   }

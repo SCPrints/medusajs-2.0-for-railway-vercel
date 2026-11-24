@@ -13,6 +13,7 @@ import { revalidateOrgTags } from "../lib/storefront-revalidate"
 import { ORG_INVENTORY_MODULE } from "../modules/org-inventory"
 import type OrgInventoryModuleService from "../modules/org-inventory/service"
 import { TASK_MODULE } from "../modules/task"
+import { taskAssignee } from "../services/attention/notify"
 import type TaskModuleService from "../modules/task/service"
 
 /**
@@ -68,6 +69,10 @@ export default async function fulfillmentOnOrderPlaced({
   )
   const taskService = container.resolve<TaskModuleService>(TASK_MODULE)
 
+  // Print tasks need an owner (assignee is required): resolved once per order.
+  const assignee = await taskAssignee(container, { order_id: orderId, customer_id: order.customer_id ?? null })
+  if (!assignee) logger.error(`[fulfillment-on-order-placed] no staff user to assign print tasks for ${orderId}`)
+
   const items = (order.items ?? []) as any[]
   const fulfillmentLines = items.filter(
     (it) => (it.metadata ?? {}).fulfillment_line === true
@@ -86,8 +91,8 @@ export default async function fulfillmentOnOrderPlaced({
     try {
       if (mode === "held_stock") {
         const row = await invService.retrieveOrgInventory(invId)
-        const available =
-          (row.quantity_on_hand ?? 0) - (row.quantity_reserved ?? 0)
+        // Already over-allocated stock counts as 0 free, so the deficit is just this order's share.
+        const available = Math.max(0, (row.quantity_on_hand ?? 0) - (row.quantity_reserved ?? 0))
 
         await invService.reserve({
           org_inventory_id: invId,
@@ -119,7 +124,7 @@ export default async function fulfillmentOnOrderPlaced({
               body: `Reservation exceeded availability by ${deficit} units. Print run needed to back the over-allocation.`,
               priority: "high",
               status: "open",
-              assignee_user_id: null,
+              assignee_user_id: assignee,
               order_id: orderId,
               organisation_id: meta.organisation_id ?? null,
               customer_id: order.customer_id ?? null,
@@ -143,7 +148,7 @@ export default async function fulfillmentOnOrderPlaced({
             body: `Print-on-demand line from fulfillment order #${order.display_id ?? orderId}.`,
             priority: "normal",
             status: "open",
-            assignee_user_id: null,
+            assignee_user_id: assignee,
             order_id: orderId,
             organisation_id: meta.organisation_id ?? null,
             customer_id: order.customer_id ?? null,

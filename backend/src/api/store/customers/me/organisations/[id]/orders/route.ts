@@ -211,7 +211,17 @@ export async function POST(
   } catch {
     return res.status(404).json({ error: "organisation not found" })
   }
-  if (!organisation.primary_contact_customer_id) {
+  // Customer of record: the staff-set primary contact, else the longest-standing
+  // owner (so a new organisation can pull stock before staff set a contact).
+  let contactId: string | null = organisation.primary_contact_customer_id ?? null
+  if (!contactId) {
+    const owners = (await orgService.listOrganisationMembers(
+      { organisation_id: membership.organisation_id, role: "owner" } as any,
+      { take: 1, order: { created_at: "ASC" } }
+    )) as any[]
+    contactId = owners[0]?.customer_id ?? null
+  }
+  if (!contactId) {
     return res.status(400).json({
       error:
         "Organisation must have a primary contact before placing orders. Contact SC Prints.",
@@ -366,7 +376,7 @@ export async function POST(
   const orderInput: any = {
     region_id: auRegionId,
     currency_code: auCurrencyCode,
-    customer_id: organisation.primary_contact_customer_id,
+    customer_id: contactId,
     email: organisation.contact_email ?? undefined,
     shipping_address: shippingAddress,
     billing_address: shippingAddress,

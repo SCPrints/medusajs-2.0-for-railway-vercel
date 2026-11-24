@@ -1,5 +1,5 @@
 import { computeCartWeight } from "../cart-weight"
-import { cleanHomeAddress, homeAddressLine, isHomeDeliveryOnlyCart, parcelGrams } from "../home-delivery"
+import { cleanHomeAddress, homeAddressLine, homeDeliveryProblem, isHomeDeliveryOnlyCart, parcelGrams } from "../home-delivery"
 import { buyerUnitPrice, storeFundraising, summariseRun } from "../team-store"
 import { stripServerTrustMetadata } from "../client-line-metadata"
 import { supplierPackDoc } from "../../services/customer-docs/supplier-pack"
@@ -16,12 +16,17 @@ describe("home delivery", () => {
     expect(cleanHomeAddress(null).ok).toBe(false)
   })
 
-  it("free cart shipping only when every line is home delivery AND the postage line is there", () => {
+  it("cart shipping is $0 only when every line goes to homes; checkout needs the postage line", () => {
     const garment = { metadata: { home_delivery: true } }
     const postage = { metadata: { home_delivery: true, home_delivery_postage: true } }
     expect(isHomeDeliveryOnlyCart([garment, postage])).toBe(true)
-    expect(isHomeDeliveryOnlyCart([garment])).toBe(false) // postage line removed: normal shipping
+    // The shipping provider only sees garment lines: still $0 there…
+    expect(isHomeDeliveryOnlyCart([garment])).toBe(true)
     expect(isHomeDeliveryOnlyCart([garment, postage, { metadata: {} }])).toBe(false)
+    // …and checkout refuses the cart whose postage line was removed.
+    expect(homeDeliveryProblem([garment])).toMatch(/postage/)
+    expect(homeDeliveryProblem([garment, postage])).toBeNull()
+    expect(homeDeliveryProblem([{ metadata: {} }])).toBeNull()
   })
 
   it("weighs only the lines that ship in the cart's own parcel", () => {
@@ -30,8 +35,8 @@ describe("home delivery", () => {
     const postage = { quantity: 1, metadata: { home_delivery: true, home_delivery_postage: true } }
     const names = { quantity: 10, metadata: { names_numbers: { names: "up_to_a4" } } }
     expect(computeCartWeight({ items: [tee, gift, postage, names] }, 150, 300).itemsWeightGrams).toBe(400)
-    // No postage line: the gift garments are weighed like any other line.
-    expect(computeCartWeight({ items: [tee, gift] }, 150, 300).itemsWeightGrams).toBe(1400)
+    // Gift garments never weigh on the cart's parcel (checkout guards the postage line).
+    expect(computeCartWeight({ items: [tee, gift] }, 150, 300).itemsWeightGrams).toBe(400)
     expect(parcelGrams([200, 550], 150)).toBe(900)
   })
 

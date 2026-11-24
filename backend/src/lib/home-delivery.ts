@@ -58,21 +58,33 @@ type LineLike = { metadata?: Record<string, unknown> | null }
 
 /**
  * Lines that add no weight to the cart's own parcel: names/numbers (printed on
- * the garments already counted) and home-delivery garments whose postage line
- * is in the cart (they ship separately, already paid for).
+ * the garments already counted) and home-delivery lines (they ship separately,
+ * on the postage line). Medusa hands the shipping provider only the lines on
+ * the garments' shipping profile, so the postage line itself is often not in
+ * view there: checkout refuses a cart whose postage line was removed instead
+ * (homeDeliveryProblem).
  */
-export function weightlessLine(line: LineLike, cartHasPostage: boolean): boolean {
+export function weightlessLine(line: LineLike): boolean {
   const m = line.metadata ?? {}
-  return !!m.names_numbers || (cartHasPostage && m.home_delivery === true)
+  return !!m.names_numbers || m.home_delivery === true
 }
 
 export const cartHasHomePostage = (items: LineLike[] | null | undefined): boolean =>
   (items ?? []).some((i) => i?.metadata?.home_delivery_postage === true)
 
-/** Every line goes to people's homes and the postage is paid: the cart's own shipping is $0. */
+/** Every line goes to people's homes (postage is its own line): the cart's own shipping is $0. */
 export function isHomeDeliveryOnlyCart(items: LineLike[] | null | undefined): boolean {
   const list = items ?? []
-  return list.length > 0 && cartHasHomePostage(list) && list.every((i) => i?.metadata?.home_delivery === true)
+  return list.length > 0 && list.every((i) => i?.metadata?.home_delivery === true)
+}
+
+/** Checkout: home-delivery garments without their postage line can't be placed. */
+export function homeDeliveryProblem(items: LineLike[] | null | undefined): string | null {
+  const list = items ?? []
+  if (!list.some((i) => i?.metadata?.home_delivery === true)) return null
+  return cartHasHomePostage(list)
+    ? null
+    : "The postage for these home deliveries is missing from your cart. Please contact us and we'll put it back."
 }
 
 /** Grams for one person's parcel: their garments + packaging. */

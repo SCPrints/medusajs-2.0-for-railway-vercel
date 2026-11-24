@@ -96,6 +96,25 @@ async function resolveAssignee(
   )
 }
 
+/**
+ * Someone must own a task (Task.assignee_user_id is required): the order's
+ * owner, the customer's owner, the next in the rotation, else the first staff
+ * user. null only when the shop has no staff users at all.
+ */
+export async function taskAssignee(
+  container: MedusaContainer,
+  ids: { order_id?: string | null; customer_id?: string | null }
+): Promise<string | null> {
+  const picked = await resolveAssignee(container, { order_id: ids.order_id ?? null, customer_id: ids.customer_id ?? null } as AttentionInput)
+  if (picked) return picked
+  try {
+    const users = await (container.resolve(Modules.USER) as any).listUsers({}, { take: 1, order: { created_at: "ASC" } })
+    return users?.[0]?.id ?? null
+  } catch {
+    return null
+  }
+}
+
 async function userEmail(container: MedusaContainer, userId: string | null): Promise<string | null> {
   if (!userId) return null
   try {

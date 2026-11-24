@@ -8,6 +8,7 @@ import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../../../../lib/audit-en
 import { writeAudit } from "../../../../../../../../lib/audit-log"
 import { ORGANISATION_MODULE } from "../../../../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../../../../modules/organisation/service"
+import { dropOrganisationTier } from "../../../../../../../../services/organisation-tier"
 import { requireMembership, requireRole } from "../../../_helpers"
 
 const updateSchema = z.object({
@@ -126,6 +127,7 @@ export async function DELETE(
   }
 
   await service.deleteOrganisationMembers([memberId])
+  await dropOrganisationTier(req.scope as any, membership.organisation_id, [row.customer_id])
 
   await writeAudit({
     container: req.scope as any,

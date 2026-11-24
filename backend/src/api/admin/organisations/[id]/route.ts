@@ -4,7 +4,7 @@ import { z } from "zod"
 import { ORGANISATION_MODULE } from "../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../modules/organisation/service"
 import { orgTier } from "../../../../lib/org-range-from-order"
-import { applyOrganisationTier } from "../../../../services/organisation-tier"
+import { applyOrganisationTier, dropOrganisationTier } from "../../../../services/organisation-tier"
 
 const updateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -61,8 +61,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     if (body[k] !== undefined) (update as any)[k] = body[k]
   }
   const service = req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
+  const before: any = await service.retrieveOrganisation(id)
   await service.updateOrganisations([update])
-  // A new tier applies to everyone already in the organisation.
+  // A changed (or cleared) tier: take back the old grant, then apply the new one to everyone.
+  const tierChanged =
+    body.default_pricing_tier !== undefined &&
+    orgTier(before?.default_pricing_tier)?.name !== orgTier(body.default_pricing_tier)?.name
+  if (tierChanged) await dropOrganisationTier(req.scope as any, id)
   const tier = body.default_pricing_tier ? await applyOrganisationTier(req.scope as any, id) : null
   const updated = await service.retrieveOrganisation(id)
   res.json({ organisation: updated, tier_members_added: tier?.added ?? 0 })

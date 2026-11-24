@@ -5,7 +5,7 @@ import { ORGANISATION_MODULE } from "../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../modules/organisation/service"
 import { writeAudit } from "../../../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../lib/audit-entities"
-import { applyOrganisationTier } from "../../../../../services/organisation-tier"
+import { applyOrganisationTier, dropOrganisationTier } from "../../../../../services/organisation-tier"
 
 const addSchema = z.object({
   customer_id: z.string().min(1),
@@ -77,6 +77,7 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   const actor = (req as any).auth_context?.actor_id ?? null
   const role = (matches[0] as any)?.role ?? null
   await service.deleteOrganisationMembers(matches.map((m: any) => m.id))
+  await dropOrganisationTier(req.scope as any, orgId, [customerId])
   await writeAudit({
     container: req.scope as any,
     entity: AUDIT_ENTITY.ORGANISATION,

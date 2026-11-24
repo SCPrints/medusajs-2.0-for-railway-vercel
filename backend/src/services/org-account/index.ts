@@ -30,6 +30,7 @@ import {
   type OrgOrderRow,
   type OrgRole,
 } from "../../lib/org-account"
+import { homeDeliveryProblem } from "../../lib/home-delivery"
 import { EmailTemplates } from "../../modules/email-notifications/templates"
 import { ORGANISATION_MODULE } from "../../modules/organisation"
 
@@ -210,12 +211,16 @@ export async function checkOrgCheckout(
       "completed_at",
       "total",
       "metadata",
+      "items.metadata",
       "payment_collection.payment_sessions.provider_id",
     ],
   })
   const cart = (carts as any[])?.[0]
   // No such cart / already an order: Medusa's own handler answers that.
   if (!cart || cart.completed_at) return { ok: true, organisation_id: null, on_account: false }
+  // Home-delivery garments ship on their postage line; without it they'd go free.
+  const homeProblem = homeDeliveryProblem(cart.items)
+  if (homeProblem) return refuse(409, "home_delivery_postage_missing", homeProblem)
 
   const meta = { ...((cart.metadata ?? {}) as Record<string, unknown>) }
   const orgId = typeof meta.organisation_id === "string" && meta.organisation_id ? meta.organisation_id : null

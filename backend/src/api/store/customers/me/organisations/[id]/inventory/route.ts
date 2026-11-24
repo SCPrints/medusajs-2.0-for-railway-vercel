@@ -139,7 +139,8 @@ export async function GET(
       unit_price: r.unit_price,
       quantity_on_hand: r.quantity_on_hand ?? 0,
       quantity_reserved: r.quantity_reserved ?? 0,
-      available: (r.quantity_on_hand ?? 0) - (r.quantity_reserved ?? 0),
+      // Never below 0 for the customer: an over-pull is being printed, not owed.
+      available: Math.max(0, (r.quantity_on_hand ?? 0) - (r.quantity_reserved ?? 0)),
       reorder_point: r.reorder_point,
       lead_time_days: r.lead_time_days,
       customer_facing_label: r.customer_facing_label,
