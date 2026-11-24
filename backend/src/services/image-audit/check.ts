@@ -75,6 +75,14 @@ export async function checkImageUrl(
 }
 
 /**
+ * Only a 404/410 proves an image is gone. 403 / 429 / 5xx / timeouts mean the
+ * host said "not now" (Nov 2026: r2.dev answered 429 mid-scan and ~210 JB's
+ * products with live photos were flagged broken).
+ */
+export const isDeadCheck = (c: UrlCheck | null | undefined): boolean =>
+  Boolean(c && !c.ok && (c.status === 404 || c.status === 410))
+
+/**
  * Decide the audit status for a product from its thumbnail + the liveness
  * check. Empty thumbnail is "missing" (the existing "Missing image" flag
  * owns that case); a populated-but-dead thumbnail is "broken".
@@ -134,10 +142,7 @@ export function classifyProductImages(
     if (url) candidates.add(url)
   }
 
-  const broken_urls = [...candidates].filter((url) => {
-    const check = checks.get(url)
-    return Boolean(check && !check.ok)
-  })
+  const broken_urls = [...candidates].filter((url) => isDeadCheck(checks.get(url)))
   if (broken_urls.length) {
     return { status: "broken", broken_urls }
   }

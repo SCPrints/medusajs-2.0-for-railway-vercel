@@ -26,6 +26,7 @@ import {
   buildImageSizes,
   checkImageUrl,
   classifyProductImages,
+  isDeadCheck,
   readImageSize,
   sameImageSizes,
   shouldStamp,
@@ -37,6 +38,7 @@ import {
 const PAGE_SIZE = 100
 const DEFAULT_CONCURRENCY = 8
 const DEFAULT_TIMEOUT_MS = 8000
+const RETRY_GAP_MS = 250
 
 export type ImageAuditSummary = {
   scanned: number
@@ -210,6 +212,15 @@ export async function runImageAudit(
     )
     summary.checked += urls.length
 
+    // Hosts that throttled or blipped get one slow, one-at-a-time retry so
+    // the result is a real answer, not a rate-limit artefact.
+    for (const u of urls) {
+      const c = statusByUrl.get(u)
+      if (!c || c.ok || isDeadCheck(c)) continue
+      await new Promise((r) => setTimeout(r, RETRY_GAP_MS))
+      statusByUrl.set(u, await checkImageUrl(u, timeoutMs))
+    }
+
     // Pixel sizes for the Merchant feed's >=500x500 rule. Only live URLs not
     // already in the product's stamped `sizes` are measured, so after the
     // first full run a weekly sweep only fetches newly-added images.
@@ -246,8 +257,9 @@ export async function runImageAudit(
       if (next === "broken") summary.broken_found++
 
       const prevSizes = p.metadata?.image_audit?.sizes
+      // Not-dead (not just ok) so a throttled URL keeps its known size.
       const sizes = buildImageSizes(
-        productImageUrls(p).filter((u) => statusByUrl.get(u)?.ok),
+        productImageUrls(p).filter((u) => !isDeadCheck(statusByUrl.get(u))),
         prevSizes,
         sizeByUrl
       )

@@ -139,6 +139,21 @@ describe("classifyProductImages (thumbnail + gallery)", () => {
     })
   })
 
+  it("only 404/410 is broken: throttled, refused, erroring or timed-out urls are not (the Nov 2026 r2.dev 429s)", () => {
+    for (const status of [429, 403, 500, 503, 0]) {
+      expect(
+        classifyProductImages(
+          THUMB,
+          [FRONT],
+          checks([
+            [THUMB, { ok: true, status: 200 }],
+            [FRONT, { ok: false, status }],
+          ])
+        )
+      ).toEqual({ status: "ok", broken_urls: [] })
+    }
+  })
+
   it("never flags unchecked urls (no check result = no verdict)", () => {
     expect(
       classifyProductImages(THUMB, [FRONT], checks([[THUMB, { ok: true, status: 200 }]]))
