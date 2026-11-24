@@ -107,10 +107,14 @@ describe("proofArtworkUrl", () => {
     { id: "up_png", dataUrl: IMG, originalStorageUrl: "https://r2/original.png" },
   ]
 
-  it("takes the newest object, preferring its upload id (SVG groups have no src)", () => {
-    expect(proofArtworkUrl([{ src: "https://r2/old.png" }, { customizerUploadId: "up_svg" }], uploads)).toBe(
-      "https://r2/new.svg"
-    )
+  it("takes the side's one piece, preferring its upload id (SVG groups have no src)", () => {
+    expect(proofArtworkUrl([{ customizerUploadId: "up_svg" }], uploads)).toBe("https://r2/new.svg")
+    expect(proofArtworkUrl([{ src: "https://r2/logo.png" }], uploads)).toBe("https://r2/logo.png")
+  })
+
+  it("names no file when the side has several pieces (logo + sponsor, or logo + text)", () => {
+    expect(proofArtworkUrl([{ src: "https://r2/old.png" }, { customizerUploadId: "up_svg" }], uploads)).toBeNull()
+    expect(proofArtworkUrl([{ src: "https://r2/logo.png" }, {}], uploads)).toBeNull()
   })
 
   it("maps an inline image to its hosted original and skips objects with no artwork", () => {

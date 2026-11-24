@@ -115,13 +115,23 @@ type CanvasObject = { src?: unknown; customizerUploadId?: unknown }
 type Upload = { id: string; dataUrl?: string | null; originalStorageUrl?: string | null }
 
 /**
- * The artwork staff actually left on the proof canvas (newest object first),
- * so a swapped logo shows as "Proof artwork" in admin and re-opens next time.
+ * The artwork file staff left on the proof canvas, so a swapped logo shows as
+ * "Proof artwork" in admin, re-opens next time, and is the file DSP prints.
+ * Only when the side is ONE piece: with a main logo + sponsor logo (or a logo
+ * + text) no single file is the artwork, and DSP was sent the newest piece on
+ * its own at full width. Then this returns null and the DSP pack warns.
  * The upload id comes first: an SVG lands on the canvas as a vector group with
- * no `src`, so a src-only lookup reported the old PNG underneath (order #116).
+ * no `src` (order #116).
  */
+/** The pieces of artwork on a proof side. Text and shapes have no `src`; an image with an empty src is a leftover. */
+export function proofPieces<T extends CanvasObject>(objects: T[]): T[] {
+  return objects.filter((o) => o?.customizerUploadId || (typeof o?.src === "string" ? o.src !== "" : true))
+}
+
 export function proofArtworkUrl(objects: CanvasObject[], uploads: Upload[]): string | null {
-  for (const obj of [...objects].reverse()) {
+  const pieces = proofPieces(objects)
+  if (pieces.length !== 1) return null
+  for (const obj of pieces) {
     const uploaded = obj?.customizerUploadId
       ? uploads.find((u) => u.id === obj.customizerUploadId)?.originalStorageUrl
       : null

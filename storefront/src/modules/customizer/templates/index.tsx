@@ -61,6 +61,7 @@ import {
 } from "@modules/customizer/lib/destinations/cart"
 import {
   proofArtworkUrl,
+  proofPieces,
   sendPoaRequest,
   sendProof,
   sendToPos,
@@ -4284,9 +4285,12 @@ export default function CustomizerTemplate({
           canvas: canvasDims,
           tintColor: variantTintHexForRender ?? undefined,
         },
+        // Several pieces on the side → no single artwork file (not even the one the proof opened with).
         artworkUrl:
-          proofArtworkUrl(sideObjects, sessionUploads) ??
-          (proofArtworkParam ? decodeURIComponent(proofArtworkParam) : null),
+          proofPieces(sideObjects).length > 1
+            ? null
+            : proofArtworkUrl(sideObjects, sessionUploads) ??
+              (proofArtworkParam ? decodeURIComponent(proofArtworkParam) : null),
         design: designIsHosted
           ? { objects: designObjects, canvas: canvasDims, print_size_id: proofSizeId }
           : null,

@@ -141,6 +141,9 @@ export function inkClusters(rgba: Uint8Array, minShare = 0.005): InkCluster[] {
  * and, unless it's white or black, the nearest PMS. Returns a warning when the
  * artwork has more inks than the order says.
  */
+/** ΔE above which a noted ink word and the artwork colour are different colours, not shades. ponytail: 50 eyeballed (white↔green ≈ 90, green↔forest green ≈ 25). */
+const INK_NAME_CLASH = 50
+
 export function applyArtworkInks(page: DspPage, clusters: InkCluster[], pms: (hex: string) => string = nearestPantone): string | null {
   if (page.method !== "screen" || !clusters.length) return null
   const names = page.inks.slice(page.dark ? 1 : 0)
@@ -161,10 +164,16 @@ export function applyArtworkInks(page: DspPage, clusters: InkCluster[], pms: (he
     if (!paired.has(k)) paired.set(k, take(null))
   })
   let matched = false
+  const notes: string[] = []
   const inks = names.map((n, k) => {
     const c = paired.get(k)
     if (!c) return n
-    const name = PLACEHOLDER.test(n) ? titleCase(basicName(c.hex)) : n
+    // Staff's word vs the artwork's colour: "White" on a green artwork is a slip in the
+    // note, and DSP must not get "White PMS 3xx C". The artwork wins; staff are told.
+    const w = PLACEHOLDER.test(n) ? undefined : wordHex(n)
+    const clash = !!w && deltaE(hexToLab(c.hex), hexToLab(BASIC[w])) > INK_NAME_CLASH
+    if (clash) notes.push(`${page.positionLabel}: the order says ${n} ink but the artwork is ${basicName(c.hex)}, so DSP gets ${titleCase(basicName(c.hex))} — check the note.`)
+    const name = PLACEHOLDER.test(n) || clash ? titleCase(basicName(c.hex)) : n
     if (/^(white|black)$/i.test(basicName(c.hex))) return name
     matched = true
     return `${name} ${pms(c.hex)}`
@@ -172,7 +181,7 @@ export function applyArtworkInks(page: DspPage, clusters: InkCluster[], pms: (he
   page.inks = [...(page.dark ? ["Base"] : []), ...inks]
   page.colourLines = page.inks.map((ink, k) => `${k + 1}/${page.inks.length} ${ink.toUpperCase()}`)
   page.pmsFromArtwork = matched
-  return clusters.length > names.length
-    ? `${page.positionLabel}: the artwork looks like ${clusters.length} ink colours but the order says ${names.length} — fix the colour count on the order before sending.`
-    : null
+  if (clusters.length > names.length)
+    notes.push(`${page.positionLabel}: the artwork looks like ${clusters.length} ink colours but the order says ${names.length} — fix the colour count on the order before sending.`)
+  return notes.length ? notes.join(" ") : null
 }

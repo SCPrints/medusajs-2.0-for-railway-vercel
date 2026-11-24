@@ -60,6 +60,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return fail(res, err)
   }
   if (!pack.packs.length) return res.status(400).json({ error: "No screen print or Supacolour work on this order." })
+  // A print file the proof can't place would leave DSP with a low-res picture
+  // while the email promised vector artwork. Fix or remove it first.
+  const badFiles = pack.packs.flatMap((p) => p.pages).filter((pg) => pg.printFileUrl && pg.printFileProblem)
+  if (badFiles.length) {
+    return res.status(409).json({
+      error: `Fix the print file before sending: ${badFiles.map((pg) => `${pg.positionLabel}: ${pg.printFileProblem}`).join(" ")}`,
+    })
+  }
 
   // Attach the proof and the artwork files themselves (no links to chase).
   const attachments: Array<{ content: string; filename: string; content_type: string }> = [
@@ -72,9 +80,27 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const skipped: string[] = []
   const seen = new Set<string>()
   let previews = 0
+  let printFilesAttached = 0
   for (const pg of pack.packs.flatMap((p) => p.pages)) {
-    // A staff print file is already in the proof as vector at print size — that page IS DSP's art file.
-    if (pg.printFileUrl || !pg.artworkUrl || seen.has(pg.artworkUrl)) continue
+    // A staff print file is placed in the proof as vector at print size, and the
+    // file itself goes too: DSP's artists work from it, not from the proof.
+    if (pg.printFileUrl) {
+      if (seen.has(pg.printFileUrl)) continue
+      seen.add(pg.printFileUrl)
+      const got = await safeFetchBuffer(pg.printFileUrl, { maxBytes: 15 * 1024 * 1024, timeoutMs: 15_000 })
+      const b64 = got?.buffer.toString("base64")
+      const ext = (pg.printFileUrl.split("?")[0].split(".").pop() ?? "pdf").toLowerCase()
+      if (b64 && fits(b64)) {
+        attachments.push({
+          content: b64,
+          filename: `SCP-${pack.po}_${pg.positionLabel.replace(/\W+/g, "-")}_print-file.${ext}`,
+          content_type: got?.contentType ?? "application/pdf",
+        })
+        printFilesAttached++
+      } else skipped.push(`${pg.positionLabel} print file: ${pg.printFileUrl}`)
+      continue
+    }
+    if (!pg.artworkUrl || seen.has(pg.artworkUrl)) continue
     seen.add(pg.artworkUrl)
     try {
       // Customer-supplied URL: public https only, stops at 15 MB (Resend caps the whole email at 40 MB).
@@ -105,7 +131,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  const artworkFiles = attachments.length - 1 - previews
+  const artworkFiles = attachments.length - 1 - previews - printFilesAttached
   const vectorPages = pack.packs.reduce((n, p) => n + p.pages.filter((pg) => pg.printFileUrl).length, 0)
   const due = pack.due_date ? new Date(pack.due_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", timeZone: "Australia/Sydney" }) : null
   // A failed send must not be recorded as sent (no dsp_sent / comment / audit).
@@ -134,6 +160,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       attachments: [
         `art proof (${pack.packs.reduce((n, p) => n + p.pages.length, 0)} pages${vectorPages ? `; ${vectorPages === 1 ? "1 position has" : `${vectorPages} positions have`} the print-ready vector artwork placed at print size` : ""})`,
         ...(artworkFiles ? [`${artworkFiles} artwork file${artworkFiles > 1 ? "s" : ""} at print size`] : []),
+        ...(printFilesAttached ? [`${printFilesAttached} print-ready file${printFilesAttached > 1 ? "s" : ""} (vector)`] : []),
         ...(previews ? [`${previews} preview${previews > 1 ? "s" : ""} on the garment colour`] : []),
         ...skipped.map((s) => `too large to attach — download: ${s}`),
       ],

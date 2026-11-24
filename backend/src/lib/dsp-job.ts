@@ -48,6 +48,8 @@ export type DspInput = {
   revisedMockups?: Record<string, string>
   /** Latest revised-proof ARTWORK per "<line>:<side>" — staff's corrected file, beats the customer's upload. */
   revisedArtwork?: Record<string, string>
+  /** When each "<line>:<side>" proof was made (ISO): the newest across a group's lines wins. */
+  revisedAt?: Record<string, string>
   /** Staff's print-ready file per "<group>:<side>" (`order.metadata.dsp_print_files`) — a PDF/AI the proof places as vector at print size. */
   printFiles?: Record<string, string>
 }
@@ -77,6 +79,8 @@ export type DspPage = {
   artworkUrl: string | null
   /** Staff's print-ready PDF/AI for this position; beats artworkUrl in the proof and the email. */
   printFileUrl: string | null
+  /** Why the print file can't be used (services/dsp-pack/pdf printFileProblem); sending is blocked while set. */
+  printFileProblem?: string | null
   garmentImageUrl: string | null
 }
 
@@ -180,7 +184,20 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
     const artifacts = (Array.isArray(design.artifacts) ? design.artifacts : []) as Array<{ side?: string; printUrl?: string; mockupUrl?: string }>
     const originals = (Array.isArray(design.customerOriginalFiles) ? design.customerOriginalFiles : []) as Array<{ url?: string; fileName?: string; sides?: string[] }>
 
+    // Newest revised proof for a side across the group's lines (not the first line that has one).
+    const newestProof = (side: string) =>
+      lines
+        .map((l) => `${l.id}:${side}`)
+        .filter((k) => input.revisedMockups?.[k])
+        .sort((a, b) => (input.revisedAt?.[b] ?? "").localeCompare(input.revisedAt?.[a] ?? ""))[0] ?? null
+    // A method picked on an empty tab is not a print position.
+    const hasArtwork = (side: string) =>
+      artifacts.some((a) => a.side === side && (a.printUrl || a.mockupUrl)) ||
+      lines.some((l) => input.placements?.[l.id]?.some((p) => p.side === side)) ||
+      !!newestProof(side) ||
+      !!input.printFiles?.[`${groupId}:${side}`]
     const sides = Array.from(new Set([...Object.keys(methods), ...artifacts.map((a) => a.side).filter((s): s is string => !!s)]))
+      .filter(hasArtwork)
       .filter((side) => {
         const method = methods[side] ?? "print"
         return method === "screen" || (method === "print" && product?.supacolour === true)
@@ -224,16 +241,21 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
       const art = artifacts.find((a) => a.side === side)
       // Best file for DSP: staff's corrected proof artwork, else the customer's
       // own upload, else the order's rendered print file (often thumbnail-sized).
-      const revised = lines.map((l) => input.revisedArtwork?.[`${l.id}:${side}`]).find(Boolean)
+      const proofKey = newestProof(side)
+      const revised = proofKey ? input.revisedArtwork?.[proofKey] : undefined
       // An untagged upload (pre-`sides` orders) only counts when it's the only one.
       const original =
         originals.find((f) => f.url && f.sides?.includes(side)) ??
         (originals.length === 1 && !originals[0].sides?.length ? originals[0] : undefined)
       const artworkUrl = revised ?? original?.url ?? art?.printUrl ?? null
       const printFileUrl = input.printFiles?.[`${groupId}:${side}`] ?? null
+      // The newest proof carries no single file (several pieces on the side, or made
+      // before proofs kept theirs): DSP would get the customer's file, which may not match.
+      if (proofKey && !revised && !printFileUrl)
+        warnings.push(`${label}: the newest proof has no single artwork file, so DSP gets the customer's original — check it matches the proof, or add a print file.`)
       if (!artworkUrl && !printFileUrl) warnings.push(`${label}: no artwork file on the order.`)
       else if (!printFileUrl && !revised && !original) warnings.push(`${label}: only a low-resolution print file — attach the original artwork.`)
-      const mockup = lines.map((l) => input.revisedMockups?.[`${l.id}:${side}`]).find(Boolean) ?? art?.mockupUrl ?? null
+      const mockup = (proofKey ? input.revisedMockups?.[proofKey] : null) ?? art?.mockupUrl ?? null
       const common = {
         side,
         positionLabel: label,
@@ -252,9 +274,10 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
         const cfg = screenCfg[side] ?? {}
         const n = Math.min(6, Math.max(1, Number(cfg.colours) || 1))
         const dark = cfg.darkGarment === true
-        // The note covers the whole garment, so a 1-colour back on a "white + green"
-        // job takes the first noted ink; fewer names than screens → DSP reads the artwork.
-        const names = notedInks.length >= n ? notedInks.slice(0, n) : Array.from({ length: n }, (_, k) => `Colour ${k + 1} - see artwork`)
+        // The note covers the whole garment ("white + green"): it names this side's inks
+        // only when the counts match. Otherwise the artwork names them (lib/dsp-inks),
+        // so a 1-colour green back is never told "White".
+        const names = notedInks.length === n ? notedInks : Array.from({ length: n }, (_, k) => `Colour ${k + 1} - see artwork`)
         const inks = [...(dark ? ["Base"] : []), ...names]
         return { ...common, method: "screen" as const, dark, inks, colourLines: inks.map((ink, k) => `${k + 1}/${inks.length} ${ink.toUpperCase()}`), screens: inks.length }
       }

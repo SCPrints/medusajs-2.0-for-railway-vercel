@@ -115,6 +115,7 @@ export async function getDspPack(container: MedusaContainer, rawId: string): Pro
     dimensions: stringMap(meta.mockup_print_dimensions),
     revisedMockups,
     revisedArtwork,
+    revisedAt,
     printFiles: stringMap(meta.dsp_print_files),
   })
   await enrichFromImages(packs)
@@ -156,7 +157,8 @@ export async function enrichFromImages(packs: DspGroupPack[]) {
       if (mockup) pg.garmentHex = await garmentColour(mockup)
       if (pg.printFileUrl) {
         const problem = await printFileProblem(printFile, pg.printSize)
-        if (problem) pack.warnings.push(`${pg.positionLabel} print file: ${problem}`)
+        pg.printFileProblem = problem
+        if (problem) pack.warnings.push(`${pg.positionLabel} print file: ${problem} Sending is blocked until it's fixed or removed.`)
       }
       return { pack, pg, clusters: art ? await artworkInks(art) : null, vector: /\.svg($|\?)/i.test(pg.artworkUrl ?? "") }
     })
