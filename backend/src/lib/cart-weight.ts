@@ -1,3 +1,4 @@
+import { cartHasHomePostage, weightlessLine } from "./home-delivery"
 import {
   SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS,
   SHIPPING_PACKAGING_OVERHEAD_GRAMS,
@@ -88,8 +89,10 @@ export const computeCartWeight = (
   const fallbackPerUnit = defaultItemWeightGrams > 0 ? defaultItemWeightGrams : 0
   let itemsWeightGrams = 0
   let itemsMissingWeight = 0
+  const hasPostage = cartHasHomePostage(items)
 
   for (const item of items) {
+    if (weightlessLine(item, hasPostage)) continue
     const qty = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 0
     const realPerLine = lineItemWeightGrams(item)
     // No real weight → fall back to the default per-unit garment weight so the

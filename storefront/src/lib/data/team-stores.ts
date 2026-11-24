@@ -36,6 +36,8 @@ export type TeamStoreView = {
     organisation_name: string | null
     approved_at: string | null
     approved_by_name: string | null
+    /** Dollars per item raised for the organisation, already inside each unit_price. */
+    fundraising_per_item?: number
   }
   items: TeamStoreItem[]
 }

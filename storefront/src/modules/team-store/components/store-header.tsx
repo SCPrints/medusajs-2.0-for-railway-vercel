@@ -22,6 +22,9 @@ export default function StoreHeader({ store }: { store: TeamStoreView["store"] }
           Orders close {day(store.closes_at)}
           {daysLeft > 0 ? ` (${daysLeft} day${daysLeft === 1 ? "" : "s"} left)` : ""}. Orders print once the store closes.
           {store.delivery_mode === "bulk" ? " Everything is delivered to the club together, free." : ""}
+          {store.fundraising_per_item
+            ? ` Each price includes $${store.fundraising_per_item.toFixed(2)} for ${store.organisation_name ?? "the club"}.`
+            : ""}
         </p>
       ) : null}
     </header>

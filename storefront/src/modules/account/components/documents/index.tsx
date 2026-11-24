@@ -38,6 +38,15 @@ const DocumentsList = ({ documents }: { documents: SupplierDocument[] }) => {
     <section aria-label="SC Prints documents">
       <h2 className="mb-1 text-lg font-semibold text-ui-fg-base">SC Prints documents</h2>
       <p className="mb-3 text-sm text-ui-fg-subtle">Our details for your supplier records.</p>
+      <div className={`${row} mb-3 rounded-xl border border-ui-border-base bg-white`}>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-ui-fg-base">Supplier details (PDF)</p>
+          <p className="text-xs text-ui-fg-subtle">ABN, address, how to pay us and links to the documents below. For your accounts team.</p>
+        </div>
+        <a href="/api/account/supplier-pack" download className={link} data-testid="supplier-pack-link">
+          Download
+        </a>
+      </div>
       {own.length === 0 ? (
         <p className="rounded-xl border border-dashed border-ui-border-base p-6 text-center text-sm text-ui-fg-subtle">
           Nothing here yet. Need a certificate? Email info@scprints.com.au and we&apos;ll send it.

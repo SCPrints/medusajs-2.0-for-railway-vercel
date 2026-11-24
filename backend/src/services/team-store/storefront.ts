@@ -1,6 +1,6 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
 
-import { buyerState, designMockups, itemVariants } from "../../lib/team-store"
+import { buyerState, buyerUnitPrice, designMockups, itemVariants, storeFundraising } from "../../lib/team-store"
 import { ORGANISATION_MODULE } from "../../modules/organisation"
 import { TEAM_STORE_MODULE } from "../../modules/team-store"
 import { loadProductsByHandle } from "./catalog"
@@ -34,6 +34,8 @@ export async function publicStoreView(container: MedusaContainer, store: any, op
     organisation_name: org?.name ?? null,
     approved_at: store.approved_at ?? null,
     approved_by_name: store.approved_by_name ?? null,
+    /** Dollars per item raised for the organisation (already inside each unit_price). */
+    fundraising_per_item: storeFundraising(store),
   }
   if (!opts.includeItems) return { store: view, items: [] }
 
@@ -54,7 +56,7 @@ export async function publicStoreView(container: MedusaContainer, store: any, op
           title: p.title,
           product_handle: p.handle,
           colour: i.colour,
-          unit_price: Number(i.unit_price),
+          unit_price: buyerUnitPrice(i.unit_price, view.fundraising_per_item),
           thumbnail: mockups[0] ?? p.thumbnail,
           mockups,
           sizes,

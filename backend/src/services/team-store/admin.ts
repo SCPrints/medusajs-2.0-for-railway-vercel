@@ -5,7 +5,7 @@ import { z } from "zod"
 import { slugifyBrandHandle } from "../../lib/brand-handle"
 import { archiveSideLayoutsIfLarge } from "../../lib/side-layouts-archive"
 import { printSizeIdForDesign } from "../../lib/group-order-lines"
-import { designMockups, itemVariants } from "../../lib/team-store"
+import { FUNDRAISING_MAX_PER_ITEM, designMockups, itemVariants } from "../../lib/team-store"
 import { ORGANISATION_MODULE } from "../../modules/organisation"
 import { TEAM_STORE_MODULE } from "../../modules/team-store"
 import { loadProductsByHandle, productColours } from "./catalog"
@@ -29,6 +29,8 @@ export const storeBodySchema = z.object({
   delivery_destination_id: z.string().nullable().optional(),
   expected_quantity: z.coerce.number().int().min(0).max(100000).default(0),
   minimum_quantity: z.coerce.number().int().min(0).max(100000).nullable().optional(),
+  /** Dollars inc GST added to every item for the club / school; 0 = none. */
+  fundraising_per_item: z.coerce.number().min(0).max(FUNDRAISING_MAX_PER_ITEM).optional(),
 })
 
 /** Status moves staff make by hand; the rest have their own actions (send-approval, open, close). */
@@ -81,6 +83,11 @@ export async function storeFields(
   if (body.opens_at !== undefined) out.opens_at = body.opens_at ? new Date(body.opens_at) : null
   if (body.closes_at !== undefined) out.closes_at = new Date(body.closes_at)
   if (body.password !== undefined) out.password_hash = body.password ? hashStorePassword(body.password) : null
+  if (body.fundraising_per_item !== undefined) {
+    // metadata is replaced on update: merge with what the store already holds.
+    const current = existingId ? ((await service.retrieveTeamStore(existingId)).metadata ?? {}) : {}
+    out.metadata = { ...current, fundraising_per_item: Math.round(body.fundraising_per_item * 100) / 100 }
+  }
 
   if (body.handle !== undefined || (!existingId && body.title)) {
     const handle = slugifyBrandHandle(body.handle || body.title || "")

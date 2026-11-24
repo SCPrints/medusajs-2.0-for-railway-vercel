@@ -1,5 +1,6 @@
 import { Text } from "@medusajs/ui"
 
+import { homeAddressLine, type HomeDelivery } from "../../../lib/home-delivery"
 import { AppLink } from "../../lib/nav"
 
 type OrderLike = { metadata?: Record<string, unknown> | null }
@@ -16,6 +17,26 @@ export function SplitDeliveryNote({ order }: { order: OrderLike }) {
           <Text size="small" weight="plus">{d.name}</Text>
           <Text size="small" className="text-ui-fg-subtle">{d.address}</Text>
           <Text size="small">{(d.lines ?? []).map((l: any) => `${l.quantity} × ${l.title}`).join(" · ")}</Text>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Delivery section: gift link / new-starter packs, one parcel per person, postage paid. */
+export function HomeDeliveryNote({ order }: { order: OrderLike }) {
+  const parcels = order.metadata?.home_delivery
+  if (!Array.isArray(parcels) || parcels.length === 0) return null
+  return (
+    <div className="flex flex-col gap-y-2 border-t border-ui-border-base px-6 py-4">
+      <Text size="small" weight="plus">
+        Pack each person separately: {parcels.length} {parcels.length === 1 ? "parcel" : "parcels"} to home addresses (postage paid)
+      </Text>
+      {(parcels as HomeDelivery[]).map((p, i) => (
+        <div key={i}>
+          <Text size="small" weight="plus">{p.address?.name || p.name}{p.address?.phone ? ` · ${p.address.phone}` : ""}</Text>
+          <Text size="small" className="text-ui-fg-subtle">{p.address ? homeAddressLine(p.address) : "No address"}</Text>
+          <Text size="small">{(p.items ?? []).map((l) => `${l.quantity} × ${l.title} (${l.size})`).join(" · ")}</Text>
         </div>
       ))}
     </div>

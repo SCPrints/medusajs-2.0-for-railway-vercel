@@ -7,7 +7,9 @@ import { classifyCartAddError, extractWorkflowErrorMessage } from "../../../../.
 import { captureEvent } from "../../../../../lib/posthog"
 import {
   buyerState,
+  buyerUnitPrice,
   isTeamStoresEnabled,
+  storeFundraising,
   teamStoreCartMixError,
   variantItemError,
   variantSize,
@@ -82,6 +84,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const variantById = new Map((variants as any[]).map((v) => [v.id, v]))
   const closesAt = new Date(store.closes_at).toISOString()
+  const fundraising = storeFundraising(store)
   const toAdd = body.lines.map((line) => {
     const item = itemById.get(line.item_id)
     if (!item || !item.customizer_design || item.unit_price == null) {
@@ -94,7 +97,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return {
       variant_id: variant.id,
       quantity: line.quantity,
-      unit_price: Number(item.unit_price),
+      unit_price: buyerUnitPrice(item.unit_price, fundraising),
       metadata: {
         customizerDesign: { ...design, variantId: variant.id },
         print_size_id: printSizeIdForDesign(design),
@@ -106,6 +109,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         team_store_closes_at: closesAt,
         team_store_delivery: store.delivery_mode,
         team_store_locked_price: true,
+        // Part of the price raised for the club; paid back after the run.
+        ...(fundraising ? { team_store_fundraising: fundraising } : {}),
       },
     }
   })

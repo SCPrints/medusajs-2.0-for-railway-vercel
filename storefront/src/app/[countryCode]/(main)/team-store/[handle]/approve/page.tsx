@@ -29,6 +29,9 @@ export default async function ApproveTeamStorePage({ params, searchParams }: Par
         <p className="mt-2 text-ui-fg-subtle">
           Please check every item: garment, colour, artwork and price. Orders close{" "}
           {new Date(store.closes_at).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "Australia/Sydney" })}.
+          {store.fundraising_per_item
+            ? ` Each price includes $${store.fundraising_per_item.toFixed(2)} raised for you, paid back once the order is delivered.`
+            : ""}
         </p>
       </div>
       <div className="flex flex-col gap-4">

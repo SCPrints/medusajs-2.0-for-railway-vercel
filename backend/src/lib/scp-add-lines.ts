@@ -49,6 +49,8 @@ export async function addScpLinesToCart(
      * embroidered line, so off for the 300-line bulk grid; order-again sets it.
      */
     digitizingWaivers?: boolean
+    /** Server-set keys stamped on every line after the client allowlist (e.g. home_delivery). */
+    extraMetadata?: Record<string, unknown>
   } = {}
 ): Promise<ScpAddLinesResult> {
   const query = scope.resolve(ContainerRegistrationKeys.QUERY) as RemoteJoinerGraphLike
@@ -145,9 +147,9 @@ export async function addScpLinesToCart(
                 variant_id: d.variantId,
                 quantity: d.quantity,
                 unit_price: d.unitPriceMajor,
-                metadata: d.metadata,
+                metadata: { ...d.metadata, ...opts.extraMetadata },
               }
-            : { variant_id: item.variant_id, quantity: item.quantity, metadata: item.metadata }
+            : { variant_id: item.variant_id, quantity: item.quantity, metadata: { ...item.metadata, ...opts.extraMetadata } }
         }),
       },
     })

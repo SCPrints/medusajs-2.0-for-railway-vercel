@@ -14,6 +14,7 @@ import {
 } from "../../../lib/constants"
 import { resolveShippingRate } from "../../../lib/shippit-quote"
 import { isBulkTeamStoreCart } from "../../../lib/team-store"
+import { isHomeDeliveryOnlyCart } from "../../../lib/home-delivery"
 
 type ShippingOption = {
   id: string
@@ -89,7 +90,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // resolver's cache on the provider's call a moment later.
   const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER)
   // Team store, bulk delivery: $0 to the buyer (the scp provider does the same).
-  const bulkTeamStore = isBulkTeamStoreCart((cart as { items?: Array<{ metadata?: Record<string, unknown> | null }> }).items)
+  const cartLines = (cart as { items?: Array<{ metadata?: Record<string, unknown> | null }> }).items
+  // …and allowance home delivery, whose postage is already a cart line.
+  const bulkTeamStore = isBulkTeamStoreCart(cartLines) || isHomeDeliveryOnlyCart(cartLines)
   const rate = bulkTeamStore
     ? { amount: 0, rate_source: "team_store_bulk" as const, fallback_reason: null, shippit: null }
     : await resolveShippingRate(

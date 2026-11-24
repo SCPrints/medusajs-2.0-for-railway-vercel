@@ -70,6 +70,8 @@ export async function loadAllowance(scope: MedusaContainer, organisationId: stri
     unit: string | null
     closes_at: Date | string | null
     status: "open" | "closed"
+    kind: "batch" | "ongoing"
+    delivery: "bulk" | "home"
     items: AllowanceItem[]
     cart_id: string | null
     created_by: string

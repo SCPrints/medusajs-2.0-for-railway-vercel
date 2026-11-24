@@ -92,6 +92,12 @@ const SupplierDocumentsPage = () => {
           Our own documents that customers ask for: ABN certificate, insurance certificate, modern slavery statement. Signed-in
           customers download them from their account under Documents.
         </Text>
+        <Text size="small" className="mt-1">
+          <a href="/admin/supplier-documents/supplier-pack" download className="text-ui-fg-interactive hover:underline">
+            Download our supplier details (PDF)
+          </a>{" "}
+          — ABN, address, bank details and links to these documents, for a new customer&apos;s accounts team.
+        </Text>
       </div>
 
       <div className="flex flex-wrap items-end gap-2 rounded-lg border border-ui-border-base p-3">

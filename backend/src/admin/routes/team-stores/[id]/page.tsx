@@ -477,6 +477,7 @@ function Run({ store, run, reload }: { store: View["store"]; run: RunSummary | n
       <Heading level="h2">{store.quote_id ? "Production run" : "Orders so far"}</Heading>
       <Text size="small">
         {run.orders} orders · {run.units} units · {money(run.revenue)}
+        {run.fundraising ? ` · ${money(run.fundraising)} raised for them (pay this back after the run)` : ""}
         {min ? ` · minimum ${min}${run.units < min ? " (under)" : ""}` : ""}
       </Text>
       {run.items.length ? (

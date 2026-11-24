@@ -179,6 +179,20 @@ export function designMockups(design: unknown): string[] {
     .filter((u): u is string => typeof u === "string" && /^https?:\/\//.test(u))
 }
 
+// ── Fundraising ─────────────────────────────────────────────────────────────
+
+/** Dollars (inc GST) added to every item for the club or school; staff pay it back after the run. */
+export const FUNDRAISING_MAX_PER_ITEM = 100
+
+export function storeFundraising(store: { metadata?: Record<string, unknown> | null } | null | undefined): number {
+  const n = Number(store?.metadata?.fundraising_per_item)
+  return Number.isFinite(n) && n > 0 ? Math.round(Math.min(n, FUNDRAISING_MAX_PER_ITEM) * 100) / 100 : 0
+}
+
+/** What the buyer pays for an item: our price plus the store's fundraising amount. */
+export const buyerUnitPrice = (unitPrice: number | string, fundraising: number): number =>
+  Math.round((Number(unitPrice) + fundraising) * 100) / 100
+
 // ── The production run ──────────────────────────────────────────────────────
 
 export type RunOrderLine = {
@@ -214,6 +228,8 @@ export type RunSummary = {
   orders: number
   units: number
   revenue: number
+  /** Raised for the club / school (part of revenue): paid back to them after the run. */
+  fundraising: number
   items: RunItemSummary[]
   buyers: Array<{ order_id: string; display_id: number | null; name: string | null; email: string | null; units: number }>
 }
@@ -230,7 +246,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100
  */
 export function summariseRun(storeId: string, orders: RunOrder[]): RunSummary {
   const byItem = new Map<string, RunItemSummary & { sizeMap: Map<string, number> }>()
-  const summary: RunSummary = { order_ids: [], orders: 0, units: 0, revenue: 0, items: [], buyers: [] }
+  const summary: RunSummary = { order_ids: [], orders: 0, units: 0, revenue: 0, fundraising: 0, items: [], buyers: [] }
 
   for (const order of orders ?? []) {
     if (order.status === "canceled") continue
@@ -263,6 +279,7 @@ export function summariseRun(storeId: string, orders: RunOrder[]): RunSummary {
       row.revenue += qty * num(line.unit_price)
       units += qty
       summary.revenue += qty * num(line.unit_price)
+      summary.fundraising += qty * num(meta.team_store_fundraising)
     }
     if (!units) continue
     summary.order_ids.push(order.id)
@@ -286,6 +303,7 @@ export function summariseRun(storeId: string, orders: RunOrder[]): RunSummary {
     }
   })
   summary.revenue = round2(summary.revenue)
+  summary.fundraising = round2(summary.fundraising)
   return summary
 }
 

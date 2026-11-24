@@ -14,7 +14,7 @@ import { ProofPins } from "./proof-pins"
 import { EnterSizes } from "./enter-sizes"
 import { SizingKitNote, TeamOrder } from "./team-order"
 import { OrgRangePanel } from "./org-range"
-import { BrandKitLine, SplitDeliveryNote } from "./org-order-notes"
+import { BrandKitLine, HomeDeliveryNote, SplitDeliveryNote } from "./org-order-notes"
 import { QuoteTools } from "../quote/quote-detail"
 import * as W from "./widgets"
 import { AppLink, pricerHref, useGo } from "../../lib/nav"
@@ -546,6 +546,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
                 {order ? <TeamOrder order={order} /> : null}
                 {order ? <SizingKitNote order={order as any} /> : null}
                 {order ? <SplitDeliveryNote order={order} /> : null}
+                {order ? <HomeDeliveryNote order={order} /> : null}
                 {order ? (
                   <Flat>
                     <Mount W={W.OrderShippingDecision} order={order} />

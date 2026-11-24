@@ -144,7 +144,9 @@ export async function closeTeamStore(
         company: org?.name ?? null,
         contact_phone: org?.contact_phone ?? null,
         subject: `Team store run: ${store.title}`,
-        message: `${summary.orders} orders, ${summary.units} units, ${money(summary.revenue)} paid.`,
+        message: `${summary.orders} orders, ${summary.units} units, ${money(summary.revenue)} paid.${
+          summary.fundraising ? ` ${money(summary.fundraising)} of it was raised for ${org?.name ?? "the organisation"}: pay it back to them.` : ""
+        }`,
         accepted_at: now,
         total_estimate: summary.revenue,
         line_items: { items: runQuoteLines(summary) },
@@ -195,13 +197,23 @@ export async function closeTeamStore(
     container,
     CONTACT_NOTIFICATION_EMAIL,
     `${underMinimum ? "[Under minimum] " : ""}Team store closed: ${store.title}`,
-    [...lines, "", `Revenue: ${money(summary.revenue)}`, underMinimum ? `Under the minimum of ${store.minimum_quantity}: decide print or refund.` : ""].join("\n")
+    [
+      ...lines,
+      "",
+      `Revenue: ${money(summary.revenue)}`,
+      summary.fundraising ? `Raised for ${org?.name ?? "them"}: ${money(summary.fundraising)} (pay it back to them)` : "",
+      underMinimum ? `Under the minimum of ${store.minimum_quantity}: decide print or refund.` : ""].join("\n")
   )
   await sendPlainEmail(
     container,
     org?.contact_email,
     `Your team store has closed: ${store.title}`,
-    [...lines, "", "We'll let you know when the order goes into production."].join("\n")
+    [
+      ...lines,
+      "",
+      summary.fundraising ? `You raised ${money(summary.fundraising)}. We'll pay it to you once the order is delivered.` : "",
+      "We'll let you know when the order goes into production.",
+    ].filter((l, i, all) => l || all[i - 1] !== "").join("\n")
   )
 
   captureEvent(opts.actor ?? "system", "team_store_closed", {
@@ -209,6 +221,7 @@ export async function closeTeamStore(
     orders: summary.orders,
     units: summary.units,
     revenue: summary.revenue,
+    fundraising: summary.fundraising,
     under_minimum: underMinimum,
   })
   return { summary, quote_id: quoteId, under_minimum: underMinimum }

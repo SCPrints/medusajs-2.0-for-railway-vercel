@@ -47,6 +47,10 @@ export const SERVER_TRUST_METADATA_KEYS = [
   "sizing_kit",
   // Priced names / numbers line (lib/names-numbers.ts).
   "names_numbers",
+  // Allowance home delivery (lib/home-delivery.ts): a forged copy would zero
+  // the cart's shipping.
+  "home_delivery",
+  "home_delivery_postage",
 ] as const
 
 export const CLIENT_LINE_METADATA_KEYS = [

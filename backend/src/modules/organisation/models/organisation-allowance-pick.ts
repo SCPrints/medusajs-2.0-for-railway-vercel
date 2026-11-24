@@ -12,6 +12,10 @@ const OrganisationAllowancePick = model
     token: model.text(),
     picks: model.json().default([] as unknown as Record<string, unknown>),
     submitted_at: model.dateTime().nullable(),
+    /** Home delivery only: where this person's pack goes (lib/home-delivery.ts). */
+    address: model.json().nullable(),
+    /** Ongoing allowances: the cart this person's pack went into (double-add guard). */
+    cart_id: model.text().nullable(),
   })
   .indexes([{ on: ["token"], unique: true }, { on: ["allowance_id"] }])
 

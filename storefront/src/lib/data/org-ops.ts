@@ -36,6 +36,8 @@ export type AllowanceSummary = {
   unit: string | null
   closes_at: string | null
   closed: boolean
+  kind: "batch" | "ongoing"
+  delivery: "bulk" | "home"
   items: Array<{ design_id: string; per_person: number }>
   people: number
   picked: number
@@ -51,6 +53,8 @@ export type AllowanceDetail = {
     closed: boolean
     added_to_cart: boolean
     cart_id: string | null
+    kind: "batch" | "ongoing"
+    delivery: "bulk" | "home"
     items: Array<{ design_id: string; per_person: number; name: string; thumbnail_url: string | null; product_title: string | null }>
   }
   people: Array<{
@@ -59,8 +63,23 @@ export type AllowanceDetail = {
     unit: string | null
     token: string
     submitted_at: string | null
+    ordered: boolean
+    address: HomeAddress | null
     picks: Array<{ design_id: string; size: string; quantity: number }>
   }>
+  /** Ongoing packs: roster people who don't have a link yet. */
+  can_add: Array<{ id: string; name: string; unit: string | null }>
+}
+
+export type HomeAddress = {
+  name: string
+  company: string | null
+  address_1: string
+  address_2: string | null
+  city: string
+  province: string
+  postal_code: string
+  phone: string | null
 }
 
 export async function listAllowances(orgId: string): Promise<AllowanceSummary[]> {
@@ -73,7 +92,14 @@ export async function getAllowance(orgId: string, id: string): Promise<Allowance
 
 export async function createAllowance(
   orgId: string,
-  input: { name: string; closes_on: string | null; unit: string | null; items: Array<{ design_id: string; per_person: number }> }
+  input: {
+    name: string
+    closes_on: string | null
+    unit: string | null
+    items: Array<{ design_id: string; per_person: number }>
+    kind: "batch" | "ongoing"
+    delivery: "bulk" | "home"
+  }
 ): Promise<Result<{ id: string }>> {
   const headers = await getAuthHeaders()
   if (!("authorization" in headers)) return { ok: false, error: "Please sign in." }
@@ -96,12 +122,32 @@ export async function setAllowanceClosed(orgId: string, id: string, closed: bool
   }
 }
 
-/** Everything chosen goes into this browser's cart (or the cart it was already put in). */
+/** New-starter pack: give one more roster person their link. */
+export async function addAllowancePerson(orgId: string, id: string, rosterMemberId: string): Promise<Result<{ token: string }>> {
+  const headers = await getAuthHeaders()
+  if (!("authorization" in headers)) return { ok: false, error: "Please sign in." }
+  try {
+    const res = (await sdk.client.fetch(`${base(orgId)}/allowances/${encodeURIComponent(id)}/people`, {
+      method: "POST",
+      headers,
+      body: { roster_member_id: rosterMemberId },
+    })) as { token: string }
+    return { ok: true, token: res.token }
+  } catch (err) {
+    return { ok: false, error: message(err, "Couldn't add them.") }
+  }
+}
+
+/**
+ * Everything chosen goes into this browser's cart (or the cart it was already
+ * put in). New-starter packs: just `rosterMemberId`'s pack.
+ */
 export async function addAllowanceToCart(
   orgId: string,
   id: string,
-  countryCode: string
-): Promise<Result<{ already_added: boolean; left_out: string[]; unmatched: string[]; fees_for_staff: string[] }>> {
+  countryCode: string,
+  rosterMemberId?: string
+): Promise<Result<{ already_added: boolean; left_out: string[]; unmatched: string[]; fees_for_staff: string[]; postage: number }>> {
   const headers = await getAuthHeaders()
   if (!("authorization" in headers)) return { ok: false, error: "Please sign in." }
   try {
@@ -109,11 +155,18 @@ export async function addAllowanceToCart(
     const res = (await sdk.client.fetch(`${base(orgId)}/allowances/${encodeURIComponent(id)}/add-to-cart`, {
       method: "POST",
       headers,
-      body: { cart_id: cart.id },
-    })) as { cart_id: string; already_added: boolean; left_out: string[]; unmatched: string[]; fees_for_staff: string[] }
+      body: { cart_id: cart.id, ...(rosterMemberId ? { roster_member_id: rosterMemberId } : {}) },
+    })) as { cart_id: string; already_added: boolean; left_out: string[]; unmatched: string[]; fees_for_staff: string[]; postage?: number }
     if (res.cart_id && res.cart_id !== cart.id) await setCartId(res.cart_id)
     revalidateTag("cart", "max")
-    return { ok: true, already_added: res.already_added, left_out: res.left_out, unmatched: res.unmatched, fees_for_staff: res.fees_for_staff }
+    return {
+      ok: true,
+      already_added: res.already_added,
+      left_out: res.left_out,
+      unmatched: res.unmatched,
+      fees_for_staff: res.fees_for_staff,
+      postage: res.postage ?? 0,
+    }
   } catch (err) {
     return { ok: false, error: message(err, "Couldn't add these to your cart just now.") }
   }
@@ -122,8 +175,9 @@ export async function addAllowanceToCart(
 /* ── Uniform allowance (a person's own link, no login) ──────────────────── */
 
 export type PublicAllowance = {
-  allowance: { name: string; closes_at: string | null }
+  allowance: { name: string; closes_at: string | null; delivery: "bulk" | "home" }
   person: { name: string }
+  address: HomeAddress | null
   items: Array<{
     design_id: string
     name: string
@@ -147,10 +201,14 @@ export async function getPublicAllowance(token: string): Promise<PublicAllowance
 
 export async function submitPublicAllowance(
   token: string,
-  picks: Array<{ design_id: string; size: string; quantity: number }>
+  picks: Array<{ design_id: string; size: string; quantity: number }>,
+  address?: HomeAddress | null
 ): Promise<Result> {
   try {
-    await sdk.client.fetch(`/store/allowance/${encodeURIComponent(token)}`, { method: "POST", body: { picks } })
+    await sdk.client.fetch(`/store/allowance/${encodeURIComponent(token)}`, {
+      method: "POST",
+      body: { picks, ...(address ? { address } : {}) },
+    })
     return { ok: true }
   } catch (err) {
     return { ok: false, error: message(err, "Couldn't save your choices. The link may have closed.") }

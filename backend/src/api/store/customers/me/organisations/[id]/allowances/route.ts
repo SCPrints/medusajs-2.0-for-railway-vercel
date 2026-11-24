@@ -13,6 +13,10 @@ const bodySchema = z.object({
   closes_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   unit: z.string().trim().max(120).nullable().optional(),
   items: z.array(z.object({ design_id: z.string().min(1).max(80), per_person: z.coerce.number().int().min(1).max(20) })).min(1).max(20),
+  /** "ongoing" = new-starter pack: people are added one at a time and each is ordered on their own. */
+  kind: z.enum(["batch", "ongoing"]).optional(),
+  /** "home" = each person gives a delivery address (gift links). */
+  delivery: z.enum(["bulk", "home"]).optional(),
 })
 
 /**
@@ -39,6 +43,8 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
         unit: r.unit ?? null,
         closes_at: r.closes_at ?? null,
         closed: allowanceClosed(r),
+        kind: r.kind ?? "batch",
+        delivery: r.delivery ?? "bulk",
         items: r.items ?? [],
         people: mine.length,
         picked: mine.filter((p) => p.submitted_at).length,
@@ -51,11 +57,12 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
 
 /**
  * POST /store/customers/me/organisations/:id/allowances
- *   { name, closes_on?, unit?, items: [{ design_id, per_person }] }
+ *   { name, closes_on?, unit?, items: [{ design_id, per_person }], kind?, delivery? }
  *   → 201 { id }
  * Everyone active on the roster (or in `unit`) gets a private link. Designs
  * must be shared with THIS organisation and orderable (404 / 400 otherwise).
- * Roster people added later are not added: make a new allowance.
+ * Batch: roster people added later are not added (make a new allowance).
+ * Ongoing: may start empty; people are added with …/:aid/people.
  */
 export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const membership = await requireMembership(req)
@@ -75,7 +82,8 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     { organisation_id: membership.organisation_id, is_active: true, ...(body.unit ? { unit: body.unit } : {}) } as any,
     { take: 1000, order: { name: "ASC" } }
   )) as any[])
-  if (people.length === 0) {
+  const kind = body.kind ?? "batch"
+  if (people.length === 0 && kind === "batch") {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, body.unit ? "Nobody in that unit yet." : "Add people to your roster first.")
   }
 
@@ -88,10 +96,12 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
       unit: body.unit || null,
       closes_at,
       items,
+      kind,
+      delivery: body.delivery ?? "bulk",
       created_by: membership.customer_id,
     } as any,
   ])) as any[]
-  await service.createOrganisationAllowancePicks(
+  if (people.length) await service.createOrganisationAllowancePicks(
     people.map((p) => ({ allowance_id: created[0].id, roster_member_id: p.id, token: newAllowanceToken(), picks: [] })) as any
   )
   res.status(201).json({ id: created[0].id })

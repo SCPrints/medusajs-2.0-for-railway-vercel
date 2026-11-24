@@ -2,7 +2,12 @@
 
 import { useState } from "react"
 
-import { submitPublicAllowance, type PublicAllowance } from "@lib/data/org-ops"
+import { submitPublicAllowance, type HomeAddress, type PublicAllowance } from "@lib/data/org-ops"
+
+const STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"]
+const emptyAddress = (name: string): HomeAddress => ({
+  name, company: null, address_1: "", address_2: null, city: "", province: "", postal_code: "", phone: null,
+})
 
 const field = "min-h-11 rounded-md border border-ui-border-base bg-white px-3 text-base focus:outline-hidden focus:ring-2 focus:ring-ink"
 
@@ -21,6 +26,9 @@ export default function PickForm({ token, data }: { token: string; data: PublicA
     }
     return out
   })
+  const home = data.allowance.delivery === "home"
+  const [address, setAddress] = useState<HomeAddress>(() => data.address ?? emptyAddress(data.person.name))
+  const setAddr = (k: keyof HomeAddress, v: string) => setAddress((a) => ({ ...a, [k]: v }))
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
@@ -41,7 +49,7 @@ export default function PickForm({ token, data }: { token: string; data: PublicA
         counts.set(k, { design_id, size, quantity: (counts.get(k)?.quantity ?? 0) + 1 })
       }
     }
-    const res = await submitPublicAllowance(token, Array.from(counts.values()))
+    const res = await submitPublicAllowance(token, Array.from(counts.values()), home ? address : null)
     setBusy(false)
     setMsg(res.ok ? { ok: true, text: "Thanks, your choices are saved. You can change them here until it closes." } : { ok: false, text: res.error })
   }
@@ -75,6 +83,43 @@ export default function PickForm({ token, data }: { token: string; data: PublicA
           </div>
         </section>
       ))}
+      {home ? (
+        <section className="rounded-2xl border border-ui-border-base bg-white p-4">
+          <p className="text-sm font-semibold text-ui-fg-base">Where should we send it?</p>
+          <p className="text-xs text-ui-fg-subtle">We post your pack straight to you. Only used for this delivery.</p>
+          <div className="mt-3 grid grid-cols-1 gap-3 tablet:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm text-ui-fg-base">Name on the parcel
+              <input className={field} autoComplete="name" value={address.name} onChange={(e) => setAddr("name", e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-ui-fg-base">Company <span className="text-ui-fg-subtle">(optional)</span>
+              <input className={field} autoComplete="organization" value={address.company ?? ""} onChange={(e) => setAddr("company", e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-ui-fg-base tablet:col-span-2">Street address
+              <input className={field} autoComplete="address-line1" value={address.address_1} onChange={(e) => setAddr("address_1", e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-ui-fg-base tablet:col-span-2">Unit, level <span className="text-ui-fg-subtle">(optional)</span>
+              <input className={field} autoComplete="address-line2" value={address.address_2 ?? ""} onChange={(e) => setAddr("address_2", e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-ui-fg-base">Suburb
+              <input className={field} autoComplete="address-level2" value={address.city} onChange={(e) => setAddr("city", e.target.value)} />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1 text-sm text-ui-fg-base">State
+                <select className={field} autoComplete="address-level1" value={address.province} onChange={(e) => setAddr("province", e.target.value)}>
+                  <option value="">Choose</option>
+                  {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-ui-fg-base">Postcode
+                <input className={field} autoComplete="postal-code" inputMode="numeric" maxLength={4} value={address.postal_code} onChange={(e) => setAddr("postal_code", e.target.value)} />
+              </label>
+            </div>
+            <label className="flex flex-col gap-1 text-sm text-ui-fg-base">Phone <span className="text-ui-fg-subtle">(optional, for the courier)</span>
+              <input className={field} type="tel" autoComplete="tel" value={address.phone ?? ""} onChange={(e) => setAddr("phone", e.target.value)} />
+            </label>
+          </div>
+        </section>
+      ) : null}
       <button type="button" onClick={save} disabled={busy} className="min-h-11 rounded-md bg-ink px-4 text-sm font-semibold text-white disabled:opacity-50">
         {busy ? "Saving…" : data.submitted ? "Save changes" : "Submit my choices"}
       </button>

@@ -1,9 +1,8 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { addToCartWorkflow } from "@medusajs/medusa/core-flows"
 
 import { cleanNamesNumbers, namesNumbersLabel, namesNumbersUnitMajor } from "../../lib/names-numbers"
-import { SERVICE_LINE_HANDLE } from "../../lib/sizes-pending"
+import { serviceLineVariantId } from "../org-allowance/home-delivery"
 
 import { getPostHog } from "../../lib/posthog"
 import { addScpLinesToCart } from "../../lib/scp-add-lines"
@@ -33,7 +32,9 @@ export type RangeAddResult =
 export async function addRangeToCart(
   scope: MedusaContainer,
   membership: { customer_id: string; organisation_id: string },
-  body: RangeAddInput
+  body: RangeAddInput,
+  /** Server-set keys for every line added (garments, setup fees, names), e.g. `{ home_delivery: true }`. */
+  extraMetadata?: Record<string, unknown>
 ): Promise<RangeAddResult> {
   const cart = await loadOwnCart(scope, body.cart_id, membership.customer_id)
   const lines = await buildRangeOrderLines(scope, membership.organisation_id, body.items)
@@ -54,7 +55,7 @@ export async function addRangeToCart(
       scope,
       cart.id,
       lines.map(({ design_id: _d, group_id: _g, ...line }) => line),
-      { digitizingWaivers: true }
+      { digitizingWaivers: true, extraMetadata }
     )
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "These lines couldn't be priced." }
@@ -70,7 +71,7 @@ export async function addRangeToCart(
       await addToCartWorkflow(scope).run({
         input: {
           cart_id: cart.id,
-          items: addable.map((f) => ({ variant_id: f.variant_id as string, quantity: f.quantity, metadata: f.metadata })),
+          items: addable.map((f) => ({ variant_id: f.variant_id as string, quantity: f.quantity, metadata: { ...f.metadata, ...extraMetadata } })),
         },
       })
       feeLinesAdded = addable.length
@@ -86,14 +87,7 @@ export async function addRangeToCart(
   if (namesNumbers) {
     const garments = lines.reduce((n, l) => n + l.quantity, 0)
     try {
-      const query = scope.resolve(ContainerRegistrationKeys.QUERY)
-      const { data } = await query.graph({
-        entity: "product",
-        filters: { handle: SERVICE_LINE_HANDLE },
-        fields: ["variants.id"],
-      })
-      const variantId = (data?.[0] as { variants?: Array<{ id: string }> } | undefined)?.variants?.[0]?.id
-      if (!variantId) throw new Error("service line product missing")
+      const variantId = await serviceLineVariantId(scope)
       const label = namesNumbersLabel(namesNumbers)
       await addToCartWorkflow(scope).run({
         input: {
@@ -111,6 +105,7 @@ export async function addRangeToCart(
                 organisation_id: membership.organisation_id,
                 // Server-priced from the print card; the checkout check leaves it be.
                 price_override: { source: "names_numbers", garments },
+                ...extraMetadata,
               },
             } as any,
           ],

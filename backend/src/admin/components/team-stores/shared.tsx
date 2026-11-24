@@ -28,6 +28,7 @@ export type StoreDraft = {
   delivery_destination_id?: string | null
   expected_quantity: number
   minimum_quantity?: number | null
+  fundraising_per_item?: number
 }
 
 /** ISO → the value a datetime-local input shows (staff's own time zone). */
@@ -47,7 +48,7 @@ export function StoreForm({
   onSubmit,
   lockOrganisation,
 }: {
-  initial?: Partial<StoreDraft> & { has_password?: boolean }
+  initial?: Partial<StoreDraft> & { has_password?: boolean; metadata?: Record<string, any> | null }
   submitLabel: string
   onSubmit: (draft: StoreDraft) => Promise<void>
   lockOrganisation?: boolean
@@ -69,6 +70,7 @@ export function StoreForm({
     delivery_destination_id: initial?.delivery_destination_id ?? "",
     expected_quantity: String(initial?.expected_quantity ?? ""),
     minimum_quantity: initial?.minimum_quantity == null ? "" : String(initial.minimum_quantity),
+    fundraising_per_item: initial?.metadata?.fundraising_per_item ? String(initial.metadata.fundraising_per_item) : "",
   })
   const set = (k: keyof typeof d) => (v: string) => setD((x) => ({ ...x, [k]: v }))
 
@@ -103,6 +105,7 @@ export function StoreForm({
         delivery_destination_id: d.delivery_destination_id || null,
         expected_quantity: Number(d.expected_quantity) || 0,
         minimum_quantity: d.minimum_quantity ? Number(d.minimum_quantity) : null,
+        fundraising_per_item: Number(d.fundraising_per_item) || 0,
       })
     } catch (e: any) {
       toast.error(e.message)
@@ -174,6 +177,10 @@ export function StoreForm({
       {field(
         "Password",
         <Input type="text" value={d.password} onChange={(e) => set("password")(e.target.value)} placeholder={initial?.has_password ? "Set — type to change" : "Optional"} />
+      )}
+      {field(
+        "Fundraising per item ($, inc GST)",
+        <Input type="number" min={0} max={100} step="0.5" value={d.fundraising_per_item} onChange={(e) => set("fundraising_per_item")(e.target.value)} placeholder="0 = none. Added to every price; we pay it back to them." />
       )}
       {field("Accent colour", <Input value={d.accent_colour} onChange={(e) => set("accent_colour")(e.target.value)} placeholder="#0b1f3a" />)}
       {field("Banner image URL", <Input value={d.banner_url} onChange={(e) => set("banner_url")(e.target.value)} />)}
