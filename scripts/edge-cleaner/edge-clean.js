@@ -952,9 +952,9 @@
   //     to full-strength art, so anti-aliased edges of solid shapes stay smooth edges. Gaps are empty.
   //   "soft": also soft tones inside the art (pink on the white inside a ring); their gaps print as the old
   //     background colour, so near-white stays solid white.
-  //   "whole": everything that isn't full-strength colour is screened, the old background colour included:
-  //     a tone's dot is its colour, ringed by white dots at `white` (0-1) strength, then the shirt. Pure
-  //     white prints as white dots at that strength. Full-strength colour stays solid.
+  //   "whole": every pixel of the art is screened, black, full-strength colour and the old background colour
+  //     (white) included, at one dot strength `strength` (0-1): each dot is the pixel's colour for its share,
+  //     ringed by white for the rest, then the shirt. Fades at the cut edge get no white ring.
   var FADE_SOLID = 0.97, FADE_PALE = 0.08, FADE_EDGE = 2;
   function mixShare(d, p, bg) { // 0 = the background colour, 1 = full-strength colour
     var a = 0;
@@ -976,7 +976,7 @@
       core[i] = s[i * 4 + 3] >= 250 && mix[i] >= FADE_SOLID ? 1 : 0;
       empty[i] = s[i * 4 + 3] ? 0 : 1;
     }
-    var nearCore = boxPass(core, w, h, FADE_EDGE, false), nearEmpty = whole ? boxPass(empty, w, h, FADE_EDGE, false) : null;
+    var nearCore = boxPass(core, w, h, FADE_EDGE, false);
     var fadeOk = function (j) { return s[j * 4 + 3] > 0 && !nearCore[j] && mix[j] >= FADE_PALE && s[j * 4 + 3] / 255 * mix[j] < FADE_SOLID; };
     var seeds = [];
     for (i = 0; i < n; i++) {
@@ -989,7 +989,7 @@
     // 3 = whole-picture screen (gaps white dots, then empty)
     var region = new Uint8Array(n), solid = { width: w, height: h, data: new Uint8ClampedArray(s) }, soft = { width: w, height: h, data: new Uint8ClampedArray(n * 4) }, f = soft.data;
     for (i = 0; i < n; i++) {
-      region[i] = fade[i] ? 1 : empty[i] || core[i] ? 0 : whole ? (nearCore[i] && nearEmpty[i] ? 0 : 3) : scope === "soft" && fadeOk(i) ? 2 : 0;
+      region[i] = fade[i] ? 1 : empty[i] ? 0 : whole ? 3 : core[i] ? 0 : scope === "soft" && fadeOk(i) ? 2 : 0;
       if (!region[i]) continue;
       p = i * 4;
       var m = region[i] === 3 && mix[i] < FADE_PALE ? 0 : mix[i]; // near-white: no colour to un-mix, only white dots
@@ -1000,15 +1000,15 @@
     }
     var out = clean(solid, opts), img = out.image, d = img.data, W = img.width, S = W / w;
     if (opts.minLinePx) out.thin = thinLines(img, opts.minLinePx); // the solid shapes only: dots are thin on purpose
-    var t = (opts.scale > 1 ? upscale(soft, opts.scale) : soft).data, white = ht.white == null ? 0.6 : ht.white;
+    var t = (opts.scale > 1 ? upscale(soft, opts.scale) : soft).data, str = whole ? (ht.strength == null ? 0.7 : ht.strength) : 1;
     var fq = 2 * Math.PI / Math.max(2, ht.dot), th = ht.angle * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th), line = ht.shape === "line";
     for (p = 0; p < d.length; p += 4) {
       var k = p / 4, X = k % W, Y = (k - X) / W, r = region[Math.floor(Y / S) * w + Math.floor(X / S)];
       if (!r || (r === 1 && d[p + 3])) continue; // solid art wins over an edge fade it touches
-      var a = t[p + 3] / 255, u = (X * cs + Y * sn) * fq, v = (Y * cs - X * sn) * fq;
+      var a = t[p + 3] / 255 * str, u = (X * cs + Y * sn) * fq, v = (Y * cs - X * sn) * fq;
       var thr = 1 - (line ? Math.cos(u) / 2 + 0.5 : (Math.cos(u) + Math.cos(v)) / 4 + 0.5); // same screen as dots()
-      if (a >= 0.06 && (a >= FADE_SOLID || a > thr)) { d[p] = t[p]; d[p + 1] = t[p + 1]; d[p + 2] = t[p + 2]; d[p + 3] = 255; }
-      else if (r === 3 && white > 0 && a + (1 - a) * white > thr) { d[p] = bg[0]; d[p + 1] = bg[1]; d[p + 2] = bg[2]; d[p + 3] = 255; }
+      if (a >= 0.06 && (a >= (whole ? 0.999 : FADE_SOLID) || a > thr)) { d[p] = t[p]; d[p + 1] = t[p + 1]; d[p + 2] = t[p + 2]; d[p + 3] = 255; }
+      else if (r === 3 && (str >= 0.999 || str > thr)) { d[p] = bg[0]; d[p + 1] = bg[1]; d[p + 2] = bg[2]; d[p + 3] = 255; }
       else if (r !== 2) d[p] = d[p + 1] = d[p + 2] = d[p + 3] = 0;
     }
     return out;

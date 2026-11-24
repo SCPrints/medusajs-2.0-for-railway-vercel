@@ -156,10 +156,10 @@
   <label style="display:block;margin:0 0 6px"><input type="checkbox" id="flatDots"> Turn soft fades into halftone dots</label>
   <small style="display:block;margin-bottom:10px">For brush strokes, glows and soft shadows that fade into the background. They print as dots of their full colour instead of a pale solid patch.</small>
   <label class="row" id="scopeRow" hidden><span>Dots on <button class="qm" data-help="flatDots" title="What does this do?">?</button></span>
-    <select id="halftoneScope"><option value="edges" selected>Fades at the edges only</option><option value="soft">All soft colours (white stays solid)</option><option value="whole">The whole picture (white as dots too)</option></select>
+    <select id="halftoneScope"><option value="edges" selected>Fades at the outer edge only</option><option value="soft">Faded colours only (solid colours, black and white stay solid)</option><option value="whole">The whole picture (every colour as dots, black and white too)</option></select>
     <small id="scopeInfo"></small></label>
-  <label class="row" id="whiteRow" hidden><span>White strength <output id="whiteStrV"></output></span><input id="whiteStr" type="range" min="0" max="100" step="5" value="60">
-    <small>How much of the white prints, as dots. 100% keeps it solid; 0% leaves it out so the shirt shows through.</small></label>
+  <label class="row" id="strengthRow" hidden><span>Dot strength <output id="dotStrV"></output></span><input id="dotStr" type="range" min="0" max="100" step="5" value="70">
+    <small>How much of every colour prints, as dots. 100% prints the picture solid; lower lets more of the shirt show through.</small></label>
   <div id="flatDotRows"></div>
   </div>
 
@@ -239,7 +239,7 @@
   <div class="bd"><div id="helpText"></div><div id="helpEx"></div></div>
 </dialog>
 
-<script src="edge-clean.js?v=18"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
+<script src="edge-clean.js?v=19"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
 <script>
 "use strict";
 if (!window.EdgeClean) { // opened from inside a zip, or copied without its partner file
@@ -369,7 +369,7 @@ for (const b of $("kinds").children) b.onclick = () => setKind(b.dataset.kind);
 const flatDots = () => kind === "flat" && $("flatDots").checked;
 function placeRows() { // show this type's controls: the main ones up front, the rest under Advanced
   const px = $("dotUnit").value === "px", on = kind !== "flat" || flatDots();
-  $("darkAdv").hidden = !on; $("outlineNote").hidden = kind === "flat"; $("scopeRow").hidden = !flatDots(); $("whiteRow").hidden = !flatDots() || $("halftoneScope").value !== "whole";
+  $("darkAdv").hidden = !on; $("outlineNote").hidden = kind === "flat"; $("scopeRow").hidden = !flatDots(); $("strengthRow").hidden = !flatDots() || $("halftoneScope").value !== "whole";
   $("scopeInfo").textContent = SCOPE_INFO[$("halftoneScope").value];
   for (const r in ROWS) {
     const el = document.querySelector(`[data-row=${r}]`), main = MAIN[kind].includes(r);
@@ -380,13 +380,13 @@ function placeRows() { // show this type's controls: the main ones up front, the
 }
 $("flatDots").onchange = () => { placeRows(); renderChecks(); schedule(); };
 const SCOPE_INFO = {
-  edges: "Only soft parts that fade out into the removed background.",
-  soft: "Soft colours anywhere in the art too. Their dots print on solid white, so white stays solid.",
-  whole: "Everything except full-strength colour, white included. White prints as white dots at the strength below, with the shirt between them.",
+  edges: "Only soft parts that fade out into the removed background. Everything else stays solid.",
+  soft: "Faded and light colours anywhere in the art become dots, printed on solid white. Full colours, black and white stay solid.",
+  whole: "Every part of the picture becomes dots, black and white included, at the Dot strength below. The shirt shows between the dots everywhere.",
 };
 $("halftoneScope").onchange = () => { placeRows(); schedule(); };
-$("whiteStr").oninput = () => { $("whiteStrV").textContent = $("whiteStr").value + "%"; schedule(); };
-$("whiteStrV").textContent = $("whiteStr").value + "%";
+$("dotStr").oninput = () => { $("dotStrV").textContent = $("dotStr").value + "%"; schedule(); };
+$("dotStrV").textContent = $("dotStr").value + "%";
 $("kindInfo").textContent = KIND_INFO.flat;
 
 function autoRemove() {
@@ -616,7 +616,7 @@ $("scale").addEventListener("change", () => (wantScale = +$("scale").value));
 function settings() {
   if (kind !== "flat") return darkSettings();
   return { ...flatOpts(flatNow(), +$("scale").value), minLinePx: MIN_LINE_MM / 25.4 * outPpi(),
-    halftone: flatDots() ? { dot: darkDot(), angle: +$("angle").value, shape: $("shape").value, scope: $("halftoneScope").value, white: +$("whiteStr").value / 100 } : null };
+    halftone: flatDots() ? { dot: darkDot(), angle: +$("angle").value, shape: $("shape").value, scope: $("halftoneScope").value, strength: +$("dotStr").value / 100 } : null };
 }
 const matteOf = (m) => (m === "black" ? [0, 0, 0] : m === "white" ? [255, 255, 255] : m === "custom" ? hexRgb($("matteColour").value) : m);
 function flatNow() { // the flat-background settings as the sliders show them
@@ -1032,8 +1032,8 @@ Object.assign(HELP, {
     "DTF can't print see-through ink, so a brush stroke or glow that fades into the background normally prints as a pale solid patch with a hard edge where the background was cut away.",
     "Ticked, those fades print as dots of their full colour instead: thick dots where the fade is strong, sparse dots where it fades out, so it blends into the shirt.",
     "Only soft parts that run out into the removed background change. Solid art keeps its smooth edges, and pale areas inside an outline (like the white inside a ring) stay solid. <b>Dots</b> sets the dot size; angle and shape are under Advanced.",
-    "<b>Dots on: All soft colours (white stays solid)</b> also turns soft tones inside the art into dots, like a pale pink patch on a white area. The gaps between those dots print as the old background colour (white on most art), so the design stays one solid piece with no holes through to the shirt.",
-    "<b>Dots on: The whole picture (white as dots too)</b> screens everything, white included. White prints as white dots, with the shirt showing between them; <b>White strength</b> sets how much of it prints (100% = solid, 0% = left out). Soft colours print as dots of their colour ringed by white dots. Only full-strength colour (solid black, strong red) stays solid, as it has no lighter tone to show.",
+    "<b>Dots on: Faded colours only</b> also turns faded and light colours inside the art into dots, like a pale pink patch on a white area or the grey edge of a dry brush stroke. The gaps between those dots print white, so the design stays one solid piece. Full colours, black and white stay solid.",
+    "<b>Dots on: The whole picture</b> turns every part into dots: black, white, strong colours and faded ones alike, all at one <b>Dot strength</b>, with the shirt showing between the dots everywhere. A faded colour prints as a dot of its full colour ringed by white. 100% prints the picture solid; 70% is a good start for a halftone look.",
   ] },
   view: { title: "Zoom and Preview on", text: [
     "<b>Zoom:</b> Fit shows the whole image. 100% and above show the real pixels, which is where edge problems show up. Scroll to zoom and drag to move. F = fit, 1 = 100%.",
@@ -1154,8 +1154,8 @@ const DEMOS = {
     tiles: (src) => { const cut = EdgeClean.removeOutside(src, 40); const o = { ...flatOpts({ ...CUT, cutFrom: cut.ref }, 2), halftone: { dot: 6, angle: 22.5, shape: "round" } };
       return [{ cap: "Box off", sub: "the glow prints as a pale solid patch", img: EdgeClean.process(cut.image, { ...o, halftone: null }).image },
         { cap: "Edges only", sub: "the glow outside prints as red dots", img: EdgeClean.process(cut.image, o).image },
-        { cap: "All soft colours", sub: "the pink inside is dots, white stays solid", img: EdgeClean.process(cut.image, { ...o, halftone: { ...o.halftone, scope: "soft" } }).image },
-        { cap: "Whole picture", sub: "the white is dots too (60%)", img: EdgeClean.process(cut.image, { ...o, halftone: { ...o.halftone, scope: "whole", white: 0.6 } }).image }]; } },
+        { cap: "Faded colours only", sub: "the pink inside is dots, black and white stay solid", img: EdgeClean.process(cut.image, { ...o, halftone: { ...o.halftone, scope: "soft" } }).image },
+        { cap: "The whole picture", sub: "everything is dots, black and white too (70%)", img: EdgeClean.process(cut.image, { ...o, halftone: { ...o.halftone, scope: "whole", strength: 0.7 } }).image }]; } },
   paint: { pat: "design", bg: "#1e2a4a", note: "A bright ring with a black middle and a dim orange glow, done as <i>On black: black shirts</i> on a navy shirt. The black middle has gone see-through, so navy shows there.",
     tiles: paintTiles([["No painting", "", null], ["Paint art back", "over the middle: it now prints solid black", (x, y) => (Math.hypot(x - 160, y - 75) < 41 ? 1 : 0)], ["Paint away", "over the right-hand side", (x, y) => (x > 196 ? 2 : 0)]]) },
   brush: { pat: "design", bg: "#1e2a4a", note: "The same test picture with one stroke of <i>Paint away</i> across it.",
