@@ -422,3 +422,32 @@ console.log("ok: faint pixels take the colour of the art round them");
   assert(pm.every((v) => v > 245), "old background of a pre-cut file should read as white, got " + pm.map(Math.round));
   console.log("ok: cut edge rebuilt (no pale ring, smooth, thin line whole, dust still gone, real art untouched), old background read exactly");
 }
+
+// Flat background with halftone fades: a black ring with white inside, and a red brush-like fade outside
+// it that thins out into the white background. The fade turns into red dots that get sparser outwards,
+// the ring stays a smooth solid shape, and the white inside the ring stays solid.
+{
+  const { flatHalftone, DEFAULTS } = require("./edge-clean.js");
+  const N = 100, img = { width: N, height: N, data: new Uint8ClampedArray(N * N * 4) };
+  for (let i = 0; i < N * N; i++) {
+    const x = i % N, y = (i - x) / N, r = Math.hypot(x + 0.5 - 50, y + 0.5 - 50);
+    const t = r >= 24 && r < 44 ? 0.8 * (1 - (r - 24) / 20) : 0; // share of red mixed into white
+    img.data.set(r >= 20 && r < 24 ? [0, 0, 0, 255] : [255, 255 * (1 - t), 255 * (1 - t), 255], i * 4);
+  }
+  const cut = removeOutside(img, 40), S = 2;
+  const out = flatHalftone(cut.image, { ...DEFAULTS, cutFrom: cut.ref, scale: S, halftone: { dot: 6, angle: 45, shape: "round" } }).image;
+  const band = (r0, r1) => { let on = 0, all = 0, pale = 0;
+    for (let y = 0; y < out.height; y++) for (let x = 0; x < out.width; x++) {
+      const r = Math.hypot((x + 0.5) / S - 50, (y + 0.5) / S - 50); if (r < r0 || r >= r1) continue;
+      const p = (y * out.width + x) * 4; all++;
+      assert(out.data[p + 3] === 0 || out.data[p + 3] === 255, "halftone alpha is solid or empty");
+      if (out.data[p + 3]) { on++; if (out.data[p + 1] > 80) pale++; }
+    } return { cover: on / all, pale }; };
+  const inner = band(27, 31), outer = band(36, 40), ring = band(21, 23), inside = band(0, 18);
+  assert(inner.cover > 0.35 && inner.cover < 0.85, "inner fade should be part dots, got " + inner.cover.toFixed(2));
+  assert(outer.cover > 0.02 && outer.cover < inner.cover * 0.7, "dots should thin out outwards: " + inner.cover.toFixed(2) + " -> " + outer.cover.toFixed(2));
+  assert.strictEqual(inner.pale + outer.pale, 0, "fade dots should be full-strength red, not pale pink");
+  assert.strictEqual(ring.cover, 1, "the solid ring must stay solid");
+  assert.strictEqual(inside.cover, 1, "white enclosed by the ring must stay solid");
+  console.log(`ok: flat halftone (fade ${inner.cover.toFixed(2)} -> ${outer.cover.toFixed(2)} coverage, ring and enclosed white solid)`);
+}

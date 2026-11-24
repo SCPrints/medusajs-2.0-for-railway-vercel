@@ -681,7 +681,7 @@
       var p = i * 4, m = Math.max(d[p], d[p + 1], d[p + 2]), a = d[p + 3] / 255;
       if (pm) a = pm[p + 1] >= 128 ? 0 : pm[p] >= 128 ? 1 : a; // painted: solid art / gone, with no dots at the brush edge
       if (a < 0.06) { d[p] = d[p + 1] = d[p + 2] = d[p + 3] = 0; continue; } // dots too small to print
-      var k = Math.max(1, Math.min(top / Math.max(m, 1), 1 / a)); // un-mix the black: seen = colour * a
+      var k = o.unmix === false ? 1 : Math.max(1, Math.min(top / Math.max(m, 1), 1 / a)); // un-mix the black: seen = colour * a
       d[p] *= k; d[p + 1] *= k; d[p + 2] *= k;
       var x = i % w, y = (i - x) / w, u = (x * cs + y * sn) * f, v = (y * cs - x * sn) * f;
       d[p + 3] = a >= 0.97 || a > 1 - (line ? Math.cos(u) / 2 + 0.5 : (Math.cos(u) + Math.cos(v)) / 4 + 0.5) ? 255 : 0;
@@ -944,14 +944,61 @@
     return out.slice(0, 200).map(function (r) { return r.box; });
   }
 
-  // What the page runs for every change: the right clean-up for the artwork type, plus the thin-line check
-  // when opts.minLinePx is set (solid-shape results only; halftone dots are thin on purpose).
-  function process(img, opts) {
-    var out = (opts.dark ? darkArt : clean)(img, opts);
-    if (opts.minLinePx) out.thin = thinLines(out.image, opts.minLinePx);
+  // ---- Flat background with halftone fades (opts.halftone = { dot, angle, shape }, dot in output px).
+  // Soft parts of the art that fade into the removed background (brush strokes, glows, airbrush) print as
+  // dots of their full-strength colour instead of a pale solid smear with a hard cut edge. How much of a
+  // pixel is art is read off the old background colour the way "colour to alpha" does it: the share of the
+  // way from that colour to the edge of the colour range (pale pink off white = red at 40%). Only fades
+  // joined to the removed background count, and never the 2 px next to full-strength art, so anti-aliased
+  // edges of solid shapes stay smooth edges and pale art enclosed by an outline (white inside a ring) stays solid.
+  var FADE_SOLID = 0.97, FADE_PALE = 0.08, FADE_EDGE = 2;
+  function mixShare(d, p, bg) { // 0 = the background colour, 1 = full-strength colour
+    var a = 0;
+    for (var c = 0; c < 3; c++) {
+      var v = d[p + c] - bg[c], r = v > 0 ? (bg[c] < 255 ? v / (255 - bg[c]) : 0) : v < 0 ? (bg[c] > 0 ? -v / bg[c] : 0) : 0;
+      if (r > a) a = r;
+    }
+    return a;
+  }
+  function flatHalftone(input, opts) {
+    var w = input.width, h = input.height, n = w * h, s = input.data, bg = opts.cutFrom, i, p, c;
+    var mix = new Float32Array(n), core = new Uint8Array(n);
+    for (i = 0; i < n; i++) {
+      mix[i] = bg ? mixShare(s, i * 4, bg) : 1;
+      core[i] = s[i * 4 + 3] >= 250 && mix[i] >= FADE_SOLID ? 1 : 0;
+    }
+    var nearCore = boxPass(core, w, h, FADE_EDGE, false);
+    var fadeOk = function (j) { return s[j * 4 + 3] > 0 && !nearCore[j] && mix[j] >= FADE_PALE && s[j * 4 + 3] / 255 * mix[j] < FADE_SOLID; };
+    var seeds = [], x, y;
+    for (i = 0; i < n; i++) {
+      if (!fadeOk(i)) continue;
+      x = i % w; y = (i - x) / w;
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1 || !s[(i - 1) * 4 + 3] || !s[(i + 1) * 4 + 3] || !s[(i - w) * 4 + 3] || !s[(i + w) * 4 + 3]) seeds.push(i);
+    }
+    var fade = flood(w, n, seeds, fadeOk);
+    var solid = { width: w, height: h, data: new Uint8ClampedArray(s) }, soft = { width: w, height: h, data: new Uint8ClampedArray(n * 4) }, f = soft.data;
+    for (i = 0; i < n; i++) {
+      if (!fade[i]) continue;
+      p = i * 4;
+      for (c = 0; c < 3; c++) f[p + c] = bg ? bg[c] + (s[p + c] - bg[c]) / mix[i] : s[p + c];
+      f[p + 3] = s[p + 3] * mix[i];
+      solid.data[p] = solid.data[p + 1] = solid.data[p + 2] = solid.data[p + 3] = 0;
+    }
+    var out = clean(solid, opts), img = out.image, d = img.data;
+    if (opts.minLinePx) out.thin = thinLines(img, opts.minLinePx); // the solid shapes only: dots are thin on purpose
+    var t = dots(opts.scale > 1 ? upscale(soft, opts.scale) : soft, { dot: opts.halftone.dot, angle: opts.halftone.angle, shape: opts.halftone.shape, unmix: false }).image.data;
+    for (p = 0; p < d.length; p += 4) if (!d[p + 3] && t[p + 3]) { d[p] = t[p]; d[p + 1] = t[p + 1]; d[p + 2] = t[p + 2]; d[p + 3] = 255; }
     return out;
   }
 
-  var api = { process: process, thinLines: thinLines, clean: clean, removeOutside: removeOutside, removeAt: removeAt, removeGaps: removeGaps, findGaps: findGaps, removeRegions: removeRegions, fillScraps: fillScraps, darkArt: darkArt, darkSizes: darkSizes, borderColour: borderColour, DARK_DEFAULTS: DARK_DEFAULTS, removeBackground: removeBackground, restoreAt: restoreAt, selectAt: selectAt, selectSimilar: selectSimilar, eraseMask: eraseMask, estimateMatte: estimateMatte, upscale: upscale, DEFAULTS: DEFAULTS };
+  // What the page runs for every change: the right clean-up for the artwork type, plus the thin-line check
+  // when opts.minLinePx is set (solid-shape results only; halftone dots are thin on purpose).
+  function process(img, opts) {
+    var out = (opts.dark ? darkArt : opts.halftone ? flatHalftone : clean)(img, opts);
+    if (opts.minLinePx && !out.thin) out.thin = thinLines(out.image, opts.minLinePx);
+    return out;
+  }
+
+  var api = { process: process, flatHalftone: flatHalftone, thinLines: thinLines, clean: clean, removeOutside: removeOutside, removeAt: removeAt, removeGaps: removeGaps, findGaps: findGaps, removeRegions: removeRegions, fillScraps: fillScraps, darkArt: darkArt, darkSizes: darkSizes, borderColour: borderColour, DARK_DEFAULTS: DARK_DEFAULTS, removeBackground: removeBackground, restoreAt: restoreAt, selectAt: selectAt, selectSimilar: selectSimilar, eraseMask: eraseMask, estimateMatte: estimateMatte, upscale: upscale, DEFAULTS: DEFAULTS };
   return api;
 });

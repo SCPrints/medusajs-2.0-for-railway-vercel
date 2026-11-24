@@ -152,6 +152,10 @@
     <button id="restart" disabled>Back to original</button>
   </div>
   </div>
+  <h2>Fades <button class="qm" data-help="flatDots" title="What does this do?">?</button></h2>
+  <label style="display:block;margin:0 0 6px"><input type="checkbox" id="flatDots"> Turn soft fades into halftone dots</label>
+  <small style="display:block;margin-bottom:10px">For brush strokes, glows and soft shadows that fade into the background. They print as dots of their full colour instead of a pale solid patch.</small>
+  <div id="flatDotRows"></div>
   </div>
 
   <div id="darkBox" hidden>
@@ -187,7 +191,7 @@
     <small>Round suits most art. Lines can look cleaner on smooth fades.</small></label>
   <label class="row" data-row="artLevel"><span>Art starts at <output id="artLevelV"></output></span><input id="artLevel" type="range" min="10" max="120" value="40"><small>How bright something must be to count as art when drawing the outline.</small></label>
   <label class="row" data-row="bSmooth"><span>Smooth outline <output id="bSmoothV"></output></span><input id="bSmooth" type="range" min="0" max="60" value="15"><small>Rounds off bumps in the outline.</small></label>
-  <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:12px">Outline sizes start in proportion to the image each time you load one.</small>
+  <small id="outlineNote" style="display:block;color:var(--muted);font-size:12px;margin-bottom:12px">Outline sizes start in proportion to the image each time you load one.</small>
   </div>
   <label class="row"><span>Upscale <button class="qm" data-help="scale" title="What does this do?">?</button></span>
     <select id="scale"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4" selected>4×</option></select>
@@ -230,7 +234,7 @@
   <div class="bd"><div id="helpText"></div><div id="helpEx"></div></div>
 </dialog>
 
-<script src="edge-clean.js?v=15"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
+<script src="edge-clean.js?v=16"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
 <script>
 "use strict";
 if (!window.EdgeClean) { // opened from inside a zip, or copied without its partner file
@@ -243,9 +247,10 @@ const MAX_SIDE = 6000;
 const SLIDERS = ["smooth", "threshold", "choke", "defringe", "specks"];
 const DARK_SLIDERS = ["black", "fade", "lpi", "dotpx", "artLevel", "hug", "margin", "bSmooth"];
 // "On black" controls: which artwork types each one applies to, and which sit up front (the rest go under Advanced).
-const ROWS = { black: "keep knockout", dots: "keep knockout", hug: "keep backing", margin: "backing", fade: "keep knockout", dotUnit: "keep knockout", lpi: "keep knockout", dotpx: "keep knockout",
-  angle: "keep knockout", shape: "keep knockout", artLevel: "keep backing", bSmooth: "keep backing" };
-const MAIN = { keep: ["black", "dots"], knockout: ["black", "dots"], backing: ["hug", "margin"] };
+// "flat" = Flat background with "Turn soft fades into halftone dots" ticked.
+const ROWS = { black: "keep knockout", dots: "keep knockout flat", hug: "keep backing", margin: "backing", fade: "keep knockout", dotUnit: "keep knockout flat", lpi: "keep knockout flat", dotpx: "keep knockout flat",
+  angle: "keep knockout flat", shape: "keep knockout flat", artLevel: "keep backing", bSmooth: "keep backing" };
+const MAIN = { keep: ["black", "dots"], knockout: ["black", "dots"], backing: ["hug", "margin"], flat: ["dots"] };
 const MIN_LINE_MM = 0.3; // thinner than this may not hold on a DTF transfer
 const UNITS = { tol: "", smooth: "", choke: "", defringe: "", specks: "", threshold: "", black: "", fade: "", lpi: " per inch", dotpx: " px", artLevel: "", hug: " px", margin: " px", bSmooth: " px" };
 const BACKS = [["checker", "Transparent"], ["#ffffff", "White"], ["#000000", "Black"], ["#1e2a4a", "Navy"], ["#b91c1c", "Red"], ["#6b7280", "Grey"], ["#15803d", "Green"]];
@@ -339,9 +344,9 @@ function setKind(k, auto) {
   const dark = k !== "flat";
   $("kindInfo").textContent = KIND_INFO[k] + (!dark && solid && original && Math.max(...EdgeClean.borderColour(original)) < 40
     ? ' This art sits on black: Flat cuts out the dark parts of the design too and leaves holes. Use an "On black" type.' : "");
-  $("flat1").hidden = $("flat2").hidden = dark; $("darkBox").hidden = $("darkAdv").hidden = !dark;
+  $("flat1").hidden = $("flat2").hidden = dark; $("darkBox").hidden = !dark;
   $("darkTitle").textContent = k === "backing" ? "Outline" : "Black";
-  if (dark) placeRows();
+  placeRows();
   thin = null; renderChecks();
   if (!source) return;
   endReview(); setSel(null);
@@ -356,14 +361,18 @@ function setKind(k, auto) {
   }
 }
 for (const b of $("kinds").children) b.onclick = () => setKind(b.dataset.kind);
+const flatDots = () => kind === "flat" && $("flatDots").checked;
 function placeRows() { // show this type's controls: the main ones up front, the rest under Advanced
-  const px = $("dotUnit").value === "px";
+  const px = $("dotUnit").value === "px", on = kind !== "flat" || flatDots();
+  $("darkAdv").hidden = !on; $("outlineNote").hidden = kind === "flat";
   for (const r in ROWS) {
     const el = document.querySelector(`[data-row=${r}]`), main = MAIN[kind].includes(r);
-    el.hidden = !ROWS[r].includes(kind) || (r === "lpi" && px) || (r === "dotpx" && !px);
-    (main ? $("darkMain") : $("darkAdv")).insertBefore(el, main ? null : $("darkAdv").lastElementChild);
+    el.hidden = !on || !ROWS[r].includes(kind) || (r === "lpi" && px) || (r === "dotpx" && !px);
+    if (main) (kind === "flat" ? $("flatDotRows") : $("darkMain")).append(el);
+    else $("darkAdv").insertBefore(el, $("outlineNote"));
   }
 }
+$("flatDots").onchange = () => { placeRows(); renderChecks(); schedule(); };
 $("kindInfo").textContent = KIND_INFO.flat;
 
 function autoRemove() {
@@ -592,7 +601,8 @@ function capScale() {
 $("scale").addEventListener("change", () => (wantScale = +$("scale").value));
 function settings() {
   if (kind !== "flat") return darkSettings();
-  return { ...flatOpts(flatNow(), +$("scale").value), minLinePx: MIN_LINE_MM / 25.4 * outPpi() };
+  return { ...flatOpts(flatNow(), +$("scale").value), minLinePx: MIN_LINE_MM / 25.4 * outPpi(),
+    halftone: flatDots() ? { dot: darkDot(), angle: +$("angle").value, shape: $("shape").value } : null };
 }
 const matteOf = (m) => (m === "black" ? [0, 0, 0] : m === "white" ? [255, 255, 255] : m === "custom" ? hexRgb($("matteColour").value) : m);
 function flatNow() { // the flat-background settings as the sliders show them
@@ -651,12 +661,13 @@ function renderChecks() {
   add(ppi >= 250 ? "ok" : ppi >= 150 ? "warn" : "bad", ppi >= 250 ? `Sharp at this size (${ppi} px per inch).`
     : ppi >= 150 ? `A little soft at this size (${ppi} px per inch). Fine for most art.`
     : `Low resolution at this size (${ppi} px per inch). Detail will look soft. Print it smaller or ask for a bigger file.`);
-  if (kind === "keep" || kind === "knockout") {
+  if (kind === "keep" || kind === "knockout" || flatDots()) {
     const lpi = Math.round(outPpi() / darkDot()), tiny = darkDot() < 3;
     add(tiny || lpi > 55 ? "bad" : lpi > 45 ? "warn" : "ok", tiny ? "Dots are too small for this file to draw. Pick coarser dots or a higher Upscale."
       : lpi > 55 ? `Dots are very fine (${lpi} per inch) and may not print. 25 to 45 is the safe range.`
       : lpi > 45 ? `Dots are fine (${lpi} per inch). Test before a big run.` : `Dots are a safe size (${lpi} per inch).`);
-  } else if (thin) {
+  }
+  if (kind !== "keep" && kind !== "knockout" && thin) {
     if (!thin.length) return add("ok", `No lines thinner than ${MIN_LINE_MM} mm.`);
     const d = add("warn", `${thin.length}${thin.length === 200 ? "+" : ""} line${thin.length === 1 ? "" : "s"} thinner than about ${MIN_LINE_MM} mm may not print.`);
     const b = document.createElement("button"); b.textContent = "Show"; d.firstChild.append(b);
@@ -1003,6 +1014,11 @@ Object.assign(HELP, {
     "Use a small brush to trace along an edge and a big one to cover an area fast. Zoom in for fine work: the brush stays the same size on the artwork.",
     "It only does something once a brush is picked under <b>Paint fixes</b>.",
   ] },
+  flatDots: { title: "Turn soft fades into halftone dots", text: [
+    "DTF can't print see-through ink, so a brush stroke or glow that fades into the background normally prints as a pale solid patch with a hard edge where the background was cut away.",
+    "Ticked, those fades print as dots of their full colour instead: thick dots where the fade is strong, sparse dots where it fades out, so it blends into the shirt.",
+    "Only soft parts that run out into the removed background change. Solid art keeps its smooth edges, and pale areas inside an outline (like the white inside a ring) stay solid. <b>Dots</b> sets the dot size; angle and shape are under Advanced.",
+  ] },
   view: { title: "Zoom and Preview on", text: [
     "<b>Zoom:</b> Fit shows the whole image. 100% and above show the real pixels, which is where edge problems show up. Scroll to zoom and drag to move. F = fit, 1 = 100%.",
     "<b>Preview on</b> changes the colour behind both pictures, so you can see how the print will sit on that shirt colour. It doesn't change the file: the download always has a transparent background.",
@@ -1093,6 +1109,11 @@ Object.assign(PATTERNS, {
     if (Math.hypot(x - 104, y - 52) < 4.5 || Math.hypot(x - 126, y - 52) < 4.5) return [20, 20, 20];
     if (x >= 103 && x < 127 && y >= 71 && y < 75) return [20, 20, 20];
   }),
+  fadeRing: () => onWhite(200, 140, (x, y) => { // black ring, white inside, red brush glow fading out into the white
+    const r = Math.hypot(x - 100, y - 70);
+    if (r >= 34 && r < 40) return [10, 10, 10];
+    if (r >= 40 && r < 68) { const t = 0.85 * (1 - (r - 40) / 28); return [255 - 25 * t, 255 - 215 * t, 255 - 215 * t]; }
+  }),
   clicks: () => onWhite(160, 120, (x, y) => { // blue block with a white cloud inside it, and a grey shadow underneath
     if (Math.hypot((x - 85) / 46, (y - 100) / 7) < 1) return [150, 150, 150];
     if (Math.hypot(x - 78, y - 58) < 10 || Math.hypot(x - 92, y - 56) < 13) return null;
@@ -1112,6 +1133,10 @@ const paintTiles = (list) => (src) => list.map(([cap, sub, shape]) => {
     paint: shape ? { width: src.width, height: src.height, data: m } : null }).image };
 });
 const DEMOS = {
+  flatDots: { pat: "fadeRing", bg: "#1e2a4a", note: "A black ring with a red glow fading out into a white background, cut out and shown on a navy shirt.",
+    tiles: (src) => { const cut = EdgeClean.removeOutside(src, 40); const o = { ...flatOpts({ ...CUT, cutFrom: cut.ref }, 2), halftone: { dot: 6, angle: 22.5, shape: "round" } };
+      return [{ cap: "Box off", sub: "the glow prints as a pale solid patch", img: EdgeClean.process(cut.image, { ...o, halftone: null }).image },
+        { cap: "Box ticked", sub: "the glow prints as red dots", img: EdgeClean.process(cut.image, o).image }]; } },
   paint: { pat: "design", bg: "#1e2a4a", note: "A bright ring with a black middle and a dim orange glow, done as <i>On black: black shirts</i> on a navy shirt. The black middle has gone see-through, so navy shows there.",
     tiles: paintTiles([["No painting", "", null], ["Paint art back", "over the middle: it now prints solid black", (x, y) => (Math.hypot(x - 160, y - 75) < 41 ? 1 : 0)], ["Paint away", "over the right-hand side", (x, y) => (x > 196 ? 2 : 0)]]) },
   brush: { pat: "design", bg: "#1e2a4a", note: "The same test picture with one stroke of <i>Paint away</i> across it.",
