@@ -452,7 +452,7 @@ console.log("ok: faint pixels take the colour of the art round them");
   console.log(`ok: flat halftone (fade ${inner.cover.toFixed(2)} -> ${outer.cover.toFixed(2)} coverage, ring and enclosed white solid)`);
 }
 
-// Whole picture: a pale pink patch inside the white of the ring becomes red dots on solid white (no holes
+// All soft colours: a pale pink patch inside the white of the ring becomes red dots on solid white (no holes
 // through to the shirt); with "edges only" it stays a solid pale patch.
 {
   const { flatHalftone, DEFAULTS } = require("./edge-clean.js");
@@ -469,8 +469,38 @@ console.log("ok: faint pixels take the colour of the art round them");
       if (d[p + 3] !== 255) holes++; else if (d[p + 1] > 230) white++; else if (d[p + 1] < 60) red++; else pale++;
     } return { red, white, pale, holes }; };
   const edges = spot(flatHalftone(cut.image, { ...DEFAULTS, cutFrom: cut.ref, scale: S, halftone: ht }).image);
-  const whole = spot(flatHalftone(cut.image, { ...DEFAULTS, cutFrom: cut.ref, scale: S, halftone: { ...ht, whole: true } }).image);
+  const whole = spot(flatHalftone(cut.image, { ...DEFAULTS, cutFrom: cut.ref, scale: S, halftone: { ...ht, scope: "soft" } }).image);
   assert(edges.pale > 0 && edges.red === 0 && edges.holes === 0, "edges only: the patch inside the ring stays solid pale pink " + JSON.stringify(edges));
-  assert(whole.red > 0 && whole.white > 0 && whole.holes === 0, "whole picture: red dots on solid white, no holes " + JSON.stringify(whole));
-  console.log("ok: whole-picture halftone (dots on solid white inside the ring, no holes)", JSON.stringify(whole));
+  assert(whole.red > 0 && whole.white > 0 && whole.holes === 0, "all soft colours: red dots on solid white, no holes " + JSON.stringify(whole));
+  console.log("ok: soft-colours halftone (dots on solid white inside the ring, no holes)", JSON.stringify(whole));
+}
+
+// The whole picture: the white inside the ring is screened too, as white dots at the White strength with
+// the shirt between them; the pink patch is red dots; the solid black ring stays solid and nothing appears
+// outside the art.
+{
+  const { flatHalftone, DEFAULTS } = require("./edge-clean.js");
+  const N = 100, img = { width: N, height: N, data: new Uint8ClampedArray(N * N * 4) };
+  for (let i = 0; i < N * N; i++) {
+    const x = i % N, y = (i - x) / N, r = Math.hypot(x + 0.5 - 50, y + 0.5 - 50);
+    img.data.set(r >= 20 && r < 24 ? [0, 0, 0, 255] : r < 10 ? [255, 150, 150, 255] : [255, 255, 255, 255], i * 4);
+  }
+  const cut = removeOutside(img, 40), S = 2;
+  const run = (white) => flatHalftone(cut.image, { ...DEFAULTS, cutFrom: cut.ref, scale: S, halftone: { dot: 6, angle: 45, shape: "round", scope: "whole", white } }).image;
+  const band = (o, r0, r1) => { const k = { white: 0, red: 0, black: 0, empty: 0, all: 0 };
+    for (let y = 0; y < N * S; y++) for (let x = 0; x < N * S; x++) {
+      const r = Math.hypot((x + 0.5) / S - 50, (y + 0.5) / S - 50); if (r < r0 || r >= r1) continue;
+      const p = (y * N * S + x) * 4, d = o.data; k.all++;
+      assert(d[p + 3] === 0 || d[p + 3] === 255, "whole picture: alpha is solid or empty");
+      if (!d[p + 3]) k.empty++; else if (d[p] > 230 && d[p + 1] > 230) k.white++; else if (d[p] < 40) k.black++; else if (d[p + 1] < 60) k.red++;
+    } return k; };
+  const mid = run(0.6), plain = band(mid, 12, 18), pink = band(mid, 0, 7), ring = band(mid, 21, 23), out = band(mid, 27, 50);
+  assert(Math.abs(plain.white / plain.all - 0.6) < 0.1 && plain.empty > 0, "white prints as dots at about 60%: " + JSON.stringify(plain));
+  assert(pink.red > 0 && pink.white > 0 && pink.empty > 0, "pink becomes red dots with white dots round them: " + JSON.stringify(pink));
+  assert.strictEqual(ring.black, ring.all, "the solid ring stays solid");
+  assert.strictEqual(out.all, out.empty, "nothing outside the art");
+  const full = band(run(1), 12, 18), none = band(run(0), 12, 18);
+  assert.strictEqual(full.white, full.all, "White strength 100% keeps the white solid");
+  assert.strictEqual(none.empty, none.all, "White strength 0% knocks the white out");
+  console.log("ok: whole-picture halftone (white as dots at its strength, pink as red dots, ring solid)", (plain.white / plain.all).toFixed(2));
 }

@@ -944,13 +944,17 @@
     return out.slice(0, 200).map(function (r) { return r.box; });
   }
 
-  // ---- Flat background with halftone fades (opts.halftone = { dot, angle, shape }, dot in output px).
-  // Soft parts of the art that fade into the removed background (brush strokes, glows, airbrush) print as
-  // dots of their full-strength colour instead of a pale solid smear with a hard cut edge. How much of a
-  // pixel is art is read off the old background colour the way "colour to alpha" does it: the share of the
-  // way from that colour to the edge of the colour range (pale pink off white = red at 40%). Only fades
-  // joined to the removed background count, and never the 2 px next to full-strength art, so anti-aliased
-  // edges of solid shapes stay smooth edges and pale art enclosed by an outline (white inside a ring) stays solid.
+  // ---- Flat background with halftone (opts.halftone = { dot, angle, shape, scope, white }, dot in output px).
+  // How much of a pixel is art is read off the old background colour the way "colour to alpha" does it: the
+  // share of the way from that colour to the edge of the colour range (pale pink off white = red at 40%).
+  // The tones print as dots of the full-strength colour. scope:
+  //   "edges": only soft parts joined to the removed background (brush strokes, glows), never the 2 px next
+  //     to full-strength art, so anti-aliased edges of solid shapes stay smooth edges. Gaps are empty.
+  //   "soft": also soft tones inside the art (pink on the white inside a ring); their gaps print as the old
+  //     background colour, so near-white stays solid white.
+  //   "whole": everything that isn't full-strength colour is screened, the old background colour included:
+  //     a tone's dot is its colour, ringed by white dots at `white` (0-1) strength, then the shirt. Pure
+  //     white prints as white dots at that strength. Full-strength colour stays solid.
   var FADE_SOLID = 0.97, FADE_PALE = 0.08, FADE_EDGE = 2;
   function mixShare(d, p, bg) { // 0 = the background colour, 1 = full-strength colour
     var a = 0;
@@ -961,39 +965,51 @@
     return a;
   }
   function flatHalftone(input, opts) {
-    var w = input.width, h = input.height, n = w * h, s = input.data, bg = opts.cutFrom, i, p, c;
-    var mix = new Float32Array(n), core = new Uint8Array(n);
+    var ht = opts.halftone, scope = ht.scope || "edges", whole = scope === "whole";
+    var w = input.width, h = input.height, n = w * h, s = input.data, i, p, c, x, y;
+    // shortcut: a file that came already cut out has no old background, so the whole picture is screened
+    // against white; add a colour picker if dark-paper art ever needs it.
+    var bg = opts.cutFrom || (whole ? [255, 255, 255] : null);
+    var mix = new Float32Array(n), core = new Uint8Array(n), empty = new Uint8Array(n);
     for (i = 0; i < n; i++) {
       mix[i] = bg ? mixShare(s, i * 4, bg) : 1;
       core[i] = s[i * 4 + 3] >= 250 && mix[i] >= FADE_SOLID ? 1 : 0;
+      empty[i] = s[i * 4 + 3] ? 0 : 1;
     }
-    var nearCore = boxPass(core, w, h, FADE_EDGE, false);
+    var nearCore = boxPass(core, w, h, FADE_EDGE, false), nearEmpty = whole ? boxPass(empty, w, h, FADE_EDGE, false) : null;
     var fadeOk = function (j) { return s[j * 4 + 3] > 0 && !nearCore[j] && mix[j] >= FADE_PALE && s[j * 4 + 3] / 255 * mix[j] < FADE_SOLID; };
-    var seeds = [], x, y;
+    var seeds = [];
     for (i = 0; i < n; i++) {
       if (!fadeOk(i)) continue;
       x = i % w; y = (i - x) / w;
-      if (x === 0 || y === 0 || x === w - 1 || y === h - 1 || !s[(i - 1) * 4 + 3] || !s[(i + 1) * 4 + 3] || !s[(i - w) * 4 + 3] || !s[(i + w) * 4 + 3]) seeds.push(i);
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1 || empty[i - 1] || empty[i + 1] || empty[i - w] || empty[i + w]) seeds.push(i);
     }
     var fade = flood(w, n, seeds, fadeOk);
-    // whole: the soft tones away from the cut edge too (pink inside a white ring). Their dots sit on the old
-    // background colour printed solid (white ink between the dots), so the art stays one solid piece.
-    var inner = opts.halftone.whole && bg ? new Uint8Array(n) : null;
-    var solid = { width: w, height: h, data: new Uint8ClampedArray(s) }, soft = { width: w, height: h, data: new Uint8ClampedArray(n * 4) }, f = soft.data;
+    // region: 0 = solid art (clean), 1 = edge fade (gaps empty), 2 = soft tone on solid background colour,
+    // 3 = whole-picture screen (gaps white dots, then empty)
+    var region = new Uint8Array(n), solid = { width: w, height: h, data: new Uint8ClampedArray(s) }, soft = { width: w, height: h, data: new Uint8ClampedArray(n * 4) }, f = soft.data;
     for (i = 0; i < n; i++) {
-      if (!fade[i] && !(inner && fadeOk(i) && (inner[i] = 1))) continue;
+      region[i] = fade[i] ? 1 : empty[i] || core[i] ? 0 : whole ? (nearCore[i] && nearEmpty[i] ? 0 : 3) : scope === "soft" && fadeOk(i) ? 2 : 0;
+      if (!region[i]) continue;
       p = i * 4;
-      for (c = 0; c < 3; c++) f[p + c] = bg ? bg[c] + (s[p + c] - bg[c]) / mix[i] : s[p + c];
-      f[p + 3] = s[p + 3] * mix[i];
-      if (fade[i]) solid.data[p] = solid.data[p + 1] = solid.data[p + 2] = solid.data[p + 3] = 0;
-      else { solid.data[p] = bg[0]; solid.data[p + 1] = bg[1]; solid.data[p + 2] = bg[2]; }
+      var m = region[i] === 3 && mix[i] < FADE_PALE ? 0 : mix[i]; // near-white: no colour to un-mix, only white dots
+      for (c = 0; c < 3; c++) f[p + c] = m ? bg[c] + (s[p + c] - bg[c]) / m : 0;
+      f[p + 3] = region[i] === 3 ? 255 * m : s[p + 3] * m;
+      if (region[i] === 2) { solid.data[p] = bg[0]; solid.data[p + 1] = bg[1]; solid.data[p + 2] = bg[2]; }
+      else solid.data[p] = solid.data[p + 1] = solid.data[p + 2] = solid.data[p + 3] = 0;
     }
     var out = clean(solid, opts), img = out.image, d = img.data, W = img.width, S = W / w;
     if (opts.minLinePx) out.thin = thinLines(img, opts.minLinePx); // the solid shapes only: dots are thin on purpose
-    var t = dots(opts.scale > 1 ? upscale(soft, opts.scale) : soft, { dot: opts.halftone.dot, angle: opts.halftone.angle, shape: opts.halftone.shape, unmix: false }).image.data;
+    var t = (opts.scale > 1 ? upscale(soft, opts.scale) : soft).data, white = ht.white == null ? 0.6 : ht.white;
+    var fq = 2 * Math.PI / Math.max(2, ht.dot), th = ht.angle * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th), line = ht.shape === "line";
     for (p = 0; p < d.length; p += 4) {
-      if (!t[p + 3] || (d[p + 3] && !(inner && inner[Math.floor(p / 4 / W / S) * w + Math.floor(p / 4 % W / S)]))) continue;
-      d[p] = t[p]; d[p + 1] = t[p + 1]; d[p + 2] = t[p + 2]; d[p + 3] = 255;
+      var k = p / 4, X = k % W, Y = (k - X) / W, r = region[Math.floor(Y / S) * w + Math.floor(X / S)];
+      if (!r || (r === 1 && d[p + 3])) continue; // solid art wins over an edge fade it touches
+      var a = t[p + 3] / 255, u = (X * cs + Y * sn) * fq, v = (Y * cs - X * sn) * fq;
+      var thr = 1 - (line ? Math.cos(u) / 2 + 0.5 : (Math.cos(u) + Math.cos(v)) / 4 + 0.5); // same screen as dots()
+      if (a >= 0.06 && (a >= FADE_SOLID || a > thr)) { d[p] = t[p]; d[p + 1] = t[p + 1]; d[p + 2] = t[p + 2]; d[p + 3] = 255; }
+      else if (r === 3 && white > 0 && a + (1 - a) * white > thr) { d[p] = bg[0]; d[p + 1] = bg[1]; d[p + 2] = bg[2]; d[p + 3] = 255; }
+      else if (r !== 2) d[p] = d[p + 1] = d[p + 2] = d[p + 3] = 0;
     }
     return out;
   }
