@@ -67,11 +67,13 @@ export async function uploadCustomerOriginalUnchanged(file: File): Promise<strin
 
   /** (1) Browser → Medusa — fast, no Vercel hop; requires CORS allowlist for this origin. */
   if (base && publishableKey) {
-    // Two tries: the proxy below can't carry files over ~3 MB (Vercel's 4.5 MB
-    // body cap after base64), so a single backend blip (restart, OOM) used to
-    // lose any big upload outright.
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 3000))
+    // The proxy below can't carry files over ~3 MB (Vercel's 4.5 MB body cap
+    // after base64), so a big file keeps trying for ~33 s: a backend deploy
+    // restart takes ~20 s and used to lose it (24 Nov: 413 mid-deploy).
+    // Small files fall back to the proxy after one quick retry.
+    const waits = payload.dataBase64.length > 4_000_000 ? [0, 3000, 10_000, 20_000] : [0, 3000]
+    for (const wait of waits) {
+      if (wait) await new Promise((r) => setTimeout(r, wait))
       try {
         const res = await fetch(`${base}/store/customizer/upload-original`, {
           method: "POST",

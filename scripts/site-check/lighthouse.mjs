@@ -5,8 +5,9 @@
 //
 // Flags a page when it lands in Google's "poor" band for LCP or CLS. The
 // overall score is reported but never fails the run — it swings ±10 between
-// runs on shared CI machines. Writes site-check-lighthouse.md (+ job summary)
-// and exits 1 when anything is flagged.
+// runs on shared CI machines. Writes site-check-lighthouse.md (+ job summary).
+// Slow pages are warnings (listed in the summary); the run fails only when
+// Lighthouse itself could not run, so a red run means the check broke (review 10-36).
 
 import { execFileSync } from "node:child_process"
 import { appendFileSync, writeFileSync } from "node:fs"
@@ -51,6 +52,7 @@ function lighthouse(url) {
 
 const rows = []
 const problems = []
+const broken = []
 for (const [name, path] of Object.entries(PAGES)) {
   console.log(`Lighthouse: ${name} (${path})…`)
   try {
@@ -59,7 +61,7 @@ for (const [name, path] of Object.entries(PAGES)) {
     if (r.lcp > POOR_LCP_MS) problems.push(`${name}: main content took ${(r.lcp / 1000).toFixed(1)}s to appear (poor is over 4s)`)
     if (r.cls > POOR_CLS) problems.push(`${name}: layout jumps around while loading (CLS ${r.cls.toFixed(2)}, poor is over 0.25)`)
   } catch (err) {
-    problems.push(`${name}: Lighthouse could not run (${String(err.message).split("\n")[0]})`)
+    broken.push(`${name}: Lighthouse could not run (${String(err.message).split("\n")[0]})`)
   }
 }
 
@@ -67,9 +69,10 @@ let md = `## Performance (Lighthouse, mobile) — ${BASE}\n\n| Page | Score | Ma
 for (const r of rows) {
   md += `| [${r.name}](${BASE + r.path}) | ${r.score} | ${(r.lcp / 1000).toFixed(1)}s | ${r.cls.toFixed(2)} | ${Math.round(r.tbt)}ms |\n`
 }
-md += problems.length ? `\n**${problems.length} problem(s):**\n\n${problems.map((p) => `- ${p}`).join("\n")}\n` : "\nNo pages in the poor band.\n"
+if (broken.length) md += `\n**Check failed:**\n\n${broken.map((p) => `- ${p}`).join("\n")}\n`
+md += problems.length ? `\n**⚠️ ${problems.length} slow page(s):**\n\n${problems.map((p) => `- ${p}`).join("\n")}\n` : "\nNo pages in the poor band.\n"
 
 writeFileSync("site-check-lighthouse.md", md)
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + "\n")
 console.log("\n" + md)
-process.exit(problems.length ? 1 : 0)
+process.exit(broken.length ? 1 : 0)
