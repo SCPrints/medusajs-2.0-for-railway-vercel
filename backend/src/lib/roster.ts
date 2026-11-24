@@ -6,6 +6,8 @@
  */
 
 /** The fixed set of size slots on a roster member. One file owns it. */
+import { cleanNamesNumbers, type NamesNumbers } from "./names-numbers"
+
 export const ROSTER_GARMENT_GROUPS = [
   { key: "tops", label: "Tops" },
   { key: "bottoms", label: "Bottoms" },
@@ -132,6 +134,8 @@ export type TeamOrderMeta = {
   roster: OrderRoster | null
   packing: PackingChoice | null
   personalisation_requested: boolean
+  /** Names / numbers the customer chose and paid for (sizes). null = none / unpriced request. */
+  names_numbers: NamesNumbers | null
 }
 
 /** The team-order keys of a cart's / order's metadata, cleaned. */
@@ -145,6 +149,7 @@ export function teamOrderFromMetadata(meta: unknown): TeamOrderMeta {
     roster,
     packing,
     personalisation_requested: m.personalisation_requested === true,
+    names_numbers: cleanNamesNumbers(m.names_numbers),
   }
 }
 

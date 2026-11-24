@@ -9,6 +9,8 @@ import {
   teamOrderFromMetadata,
 } from "../../../lib/roster"
 import { buildCsv, downloadCsv } from "../../lib/reports/csv"
+import { namesNumbersLabel } from "../../../lib/names-numbers"
+import { isSizingKitLine, sizingKitReturnBy } from "../../../lib/sizing-kit"
 
 const SHOW = 12
 
@@ -30,7 +32,11 @@ export function TeamOrder({ order }: { order: { display_id?: number | null; meta
     <div className="flex flex-col gap-y-2 border-t border-ui-border-base px-6 py-4">
       <div className="flex flex-wrap items-center gap-2">
         <Text size="small" weight="plus">Packing: {packingLabel(team.packing)}</Text>
-        {team.personalisation_requested ? <Badge color="orange">Names / numbers asked for — price before printing</Badge> : null}
+        {team.names_numbers ? (
+          <Badge color="green">Paid: {namesNumbersLabel(team.names_numbers)}</Badge>
+        ) : team.personalisation_requested ? (
+          <Badge color="orange">Names / numbers asked for — price before printing</Badge>
+        ) : null}
         {rows.length ? (
           <Button
             size="small"
@@ -76,6 +82,32 @@ export function TeamOrder({ order }: { order: { display_id?: number | null; meta
           </Text>
         </>
       ) : null}
+    </div>
+  )
+}
+
+/**
+ * Sizing-kit lines on the order (lib/sizing-kit.ts): the garments to refund
+ * when the kit comes back by the return-by date. Renders nothing otherwise.
+ */
+export function SizingKitNote({
+  order,
+}: {
+  order: { created_at?: string | Date | null; items?: Array<{ id: string; title?: string | null; variant_title?: string | null; metadata?: Record<string, unknown> | null }> | null }
+}) {
+  const kit = (order.items ?? []).filter((i) => isSizingKitLine(i.metadata))
+  if (!kit.length) return null
+  const due = order.created_at ? sizingKitReturnBy(order.created_at) : null
+  return (
+    <div className="flex flex-col gap-y-1 border-t border-ui-border-base px-6 py-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Text size="small" weight="plus">Sizing kit ({kit.length})</Text>
+        {due ? <Badge color="blue">Back by {due.toLocaleDateString("en-AU", { day: "numeric", month: "short" })}</Badge> : null}
+      </div>
+      <Text size="small" className="text-ui-fg-subtle">
+        {kit.map((i) => i.variant_title || i.title).join(", ")}. When it comes back in good order, refund these lines
+        (not postage) on the order page.
+      </Text>
     </div>
   )
 }

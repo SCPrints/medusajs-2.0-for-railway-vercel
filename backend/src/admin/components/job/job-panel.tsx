@@ -12,7 +12,7 @@ import { CustomerRequests } from "./customer-requests"
 import { DspPackPanel } from "./dsp-pack"
 import { ProofPins } from "./proof-pins"
 import { EnterSizes } from "./enter-sizes"
-import { TeamOrder } from "./team-order"
+import { SizingKitNote, TeamOrder } from "./team-order"
 import { OrgRangePanel } from "./org-range"
 import { BrandKitLine, SplitDeliveryNote } from "./org-order-notes"
 import { QuoteTools } from "../quote/quote-detail"
@@ -273,6 +273,11 @@ export function JobPanel({ job, order, onChanged }: Props) {
               {job.quote ? <span>{job.quote.public_id}</span> : null}
               {job.order ? <span>Order #{job.order.display_id ?? ""}</span> : null}
               {job.order?.po_number ? <span>PO {job.order.po_number}</span> : null}
+              {job.order?.po_document ? (
+                <a href={job.order.po_document.url} target="_blank" rel="noreferrer" className="text-ui-fg-interactive underline">
+                  PO document
+                </a>
+              ) : null}
               {job.order?.rush_request ? <span className="font-medium text-ui-tag-orange-text">Rush requested ({job.order.rush_request.tier}{job.order.rush_request.needed_by ? `, by ${fmtDate(job.order.rush_request.needed_by)}` : ""}) · price not agreed</span> : null}
               {job.order?.on_account ? <span>On account{job.order.on_account.due_at ? ` · due ${fmtDate(job.order.on_account.due_at)}` : ""}</span> : null}
               {job.order?.cost_centre ? <span>Cost centre {job.order.cost_centre}</span> : null}
@@ -539,6 +544,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
               <>
                 <DeliveryAddress job={job} onChanged={onChanged} />
                 {order ? <TeamOrder order={order} /> : null}
+                {order ? <SizingKitNote order={order as any} /> : null}
                 {order ? <SplitDeliveryNote order={order} /> : null}
                 {order ? (
                   <Flat>

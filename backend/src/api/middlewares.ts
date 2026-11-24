@@ -92,6 +92,11 @@ export default defineMiddlewares({
       middlewares: [refuseAddsToTeamStoreCart],
     },
     {
+      matcher: "/store/carts/:id/sizing-kit",
+      methods: ["POST"],
+      middlewares: [refuseAddsToTeamStoreCart],
+    },
+    {
       matcher: "/store/carts/:id/line-items/:line_id",
       methods: ["POST"],
       middlewares: [stripLineItemTrustMetadataMiddleware],
@@ -145,6 +150,12 @@ export default defineMiddlewares({
       matcher: "/store/customizer/upload-original",
       methods: ["POST"],
       bodyParser: { sizeLimit: CUSTOMIZER_BODY_LIMIT },
+    },
+    {
+      // Checkout PO document (PDF / image, ≤10MB decoded; lib/po-document.ts).
+      matcher: "/store/carts/:id/po-document",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: "16mb" },
     },
     {
       // Contact-form attachments — a single artwork file base64-encoded in the

@@ -145,6 +145,11 @@ const Item = ({ item, type = "full" }: ItemProps) => {
           {displayTitle}
         </Text>
         <LineItemOptions variant={item.variant} data-testid="product-variant" />
+        {(item.metadata as Record<string, unknown> | null)?.sizing_kit === true ? (
+          <p className="mt-1 text-xs text-ui-fg-subtle" data-testid="sizing-kit-note">
+            Sizing kit: send it back within 14 days and we refund the garments.
+          </p>
+        ) : null}
         {type === "full" ? <SampleFirst item={item} /> : null}
         {customizerMetadata && (
           <>

@@ -1,5 +1,9 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { addToCartWorkflow } from "@medusajs/medusa/core-flows"
+
+import { cleanNamesNumbers, namesNumbersLabel, namesNumbersUnitMajor } from "../../lib/names-numbers"
+import { SERVICE_LINE_HANDLE } from "../../lib/sizes-pending"
 
 import { getPostHog } from "../../lib/posthog"
 import { addScpLinesToCart } from "../../lib/scp-add-lines"
@@ -11,6 +15,8 @@ export type RangeAddInput = {
   roster?: "all" | string[] | null
   packing?: string | null
   personalisation_requested?: boolean
+  /** Names / numbers at these print sizes — charged per garment as one line. */
+  names_numbers?: unknown
 }
 
 export type RangeAddResult =
@@ -31,6 +37,7 @@ export async function addRangeToCart(
 ): Promise<RangeAddResult> {
   const cart = await loadOwnCart(scope, body.cart_id, membership.customer_id)
   const lines = await buildRangeOrderLines(scope, membership.organisation_id, body.items)
+  const namesNumbers = cleanNamesNumbers(body.names_numbers)
 
   // Who it's for is checked (and saved) first: a bad packing choice must not
   // leave lines in the cart with no roster.
@@ -38,6 +45,7 @@ export async function addRangeToCart(
     roster: body.roster,
     packing: body.packing,
     personalisation_requested: body.personalisation_requested,
+    ...(body.names_numbers !== undefined ? { names_numbers: namesNumbers } : {}),
   })
 
   let result: Awaited<ReturnType<typeof addScpLinesToCart>>
@@ -73,6 +81,49 @@ export async function addRangeToCart(
     }
   }
 
+  // Names / numbers: one service line, priced as prints of the chosen size at
+  // this order's quantity band. Not added = staff price it (flagged on the order).
+  if (namesNumbers) {
+    const garments = lines.reduce((n, l) => n + l.quantity, 0)
+    try {
+      const query = scope.resolve(ContainerRegistrationKeys.QUERY)
+      const { data } = await query.graph({
+        entity: "product",
+        filters: { handle: SERVICE_LINE_HANDLE },
+        fields: ["variants.id"],
+      })
+      const variantId = (data?.[0] as { variants?: Array<{ id: string }> } | undefined)?.variants?.[0]?.id
+      if (!variantId) throw new Error("service line product missing")
+      const label = namesNumbersLabel(namesNumbers)
+      await addToCartWorkflow(scope).run({
+        input: {
+          cart_id: cart.id,
+          items: [
+            {
+              variant_id: variantId,
+              quantity: garments,
+              unit_price: namesNumbersUnitMajor(namesNumbers, garments),
+              title: label,
+              product_title: "Names and numbers",
+              variant_title: label,
+              metadata: {
+                names_numbers: namesNumbers,
+                organisation_id: membership.organisation_id,
+                // Server-priced from the print card; the checkout check leaves it be.
+                price_override: { source: "names_numbers", garments },
+              },
+            } as any,
+          ],
+        },
+      })
+      feeLinesAdded++
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(`range add-to-cart: names line failed for cart ${cart.id}`, error)
+      feesForStaff.push("Names and numbers")
+    }
+  }
+
   getPostHog()?.capture({
     distinctId: membership.customer_id,
     event: "range added to cart",
@@ -85,6 +136,7 @@ export async function addRangeToCart(
       has_roster: !!body.roster,
       packing: body.packing ?? null,
       personalisation_requested: body.personalisation_requested === true,
+      names_numbers: namesNumbers ? namesNumbersLabel(namesNumbers) : null,
     },
   })
 

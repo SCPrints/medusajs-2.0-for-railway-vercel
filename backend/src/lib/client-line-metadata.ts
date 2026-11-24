@@ -43,6 +43,10 @@ export const SERVER_TRUST_METADATA_KEYS = [
   "team_store_id",
   "team_store_item_id",
   "team_store_delivery",
+  // Sizing kit (lib/sizing-kit.ts): staff refund these lines when returned.
+  "sizing_kit",
+  // Priced names / numbers line (lib/names-numbers.ts).
+  "names_numbers",
 ] as const
 
 export const CLIENT_LINE_METADATA_KEYS = [

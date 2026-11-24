@@ -23,5 +23,10 @@ export function cleanCartPoNumberMiddleware(
     const m = meta as Record<string, unknown>
     m.po_number = cleanPoNumber(m.po_number) ?? ""
   }
+  // The PO document is set only by /store/carts/:id/po-document (our bucket).
+  for (const body of [req.body, (req as { validatedBody?: unknown }).validatedBody]) {
+    const meta = (body as { metadata?: unknown } | undefined)?.metadata
+    if (meta && typeof meta === "object") delete (meta as Record<string, unknown>).po_document
+  }
   next()
 }

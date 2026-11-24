@@ -19,6 +19,18 @@ import { countSizes, quantitiesForVariants, sizeKey, sizeRank } from "@lib/util/
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 import SizeListImport from "./size-list-import"
+import {
+  resolveScpTierIndexForQuantity,
+  scpPrintUnitMajorForTier,
+} from "@modules/customizer/lib/scp-dtf-print-pricing"
+
+// Names / numbers: priced like a print of that size (backend lib/names-numbers.ts).
+const NAME_SIZES = [
+  { id: "up_to_a6", label: "Up to A6 (10×15 cm)" },
+  { id: "up_to_a4", label: "Up to A4 (21×30 cm)" },
+  { id: "up_to_a3", label: "Up to A3 (29×42 cm)" },
+] as const
+type NameSize = (typeof NAME_SIZES)[number]["id"]
 
 type Props = {
   orgId: string
@@ -62,7 +74,9 @@ export default function RangeOrderForm({
   const [audience, setAudience] = useState<Audience>("none")
   const [pickedUnits, setPickedUnits] = useState<string[]>([])
   const [packing, setPacking] = useState("bulk")
-  const [personalise, setPersonalise] = useState(false)
+  const [nameSize, setNameSize] = useState<NameSize | "">("")
+  const [numberSize, setNumberSize] = useState<NameSize | "">("")
+  const personalise = !!(nameSize || numberSize)
   const [importing, setImporting] = useState(false)
   const [price, setPrice] = useState<RangePrice | null>(null)
   const [pricing, setPricing] = useState(false)
@@ -117,6 +131,12 @@ export default function RangeOrderForm({
   }, [ready, qty, colour])
   const linesKey = JSON.stringify(lines)
   const totalUnits = lines.reduce((n, l) => n + l.quantity, 0)
+  const namesTotal = useMemo(() => {
+    if (!totalUnits) return 0
+    const tier = resolveScpTierIndexForQuantity(totalUnits)
+    const each = [nameSize, numberSize].reduce((sum, s) => sum + (s ? scpPrintUnitMajorForTier(s, tier) : 0), 0)
+    return Math.round(each * 100) * totalUnits / 100
+  }, [nameSize, numberSize, totalUnits])
 
   // Ask the server for the price a moment after typing stops.
   const priceRun = useRef(0)
@@ -238,6 +258,7 @@ export default function RangeOrderForm({
       roster: audience === "none" ? null : audience === "all" ? "all" : people.map((p) => p.id),
       packing,
       personalisationRequested: personalise,
+      namesNumbers: personalise ? { names: nameSize || null, numbers: numberSize || null } : null,
     })
     setAdding(false)
     if (!res.ok) {
@@ -535,26 +556,48 @@ export default function RangeOrderForm({
                 ))}
               </select>
             </label>
-            <label className="flex min-h-11 items-start gap-3 text-sm text-ui-fg-base">
-              <input
-                type="checkbox"
-                checked={personalise}
-                onChange={(e) => setPersonalise(e.target.checked)}
-                className="mt-0.5 h-5 w-5 shrink-0"
-              />
-              <span>
-                Print names / numbers on the garments
-                <span className="block text-xs text-ui-fg-muted">
-                  We&apos;ll confirm the price for names and numbers before we print.
-                </span>
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-sm font-semibold text-ui-fg-base">Names and numbers</legend>
+              <div className="grid grid-cols-2 gap-3">
+                {(
+                  [
+                    ["Names", nameSize, setNameSize],
+                    ["Numbers", numberSize, setNumberSize],
+                  ] as const
+                ).map(([label, value, set]) => (
+                  <label key={label} className="flex flex-col gap-1 text-xs text-ui-fg-subtle">
+                    {label}
+                    <select
+                      value={value}
+                      onChange={(e) => set(e.target.value as NameSize | "")}
+                      className="min-h-11 rounded-md border border-ui-border-base bg-white px-3 text-base text-ui-fg-base tablet:text-sm"
+                    >
+                      <option value="">None</option>
+                      {NAME_SIZES.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <span className="text-xs text-ui-fg-muted">
+                Each name or number is printed on every garment, priced like a print of that size.
+                {audience === "none" ? " Choose who it's for so we have the names." : ""}
               </span>
-            </label>
+            </fieldset>
           </div>
 
           <div className="flex flex-col gap-2 tablet:items-end tablet:text-right">
             <p className="text-sm text-ui-fg-subtle" aria-live="polite">
               {plural(totalUnits, "garment", "garments")}
             </p>
+            {namesTotal > 0 ? (
+              <p className="text-sm text-ui-fg-subtle">
+                Names and numbers × {totalUnits}: {money(namesTotal)}
+              </p>
+            ) : null}
             {(price?.setup_fees ?? []).map((f, i) => (
               <p key={i} className="text-sm text-ui-fg-subtle">
                 {f.title}
@@ -562,11 +605,10 @@ export default function RangeOrderForm({
               </p>
             ))}
             <p className="text-2xl font-semibold tabular-nums text-ui-fg-base" aria-live="polite">
-              {price ? money(price.total) : pricing ? "Working it out…" : money(0)}
+              {price ? money(price.total + namesTotal) : pricing ? "Working it out…" : money(namesTotal)}
             </p>
             <p className="text-xs text-ui-fg-muted">
-              Your price, GST included. Delivery is added at checkout
-              {personalise ? "; names and numbers are priced separately" : ""}.
+              Your price, GST included. Delivery is added at checkout.
             </p>
             {priceError ? <p className="text-sm text-rose-700">{priceError}</p> : null}
             <button

@@ -4,6 +4,8 @@ import sanitizeHtml from "sanitize-html"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ProductTags from "@modules/products/components/product-tags"
 import SizeGuide from "@modules/products/components/size-guide"
+import SizingKit from "@modules/products/components/sizing-kit"
+import { sizingKitOptions } from "@modules/products/components/sizing-kit/options"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
 
 type ProductInfoProps = {
@@ -132,6 +134,7 @@ const ProductInfo = ({ product, hideTitle = false }: ProductInfoProps) => {
       ) : null}
 
       <SizeGuide product={product} />
+      <SizingKit options={sizingKitOptions(product)} />
     </header>
   )
 }

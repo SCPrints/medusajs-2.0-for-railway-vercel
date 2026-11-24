@@ -163,6 +163,8 @@ export async function addOrganisationRangeToCart(
     roster: "all" | string[] | null
     packing: string
     personalisationRequested: boolean
+    /** Print sizes for names / numbers (priced per garment), or null. */
+    namesNumbers?: { names: string | null; numbers: string | null } | null
   }
 ): Promise<Result<{ added_lines: number; fees_for_staff: string[] }>> {
   const headers = await getAuthHeaders()
@@ -178,6 +180,7 @@ export async function addOrganisationRangeToCart(
         roster: input.roster,
         packing: input.packing,
         personalisation_requested: input.personalisationRequested,
+        ...(input.namesNumbers !== undefined ? { names_numbers: input.namesNumbers } : {}),
       },
     })) as { added_lines: number; fee_lines_added: number; fees_for_staff?: string[] }
     revalidateTag("cart", "max")

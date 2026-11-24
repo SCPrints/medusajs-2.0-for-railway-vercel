@@ -4,6 +4,7 @@ import { z } from "zod"
 import { addRangeToCart } from "../../../../../../../../services/org-range/add-to-cart"
 import { requireMembership, requireRole } from "../../../_helpers"
 import { parseBody, rangeItemsSchema } from "../_schema"
+import { NAME_PRINT_SIZES } from "../../../../../../../../lib/names-numbers"
 
 const bodySchema = z.object({
   cart_id: z.string().min(1).max(80),
@@ -11,6 +12,11 @@ const bodySchema = z.object({
   roster: z.union([z.literal("all"), z.array(z.string().min(1).max(80)).max(1000), z.null()]).optional(),
   packing: z.string().max(20).nullable().optional(),
   personalisation_requested: z.boolean().optional(),
+  /** Names / numbers printed at these sizes, priced per garment. */
+  names_numbers: z
+    .object({ names: z.enum(NAME_PRINT_SIZES).nullable().optional(), numbers: z.enum(NAME_PRINT_SIZES).nullable().optional() })
+    .nullable()
+    .optional(),
 })
 
 /**

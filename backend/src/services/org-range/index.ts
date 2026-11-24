@@ -5,6 +5,7 @@
  * api/store/customers/me/organisations/[id]/range/*.
  */
 import { randomUUID } from "crypto"
+import type { NamesNumbers } from "../../lib/names-numbers"
 import type { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/framework/utils"
 
@@ -375,6 +376,7 @@ export type TeamDetailsInput = {
   roster?: "all" | string[] | null
   packing?: string | null
   personalisation_requested?: boolean
+  names_numbers?: NamesNumbers | null
 }
 
 /**
@@ -416,6 +418,11 @@ export async function applyTeamDetailsToCart(
   }
   if (details.personalisation_requested !== undefined) {
     patch.personalisation_requested = details.personalisation_requested === true
+  }
+  if (details.names_numbers !== undefined) {
+    // Priced names / numbers are a names request too; "" clears it on the cart.
+    patch.names_numbers = details.names_numbers ?? ""
+    if (details.names_numbers) patch.personalisation_requested = true
   }
   const cartModule = scope.resolve(Modules.CART) as any
   await cartModule.updateCarts(cart.id, { metadata: { ...(cart.metadata ?? {}), ...patch } })

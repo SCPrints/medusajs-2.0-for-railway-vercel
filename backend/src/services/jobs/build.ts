@@ -33,6 +33,7 @@ import { buildProofImages } from "../artwork-approval/proof-email"
 import { splitAttachmentBlock } from "../inbound-email/attachments"
 import { buildOrderTimeline } from "../order-timeline/build"
 import { poNumberFromMetadata } from "../../lib/po-number"
+import { poDocumentFromMetadata } from "../../lib/po-document"
 
 // Defined in lib/job-state.ts (pure); re-exported for existing importers.
 export { STAFF_EMAIL_ACTOR_PREFIX, STAFF_NOTE_ACTOR_PREFIX }
@@ -490,6 +491,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
             rush_tier: rushTierOf(ometa),
             needed_by: ymd(ometa.needed_by),
             po_number: poNumberFromMetadata(ometa),
+            po_document: poDocumentFromMetadata(ometa),
             rush_request: cleanRushRequest(ometa.rush_request),
             on_account: ometa.account_terms
               ? { due_at: iso((ometa.account_terms as any)?.due_at ?? ometa.balance_due_at) }

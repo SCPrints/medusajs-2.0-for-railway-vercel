@@ -4,6 +4,7 @@ import { Heading, Text, clx } from "@medusajs/ui"
 
 import PaymentButton from "../payment-button"
 import PoNumber from "../po-number"
+import PoDocument from "../po-document"
 import DeliveryEstimate from "@modules/cart/components/delivery-estimate"
 import { useSearchParams } from "next/navigation"
 
@@ -29,7 +30,13 @@ const TeamOrderSummary = ({ metadata }: { metadata: Record<string, unknown> | nu
       <ul className="m-0 mt-1 list-none p-0 text-ui-fg-subtle">
         {roster?.total ? <li>For {roster.total} {roster.total === 1 ? "person" : "people"} on your list</li> : null}
         {packing ? <li>{packing}</li> : null}
-        {names ? <li>We&apos;ll confirm the price for names and numbers before we print.</li> : null}
+        {names ? (
+          <li>
+            {metadata?.names_numbers
+              ? "Names and numbers are in your cart. We'll use the names on your list."
+              : "We'll confirm the price for names and numbers before we print."}
+          </li>
+        ) : null}
       </ul>
     </div>
   )
@@ -84,6 +91,12 @@ const Review = ({ cart }: { cart: any }) => {
               typeof cart?.metadata?.po_number === "string" ? cart.metadata.po_number : ""
             }
           />
+          {cart?.id ? (
+            <PoDocument
+              cartId={cart.id}
+              initial={(cart.metadata as { po_document?: { url: string; name: string } } | null)?.po_document ?? null}
+            />
+          ) : null}
           <PaymentButton cart={cart} data-testid="submit-order-button" />
         </>
       )}

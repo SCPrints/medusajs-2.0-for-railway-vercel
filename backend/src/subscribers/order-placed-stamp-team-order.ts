@@ -2,6 +2,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 
 import { mergeOrderMetadata } from "../lib/order-metadata"
+import { namesNumbersLabel } from "../lib/names-numbers"
 import { teamOrderFromMetadata } from "../lib/roster"
 import { ORGANISATION_MODULE } from "../modules/organisation"
 import type OrganisationModuleService from "../modules/organisation/service"
@@ -37,7 +38,7 @@ export default async function orderPlacedStampTeamOrderHandler({
 
     // The order's own copy, else the cart's (a Medusa version that stops copying).
     let source = order.metadata ?? {}
-    const KEYS = ["roster", "packing", "personalisation_requested", "organisation_id"]
+    const KEYS = ["roster", "packing", "personalisation_requested", "organisation_id", "names_numbers"]
     if (!KEYS.some((k) => k in source) && order.cart_id) {
       const { data: carts } = await query.graph({
         entity: "cart",
@@ -67,6 +68,7 @@ export default async function orderPlacedStampTeamOrderHandler({
     put("roster", team.roster)
     put("packing", team.packing)
     put("personalisation_requested", team.personalisation_requested)
+    put("names_numbers", team.names_numbers)
     await mergeOrderMetadata(container, orderId, patch, { unset })
 
     if (team.personalisation_requested) {
@@ -76,10 +78,15 @@ export default async function orderPlacedStampTeamOrderHandler({
         customer_id: order.customer_id ?? null,
         label: `#${order.display_id ?? orderId}`,
         from: order.email ?? null,
-        subject: "Names / numbers on the garments",
-        excerpt: team.roster
-          ? `${team.roster.total} ${team.roster.total === 1 ? "person" : "people"} on the roster.`
-          : "No roster attached — ask the customer for the names.",
+        subject: team.names_numbers
+          ? `Paid: ${namesNumbersLabel(team.names_numbers)}`
+          : "Names / numbers on the garments",
+        excerpt: [
+          team.names_numbers ? "Already charged on the order." : "Not priced yet — quote them before printing.",
+          team.roster
+            ? `${team.roster.total} ${team.roster.total === 1 ? "person" : "people"} on the roster.`
+            : "No roster attached — ask the customer for the names.",
+        ].join(" "),
       })
     }
   } catch (err) {
