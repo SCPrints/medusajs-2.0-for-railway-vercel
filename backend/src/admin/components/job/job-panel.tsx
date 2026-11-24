@@ -156,7 +156,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
     try {
       // Nudge / Chase balance: write the reminder (with the accept or payment link) into the reply box.
       if (kind === "nudge_quote" || kind === "nudge_payment") {
-        const d = await chaseDraft({ job_id: job.id, order_id: orderId, display_id: job.order?.display_id ?? null, outstanding: job.money.outstanding ?? job.money.order_total })
+        const d = await chaseDraft({ job_id: job.id, order_id: orderId, display_id: job.order?.display_id ?? null, outstanding: job.money.outstanding ?? job.money.order_total, deposit_required_cents: job.money.deposit_required_cents, deposit_paid: job.money.deposit_paid })
         setDraft((p) => ({ text: d.body, n: (p?.n ?? 0) + 1 }))
         focusComposer()
         return
@@ -168,6 +168,8 @@ export function JobPanel({ job, order, onChanged }: Props) {
           quote_id: job.quote?.id ?? null,
           display_id: job.order?.display_id ?? null,
           outstanding: job.money.outstanding ?? job.money.order_total,
+          deposit_required_cents: job.money.deposit_required_cents,
+          deposit_paid: job.money.deposit_paid,
           refresh: onChanged,
         },
         kind

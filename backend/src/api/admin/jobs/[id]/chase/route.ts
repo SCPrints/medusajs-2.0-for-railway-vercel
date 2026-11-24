@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { buildApprovalUrl } from "../../../../../services/artwork-approval/proof-email"
 import { getJob } from "../../../../../services/jobs/build"
+import { paymentLinkAmount } from "../../../../../lib/payment-link-amount"
 import { signQuoteAccept } from "../../../../../services/quote-accept/sign"
 
 /**
@@ -43,8 +44,13 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   } else if (kind === "nudge_payment" && job.order) {
     const link = job.money.open_payment_link?.url
     if (!link) return res.json({ need_payment_link: true })
-    const owing = new Intl.NumberFormat("en-AU", { style: "currency", currency: job.money.currency_code.toUpperCase() }).format(job.money.outstanding ?? 0)
-    lines = [`A quick reminder that ${owing} is still owing on your ${orderNo}. You can pay by card here:`, link]
+    const fmt = (n: number) => new Intl.NumberFormat("en-AU", { style: "currency", currency: job.money.currency_code.toUpperCase() }).format(n)
+    // Same rule as the link: the deposit while it's unpaid, else what's owing.
+    const due = paymentLinkAmount(job.money, job.order.display_id)
+    lines =
+      due?.scenario === "deposit" && job.money.open_payment_link?.scenario === "deposit"
+        ? [`A quick reminder that the ${fmt(due.amount_cents / 100)} deposit for your ${orderNo} is still to come. You can pay it by card here:`, link]
+        : [`A quick reminder that ${fmt(job.money.outstanding ?? 0)} is still owing on your ${orderNo}. You can pay by card here:`, link]
   } else {
     return res.status(400).json({ error: "Nothing to chase on this job right now." })
   }

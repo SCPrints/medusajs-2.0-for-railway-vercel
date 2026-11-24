@@ -208,7 +208,7 @@ function Card({ row, me, team, fresh, dim, busy, armed, href, onAct, onTake, onC
   }
   const openChase = () =>
     run(async () => {
-      const d = await chaseDraft({ job_id: row.id, order_id: row.order_id, display_id: row.display_id, outstanding: row.outstanding })
+      const d = await chaseDraft({ job_id: row.id, order_id: row.order_id, display_id: row.display_id, outstanding: row.outstanding, deposit_required_cents: row.deposit_required_cents, deposit_paid: row.deposit_paid })
       setCompose({ mode: "chase", text: d.body, to: d.to })
     })
   const send = () =>

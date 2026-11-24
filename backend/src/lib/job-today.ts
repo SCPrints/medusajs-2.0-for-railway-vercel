@@ -61,6 +61,9 @@ export type TodayRow = {
   quote_id: string | null
   display_id: number | null
   outstanding: number | null
+  /** For the Chase payment link: the deposit comes first while it's unpaid. */
+  deposit_required_cents?: number
+  deposit_paid?: boolean
   rush_tier: "priority" | "express" | null
   owner: JobView["owner"]
   /** First garment mockup (http URLs only), so a card shows the shirt. */
@@ -200,6 +203,8 @@ export function rowFromJob(job: JobView, now: Date = new Date()): TodayRow {
     quote_id: job.quote?.id ?? null,
     display_id: job.order?.display_id ?? null,
     outstanding: job.money.outstanding,
+    deposit_required_cents: job.money.deposit_required_cents,
+    deposit_paid: job.money.deposit_paid,
     rush_tier: job.order?.rush_tier ?? null,
     owner: job.owner,
     thumbnail: job.lines.map((l) => l.thumbnail).find((t) => !!t && /^https?:/.test(t)) ?? null,

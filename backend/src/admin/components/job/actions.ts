@@ -1,6 +1,7 @@
 import { toast } from "@medusajs/ui"
 
 import type { NextActionKind } from "../../../lib/job-state"
+import { paymentLinkAmount } from "../../../lib/payment-link-amount"
 import { pricerHref } from "../../lib/nav"
 
 /** What a next action needs to know about its job, from either the panel or a Today row. */
@@ -11,6 +12,9 @@ export type ActionContext = {
   display_id: number | null
   /** Dollars owing (or the order total when nothing is paid). */
   outstanding: number | null
+  /** Deposit asked for (cents) and whether it's in: a link asks for the deposit first. */
+  deposit_required_cents?: number | null
+  deposit_paid?: boolean | null
   /** Reloads the caller's view after an Undo. */
   refresh?: () => void
 }
@@ -95,18 +99,14 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
       return { tab: "overview", open: "convert" }
     case "send_payment_link": {
       if (!ctx.order_id) throw new Error("No order yet")
-      const cents = Math.round((ctx.outstanding ?? 0) * 100)
-      if (cents < 50) throw new Error("Nothing outstanding to charge.")
-      const r = await post(`/admin/orders/${ctx.order_id}/payment-link`, {
-        amount_cents: cents,
-        scenario: "full",
-        label: `Order #${ctx.display_id ?? ""}`.trim(),
-      })
+      const link = paymentLinkAmount(ctx, ctx.display_id)
+      if (!link) throw new Error("Nothing outstanding to charge.")
+      const r = await post(`/admin/orders/${ctx.order_id}/payment-link`, link)
       if (!r.ok) throw new Error(r.json?.error ?? "Payment links aren't configured (STRIPE_PAYMENT_LINK_WEBHOOK_SECRET).")
       const url: string | undefined = r.json?.link?.url ?? r.json?.url
       if (url) {
         await navigator.clipboard?.writeText(url).catch(() => undefined)
-        toast.success("Payment link created and copied. Paste it in your reply.")
+        toast.success(`${link.scenario === "deposit" ? "Deposit" : "Payment"} link for $${(link.amount_cents / 100).toFixed(2)} created and copied. Paste it in your reply.`)
       }
       return { tab: "activity", focus: "job-reply" }
     }
@@ -188,9 +188,9 @@ export const CHASEABLE: ReadonlySet<NextActionKind> = new Set(["nudge_quote", "n
 
 /**
  * The reminder draft for a job (GET /admin/jobs/:id/chase). A balance with no
- * open payment link gets one made first, for everything still owing.
+ * open payment link gets one made first: the deposit while it's unpaid, else the balance.
  */
-export async function chaseDraft(ctx: Pick<ActionContext, "job_id" | "order_id" | "display_id" | "outstanding">): Promise<{ to: string; body: string }> {
+export async function chaseDraft(ctx: Pick<ActionContext, "job_id" | "order_id" | "display_id" | "outstanding" | "deposit_required_cents" | "deposit_paid">): Promise<{ to: string; body: string }> {
   const get = async () => {
     const res = await fetch(`/admin/jobs/${encodeURIComponent(ctx.job_id)}/chase`, { credentials: "include" })
     const json = (await res.json().catch(() => ({}))) as any
@@ -199,9 +199,9 @@ export async function chaseDraft(ctx: Pick<ActionContext, "job_id" | "order_id" 
   }
   let draft = await get()
   if (draft.need_payment_link) {
-    const cents = Math.round((ctx.outstanding ?? 0) * 100)
-    if (!ctx.order_id || cents < 50) throw new Error("Nothing outstanding to chase.")
-    const r = await post(`/admin/orders/${ctx.order_id}/payment-link`, { amount_cents: cents, scenario: "full", label: `Order #${ctx.display_id ?? ""}`.trim() })
+    const link = paymentLinkAmount(ctx, ctx.display_id)
+    if (!ctx.order_id || !link) throw new Error("Nothing outstanding to chase.")
+    const r = await post(`/admin/orders/${ctx.order_id}/payment-link`, link)
     if (!r.ok) throw new Error(r.json?.error ?? "Couldn't make a payment link.")
     draft = await get()
     if (draft.need_payment_link) throw new Error("Couldn't make a payment link.")

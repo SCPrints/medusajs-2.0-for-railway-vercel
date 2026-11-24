@@ -157,7 +157,7 @@ const JobsPage = () => {
     setBusy(row.id)
     try {
       await performNextAction(
-        { job_id: row.id, order_id: row.order_id, quote_id: row.quote_id, display_id: row.display_id, outstanding: row.outstanding ?? row.total, refresh: () => void load(true) },
+        { job_id: row.id, order_id: row.order_id, quote_id: row.quote_id, display_id: row.display_id, outstanding: row.outstanding ?? row.total, deposit_required_cents: row.deposit_required_cents, deposit_paid: row.deposit_paid, refresh: () => void load(true) },
         kind
       )
       await load(true)
