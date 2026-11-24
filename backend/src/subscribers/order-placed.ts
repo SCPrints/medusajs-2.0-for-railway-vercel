@@ -27,6 +27,7 @@ import {
   generateReceiptPdf,
   loadReceiptOrder,
 } from "../services/order-receipt-pdf/service"
+import { openPaymentLinkUrl } from "../services/stripe-payment-link/open-link"
 
 export default async function orderPlacedHandler({
   event: { data },
@@ -326,6 +327,8 @@ export default async function orderPlacedHandler({
           /* no AP copy; the customer's own invoice still goes */
         }
       }
+      // Customer + their accounts inbox both pay, so both get the card button.
+      const payLinkUrl = await openPaymentLinkUrl(container, order.id)
       for (const to of [order.email, ...(apEmail ? [apEmail] : [])]) {
         try {
           await notificationModuleService.createNotifications({
@@ -342,6 +345,7 @@ export default async function orderPlacedHandler({
               orderDisplayId: displayId,
               orderDateFormatted,
               orderTotalFormatted,
+              payLinkUrl,
               preview: `Your tax invoice for order #${displayId} (PDF attached).`,
             },
           })

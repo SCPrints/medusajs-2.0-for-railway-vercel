@@ -1,4 +1,4 @@
-import { Text, Section, Hr } from 'react-email'
+import { Text, Section, Hr, Button } from 'react-email'
 import * as React from 'react'
 import { Base, STYLES, NAVY, SLATE, BG_SUBTLE } from './base'
 
@@ -9,6 +9,8 @@ export interface TaxInvoiceTemplateProps {
   orderDisplayId: string | number
   orderDateFormatted: string
   orderTotalFormatted: string
+  /** The order's open Stripe payment link, when there is one: shown as a Pay by card button. */
+  payLinkUrl?: string | null
   preview?: string
 }
 
@@ -25,6 +27,7 @@ export const TaxInvoiceEmail: React.FC<TaxInvoiceTemplateProps> & {
   orderDisplayId,
   orderDateFormatted,
   orderTotalFormatted,
+  payLinkUrl,
   preview,
 }) => {
   return (
@@ -64,6 +67,20 @@ export const TaxInvoiceEmail: React.FC<TaxInvoiceTemplateProps> & {
         </Text>
       </Section>
 
+      {payLinkUrl ? (
+        <Section style={{ margin: '20px 0 0' }}>
+          <Button
+            href={payLinkUrl}
+            style={{ background: NAVY, color: '#ffffff', padding: '12px 20px', borderRadius: '8px', fontSize: '15px', fontWeight: 700, textDecoration: 'none' }}
+          >
+            Pay by card
+          </Button>
+          <Text style={{ margin: '8px 0 0', fontSize: '13px', color: SLATE }}>
+            Or pay by bank transfer using the details on the invoice.
+          </Text>
+        </Section>
+      ) : null}
+
       <Hr style={STYLES.divider} />
 
       <Text style={STYLES.meta}>
@@ -79,6 +96,7 @@ TaxInvoiceEmail.PreviewProps = {
   orderDisplayId: 'ORD-123',
   orderDateFormatted: '30 Jun 2026',
   orderTotalFormatted: '$120.00',
+  payLinkUrl: 'https://buy.stripe.com/test_123',
 }
 
 export default TaxInvoiceEmail

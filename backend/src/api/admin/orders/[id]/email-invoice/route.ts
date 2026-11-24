@@ -7,6 +7,7 @@ import { SUPPORT_REPLY_TO_EMAIL } from "../../../../../lib/constants"
 import { parseNotificationEmailList } from "../../../../../lib/notification-recipients"
 import { orderInboxAddress } from "../../../../../lib/order-inbox-alias"
 import { EmailTemplates } from "../../../../../modules/email-notifications/templates"
+import { openPaymentLinkUrl } from "../../../../../services/stripe-payment-link/open-link"
 import {
   generateReceiptPdf,
   loadReceiptOrder,
@@ -103,6 +104,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   // One email per recipient (repo convention — same loop shape as the
   // merchant-inbox sends in order-placed.ts). PDF generated once above.
+  const payLinkUrl = await openPaymentLinkUrl(req.scope, orderId)
   const sent: string[] = []
   const failed: Array<{ to: string; error: string }> = []
   for (const to of targets) {
@@ -121,6 +123,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           orderDisplayId: displayId,
           orderDateFormatted,
           orderTotalFormatted,
+          payLinkUrl,
           preview: `Your tax invoice for order #${displayId} (PDF attached).`,
         },
       })

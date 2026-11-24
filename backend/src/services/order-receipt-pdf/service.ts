@@ -13,6 +13,7 @@ import {
   SCP_BANK_ACCOUNT_NUMBER,
   SCP_BANK_BSB,
   SCP_COMPANY_ABN,
+  ASCOLOUR_WORKSHOP_ADDRESS_1,
 } from "../../lib/constants"
 import { isSystemPaymentProvider } from "../../lib/org-account"
 import { poNumberFromMetadata, resolveOrderPoNumber } from "../../lib/po-number"
@@ -387,6 +388,13 @@ function buildPdf(params: {
 
     const shipping = (order.shipping_address ?? {}) as Address
     const billing = (order.billing_address ?? shipping) as Address
+    // Quote conversion stamps the studio's address for GST when the customer
+    // gave none. It is ours, not theirs: never print it as the customer's.
+    const isStudioGeo = (a: Address) =>
+      !!ASCOLOUR_WORKSHOP_ADDRESS_1 && (a.address_1 ?? "").trim().toLowerCase() === ASCOLOUR_WORKSHOP_ADDRESS_1.trim().toLowerCase()
+    // Pick up: chosen on the job, or a counter sale (POS) that left with the customer.
+    const pickup = meta.delivery_method === "pickup" || (typeof meta.pos_session_id === "string" && !!meta.pos_session_id)
+    const shipGeoHidden = pickup || isStudioGeo(shipping)
 
     const items = (order.items ?? []) as OrderItem[]
     const displayId = String(order.display_id ?? order.id)
@@ -459,7 +467,8 @@ function buildPdf(params: {
       label: string,
       x: number,
       addr: Address,
-      extras: Array<string | null> = []
+      extras: Array<string | null> = [],
+      hideGeo = false
     ) => {
       doc
         .font("PJS-Bold")
@@ -472,13 +481,14 @@ function buildPdf(params: {
         [addr.first_name, addr.last_name].filter(Boolean).join(" ").trim() ||
           (order.email ?? ""),
         addr.company ?? "",
-        addr.address_1 ?? "",
-        addr.address_2 ?? "",
-        [addr.city, addr.province, addr.postal_code]
-          .filter(Boolean)
-          .join(" ")
-          .trim(),
-        addr.country_code ? addr.country_code.toUpperCase() : "",
+        ...(hideGeo
+          ? []
+          : [
+              addr.address_1 ?? "",
+              addr.address_2 ?? "",
+              [addr.city, addr.province, addr.postal_code].filter(Boolean).join(" ").trim(),
+              addr.country_code ? addr.country_code.toUpperCase() : "",
+            ]),
         ...extras.filter(Boolean).map((s) => String(s)),
       ].filter(Boolean)
 
@@ -497,13 +507,15 @@ function buildPdf(params: {
         order.email ?? null,
         taxExemptAbn ? `ABN ${taxExemptAbn}` : null,
         poNumber ? `PO number: ${poNumber}` : null,
-      ]
+      ],
+      isStudioGeo(billing)
     )
     renderAddressColumn(
-      "Ship to",
+      pickup ? "Pick up" : "Ship to",
       ML + colW + 24,
       shipping,
-      [shipping.phone ?? null]
+      [pickup ? "Collect from the SC Prints studio" : shipGeoHidden ? "Address to be confirmed" : null, shipping.phone ?? null],
+      shipGeoHidden
     )
 
     // ── ITEMS TABLE ────────────────────────────────────────────────────────

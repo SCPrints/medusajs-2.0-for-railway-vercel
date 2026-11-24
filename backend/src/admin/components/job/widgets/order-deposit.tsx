@@ -231,6 +231,26 @@ const OrderDepositWidget = ({ data: order }: { data: { id: string } }) => {
     }
   }
 
+  // Emails the tax invoice, which carries a "Pay by card" button for the open link.
+  const emailLink = async () => {
+    if (!orderId) return
+    const to = window.prompt("Email the invoice with this payment link to (blank = the order's email):", "")
+    if (to === null) return
+    try {
+      const res = await fetch(`/admin/orders/${orderId}/email-invoice`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(to.trim() ? { email: to.trim() } : {}),
+      })
+      const json = (await res.json().catch(() => ({}))) as { to?: string[]; error?: string }
+      if (!res.ok) throw new Error(json.error ?? "Failed to send")
+      toast.success(`Invoice with pay link emailed to ${json.to?.join(", ") ?? "the customer"}`)
+    } catch (err: any) {
+      toast.error(err?.message ?? "Couldn't email it")
+    }
+  }
+
   const copyUrl = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url)
@@ -491,6 +511,11 @@ const OrderDepositWidget = ({ data: order }: { data: { id: string } }) => {
                             >
                               Copy
                             </Button>
+                            {link.status === "open" ? (
+                              <Button size="small" variant="secondary" onClick={emailLink}>
+                                Email
+                              </Button>
+                            ) : null}
                             <Button
                               size="small"
                               variant="secondary"
