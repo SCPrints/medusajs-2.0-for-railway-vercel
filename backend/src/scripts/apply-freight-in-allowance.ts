@@ -11,7 +11,7 @@
  * The script is idempotent and re-runnable at any value, but at 15 a run is a
  * no-op for stamped variants — DO NOT run it expecting a reprice unless the
  * constant has actually changed. Unstamped ladders created while the
- * allowance was 15 are treated as carrying it (see UNSTAMPED_FREIGHT_WINDOW).
+ * allowance was 15 are treated as carrying it (see impliedFreight).
  *
  * For each variant with `metadata.bulk_pricing.tiers` whose stamp differs:
  *   - adds `delta / max(1, min_quantity)` to each tier amount
@@ -49,25 +49,22 @@ const CHUNK = 20
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
 /**
- * Ladders built while FREIGHT_IN_ALLOWANCE_AUD was 15 but NOT stamped: the
- * JB's Wear family (2026-10-14) and the nightly AS Colour / FashionBiz
- * variant backfills write `bulk_pricing` through their own metadata builders,
- * which never copied the stamp. The 2026-08-27 run stamped everything that
- * existed before it, and ladders built after this constant went to 0 carry
- * nothing — so "unstamped + created inside the window" ⇔ carries $15.
- * ponytail: window end = the 2026-10-19 backend deploy; widen if a
- * later import is found carrying freight.
+ * Freight carried by an UNSTAMPED ladder, from when it was built. Every
+ * importer wrote `bulk_pricing` via tierMinorToBulkPricingMetadata, which
+ * never stamped until 2026-11-24, so unstamped ladders built since the
+ * 2026-08-27 run carry $15 — except those built while the constant was 0
+ * (2026-10-18 22:20 UTC to the 2026-10-20 restore deploy). Checked on prod
+ * 2026-11-24 from each ladder's 1-9 vs 10-19 gap: one AS Colour product
+ * (12 variants, 2026-10-20 06 UTC) carries $0, everything else $15.
  */
-const UNSTAMPED_FREIGHT_WINDOW = {
-  from: Date.parse("2026-08-27T00:00:00Z"),
-  to: Date.parse("2026-10-18T22:00:00Z"),
-  allowance: 15,
+const ZERO_FREIGHT_WINDOW = {
+  from: Date.parse("2026-10-18T22:00:00Z"),
+  to: Date.parse("2026-10-21T00:00:00Z"),
 }
 const impliedFreight = (createdAt: unknown): number => {
   const t = Date.parse(String(createdAt ?? ""))
-  return t >= UNSTAMPED_FREIGHT_WINDOW.from && t < UNSTAMPED_FREIGHT_WINDOW.to
-    ? UNSTAMPED_FREIGHT_WINDOW.allowance
-    : 0
+  if (!(t >= Date.parse("2026-08-27T00:00:00Z"))) return 0
+  return t >= ZERO_FREIGHT_WINDOW.from && t < ZERO_FREIGHT_WINDOW.to ? 0 : 15
 }
 
 const toFinite = (v: unknown): number | null => {

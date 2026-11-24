@@ -10,7 +10,7 @@
  * Medusa's major-unit `amount` happens in the boundary helpers below.
  */
 
-import type { PriceLadder } from "./bulk-price-ladder"
+import { FREIGHT_IN_ALLOWANCE_AUD, type PriceLadder } from "./bulk-price-ladder"
 
 /** AUD tier ladder amounts in minor currency units (e.g. cents). Five qty bands. */
 export type TierMoneyMinor = {
@@ -90,6 +90,9 @@ export function tierMinorToBulkPricingMetadata(
   return {
     source,
     currency_code: "aud",
+    // Ladders built from buildPriceLadder already carry the small-order charge;
+    // without this stamp apply-freight-in-allowance.ts would add it again.
+    freight_in_aud: FREIGHT_IN_ALLOWANCE_AUD,
     tiers: [
       { min_quantity: 1, max_quantity: 9, amount: minorToMajor(tiers.t1_9) },
       { min_quantity: 10, max_quantity: 19, amount: minorToMajor(tiers.t10_19) },

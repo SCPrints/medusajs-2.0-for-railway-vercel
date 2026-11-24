@@ -53,5 +53,7 @@ describe("bulk-tier-prices", () => {
     expect(meta.currency_code).toBe("aud")
     expect(Array.isArray((meta as { tiers: unknown }).tiers)).toBe(true)
     expect((meta as { tiers: { length: number } }).tiers.length).toBe(5)
+    // Unstamped ladders made apply-freight-in-allowance add the $15 twice (review 8-4).
+    expect(meta.freight_in_aud).toBe(15)
   })
 })
