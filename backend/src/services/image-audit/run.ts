@@ -265,7 +265,13 @@ export async function runImageAudit(
       )
       // Write on a broken-ness flip OR when the size map changed (new/removed
       // images, first measurement). Unchanged products are never rewritten.
-      if (!shouldStamp(prev, next) && sameImageSizes(prevSizes, sizes)) continue
+      // Also rewrite a broken product whose dead-link list changed: May 2026
+      // flags carry none, and the Merchant feed drops only the listed links.
+      const brokenUrls = classification.broken_urls.slice(0, BROKEN_URLS_STAMP_CAP)
+      const urlsChanged =
+        next === "broken" &&
+        JSON.stringify(p.metadata?.image_audit?.broken_urls ?? []) !== JSON.stringify(brokenUrls)
+      if (!shouldStamp(prev, next) && !urlsChanged && sameImageSizes(prevSizes, sizes)) continue
 
       if (next !== "broken" && prev === "broken") summary.cleared++
 
@@ -275,7 +281,7 @@ export async function runImageAudit(
           status: next,
           status_code: thumbCheck?.status ?? null,
           broken_count: classification.broken_urls.length,
-          broken_urls: classification.broken_urls.slice(0, BROKEN_URLS_STAMP_CAP),
+          broken_urls: brokenUrls,
           sizes,
           checked_at: new Date().toISOString(),
         },
