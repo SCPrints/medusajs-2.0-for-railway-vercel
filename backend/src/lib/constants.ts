@@ -779,10 +779,16 @@ export const EMAIL_SUPPRESSION_TABLE_ENABLED =
  * `MARKETING_EMAILS_SINCE` (ISO date): reorder reminders and win-back skip
  * customers created before it, so switching those streams on doesn't email
  * the pre-launch test accounts or old customers. Unset = no cutoff.
+ * Set but unreadable (e.g. "23/10/2026") = block those streams entirely and
+ * say so at boot: a typo used to silently mean "no cutoff, email everyone".
  */
 export const MARKETING_EMAILS_SINCE: Date | null = (() => {
-  const d = new Date(String(process.env.MARKETING_EMAILS_SINCE ?? ""))
-  return Number.isNaN(d.getTime()) ? null : d
+  const raw = String(process.env.MARKETING_EMAILS_SINCE ?? "").trim()
+  if (!raw) return null
+  const d = new Date(raw)
+  if (!Number.isNaN(d.getTime())) return d
+  console.error(`MARKETING_EMAILS_SINCE="${raw}" is not a date (use 2026-10-23). Reorder reminders and win-back are blocked until it is fixed.`)
+  return new Date(8.64e15) // the latest date JS allows: every customer is "before" it
 })()
 
 /**

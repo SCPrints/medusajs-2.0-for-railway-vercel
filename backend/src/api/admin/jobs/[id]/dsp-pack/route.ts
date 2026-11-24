@@ -3,6 +3,7 @@ import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../lib/audit-entities"
+import { safeFetchBuffer } from "../../../../../lib/safe-fetch"
 import { writeAudit } from "../../../../../lib/audit-log"
 import { DSP_ORDER_EMAIL, SUPPORT_REPLY_TO_EMAIL } from "../../../../../lib/constants"
 import { orderInboxAddress } from "../../../../../lib/order-inbox-alias"
@@ -76,9 +77,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     if (pg.printFileUrl || !pg.artworkUrl || seen.has(pg.artworkUrl)) continue
     seen.add(pg.artworkUrl)
     try {
-      const res = await fetch(pg.artworkUrl, { signal: AbortSignal.timeout(15_000) })
-      const buf = Buffer.from(await res.arrayBuffer())
-      if (!res.ok || buf.length > 15 * 1024 * 1024) continue // ponytail: >15 MB stays out; Resend caps the whole email at 40 MB
+      // Customer-supplied URL: public https only, stops at 15 MB (Resend caps the whole email at 40 MB).
+      const got = await safeFetchBuffer(pg.artworkUrl, { maxBytes: 15 * 1024 * 1024, timeoutMs: 15_000 })
+      if (!got) continue
+      const buf = got.buffer
       const ext = (pg.artworkUrl.split("?")[0].split(".").pop() ?? "png").toLowerCase()
       const stem = `SCP-${pack.po}_${pg.positionLabel.replace(/\W+/g, "-")}`
       // Sized to print: an SVG opens at print size in Illustrator, a PNG measures the print width.
@@ -90,7 +92,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       attachments.push({
         content: artwork,
         filename: `${stem}_artwork.${ext}`,
-        content_type: res.headers.get("content-type") ?? "application/octet-stream",
+        content_type: got.contentType ?? "application/octet-stream",
       })
       const preview = pg.garmentHex ? await artworkPreview(buf, pg.garmentHex) : null
       const previewB64 = preview?.toString("base64")

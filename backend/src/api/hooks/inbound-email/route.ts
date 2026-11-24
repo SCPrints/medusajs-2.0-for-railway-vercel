@@ -14,10 +14,11 @@ import { recordInboundEmail } from "../../../services/inbound-email/record"
  * which is signature-verified. Both end in recordInboundEmail.
  */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  if (INBOUND_EMAIL_SECRET) {
-    if (req.headers["x-inbound-secret"] !== INBOUND_EMAIL_SECRET) {
-      return res.status(401).json({ error: "unauthorised" })
-    }
+  // No secret = closed. Resend uses the signed /hooks/resend, and an open hook
+  // let anyone forge an email onto a job and email staff.
+  if (!INBOUND_EMAIL_SECRET) return res.status(503).json({ error: "inbound email hook not configured" })
+  if (req.headers["x-inbound-secret"] !== INBOUND_EMAIL_SECRET) {
+    return res.status(401).json({ error: "unauthorised" })
   }
 
   const body = (req.body ?? {}) as Record<string, unknown>

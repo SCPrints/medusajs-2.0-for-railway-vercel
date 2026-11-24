@@ -5,6 +5,7 @@ import sharp from "sharp"
 
 import { dspDate, type DspGroupPack, type DspPage } from "../../lib/dsp-job"
 import { inkClusters, type InkCluster } from "../../lib/dsp-inks"
+import { safeFetchBuffer } from "../../lib/safe-fetch"
 
 /**
  * Stamps our job data onto DSP's own art-proof template
@@ -27,6 +28,7 @@ const BLACK = rgb(0.1, 0.1, 0.1)
 const WHITE = rgb(1, 1, 1)
 
 const IMAGE_TIMEOUT_MS = 12_000
+const MAX_IMAGE_BYTES = 40 * 1024 * 1024
 
 /** pdf-lib's standard fonts are WinAnsi — drop anything they can't encode rather than throw. */
 const safe = (s: string) => s.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[–—]/g, "-").replace(/×/g, "x").replace(/[^\x20-\x7E -ÿ]/g, "")
@@ -34,10 +36,11 @@ const safe = (s: string) => s.replace(/[“”]/g, '"').replace(/[‘’]/g, "'"
 async function fetchPng(url: string | null, trim = false): Promise<Buffer | null> {
   if (!url) return null
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS) })
-    if (!res.ok) return null
+    // Customer-supplied URLs: public https only, capped (lib/safe-fetch).
+    const got = await safeFetchBuffer(url, { maxBytes: MAX_IMAGE_BYTES, timeoutMs: IMAGE_TIMEOUT_MS })
+    if (!got) return null
     // Normalise anything (webp, svg, jpg) to a bounded PNG pdf-lib can embed.
-    const src = Buffer.from(await res.arrayBuffer())
+    const src = got.buffer
     const read = () => sharp(src, { density: 400 })
     // Artwork: drop transparent margins so it can be drawn at its true print size.
     const img = trim ? sharp(await read().trim().png().toBuffer().catch(() => read().png().toBuffer())) : read()
@@ -247,8 +250,8 @@ export async function buildDspProofPdf(packs: DspGroupPack[], meta: { po: string
     if (!printFiles.has(url))
       printFiles.set(
         url,
-        fetch(url, { signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS) })
-          .then(async (res) => (res.ok ? (await doc.embedPdf(Buffer.from(await res.arrayBuffer()), [0]))[0] : null))
+        safeFetchBuffer(url, { maxBytes: MAX_IMAGE_BYTES, timeoutMs: IMAGE_TIMEOUT_MS })
+          .then(async (got) => (got ? (await doc.embedPdf(got.buffer, [0]))[0] : null))
           .catch(() => null) // not a PDF / unreadable — the panel already warned; fall back to the raster artwork
       )
     return printFiles.get(url)!

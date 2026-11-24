@@ -5,6 +5,7 @@ import { buildDspPack, type DspGroupPack, type DspLine, type DspPlacement, type 
 import { computeSidePlacements } from "../../lib/print-placement"
 import { restoreSideLayouts } from "../../lib/side-layouts-archive"
 import { isSizesPendingLine } from "../../lib/sizes-pending"
+import { safeFetchBuffer } from "../../lib/safe-fetch"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { resolveJobIds } from "../jobs/build"
 import { applyArtworkInks, sharedPantone } from "../../lib/dsp-inks"
@@ -137,8 +138,8 @@ export async function enrichFromImages(packs: DspGroupPack[]) {
   const get = async (url: string | null) => {
     if (!url) return null
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-      return res.ok ? Buffer.from(await res.arrayBuffer()) : null
+      // Customer-supplied URLs: public https only, capped (lib/safe-fetch).
+      return (await safeFetchBuffer(url, { maxBytes: 25 * 1024 * 1024, timeoutMs: 10_000 }))?.buffer ?? null
     } catch {
       return null
     }
