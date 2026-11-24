@@ -599,6 +599,10 @@ export default function CustomizerTemplate({
   const [lowResModalOpen, setLowResModalOpen] = useState(false)
   /** Once the customer dismisses the modal we don't keep re-opening it on every scale event. */
   const lowResModalDismissedRef = useRef(false)
+  // Add to cart with low-res artwork re-opens the warning (it used to show once,
+  // then a 99 DPI print could go to cart). "Add anyway" runs the parked add.
+  const [lowResAtCart, setLowResAtCart] = useState(false)
+  const pendingLowResAddRef = useRef<(() => Promise<void>) | null>(null)
   /** Funnel guard — fire `customizer_design_started` once per page load. */
   const designStartedFiredRef = useRef(false)
   const [vectorizationRequested, setVectorizationRequested] = useState(false)
@@ -4787,10 +4791,21 @@ export default function CustomizerTemplate({
       quantity: number
       mockupDataUrl?: string
     }>,
-    opts?: { asQuote?: boolean }
+    opts?: { asQuote?: boolean; lowResOk?: boolean }
   ) => {
     if (!selectedProduct || !selectedVariant || !countryCode) {
       setUploadError("Select a product and variant before adding to cart.")
+      return
+    }
+    if (
+      !opts?.lowResOk &&
+      destination.kind === "shop" &&
+      dpiAssessment.severity === "critical" &&
+      !vectorizationRequested
+    ) {
+      pendingLowResAddRef.current = () => addCustomizedToCart(bulkCells, { ...opts, lowResOk: true })
+      setLowResAtCart(true)
+      setLowResModalOpen(true)
       return
     }
     // "Email me this quote": run every check and render below, then send the
@@ -8147,8 +8162,20 @@ export default function CustomizerTemplate({
           }
           onClose={() => {
             setLowResModalOpen(false)
+            setLowResAtCart(false)
             lowResModalDismissedRef.current = true
           }}
+          onContinueAnyway={
+            lowResAtCart
+              ? () => {
+                  setLowResModalOpen(false)
+                  setLowResAtCart(false)
+                  const add = pendingLowResAddRef.current
+                  pendingLowResAddRef.current = null
+                  void add?.()
+                }
+              : undefined
+          }
           onUploadHigherQuality={() => {
             // Open the file picker straight away (still inside the tap, so
             // browsers allow it). It used to only scroll to the garment, which

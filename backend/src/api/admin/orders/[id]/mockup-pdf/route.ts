@@ -3,7 +3,7 @@ import type { IOrderModuleService } from "@medusajs/framework/types"
 import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
-import { generateMockupPdf, type MockupOrder } from "../../../../../services/mockup-pdf/service"
+import { generateMockupPdf, hasArtworkToApprove, type MockupOrder } from "../../../../../services/mockup-pdf/service"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
 
@@ -42,6 +42,20 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     order = raw as unknown as MockupOrder
   } catch {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, `Order "${orderId}" was not found.`)
+  }
+
+  // A PDF with no pages is rejected by most viewers: say why instead. The PDF
+  // pages come from Studio designs and revised proofs only (embroidery-only and
+  // bundle lines carry no mockup to put on a page).
+  const groups = new Map<string, Array<{ id: string; metadata?: Record<string, unknown> | null }>>()
+  for (const it of (order as any).items ?? []) {
+    const key = String(it.metadata?.customizerDesign?.group_id ?? it.product_id ?? it.id)
+    groups.set(key, [...(groups.get(key) ?? []), it])
+  }
+  if (![...groups.values()].some((g) => hasArtworkToApprove(g, (order as any).metadata))) {
+    return res.status(422).json({
+      message: "Nothing to put in a mockup PDF: this order has no Studio designs or revised proofs. Create a revised proof on a line first.",
+    })
   }
 
   const pdfBuffer = await generateMockupPdf(order, { jobNumberOverride })

@@ -72,8 +72,9 @@ export async function resolveJobIds(
   if (id.startsWith("order_")) orderId = id
   else if (id.startsWith("qt_")) quoteId = id
   else {
-    const publicId = id.replace(/^q-/i, "").toUpperCase()
-    const [byPublic] = await quotes.listQuotes({ public_id: publicId }, { take: 1, select: ["id"] })
+    // Public ids are stored as "Q-XXXXXXXXXX"; accept them typed with or without the "Q-".
+    const bare = id.replace(/^q-/i, "").toUpperCase()
+    const [byPublic] = await quotes.listQuotes({ public_id: [`Q-${bare}`, bare] }, { take: 1, select: ["id"] })
     if (byPublic?.id) quoteId = byPublic.id
     else if (/^\d+$/.test(id)) {
       const { data } = await query.graph({ entity: "order", fields: ["id"], filters: { display_id: Number(id) }, pagination: { take: 1 } })

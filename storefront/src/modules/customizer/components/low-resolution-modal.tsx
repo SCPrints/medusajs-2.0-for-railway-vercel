@@ -18,6 +18,8 @@ type Props = {
   onClose: () => void
   onUploadHigherQuality: () => void
   onAcceptVectorization: () => void
+  /** Shown at Add to cart: lets the customer go ahead with the low-res file, knowingly. */
+  onContinueAnyway?: () => void
 }
 
 const formatDpi = (dpi: number | null): string => {
@@ -33,6 +35,7 @@ const LowResolutionModal = ({
   onClose,
   onUploadHigherQuality,
   onAcceptVectorization,
+  onContinueAnyway,
 }: Props) => {
   const shownRef = useRef(false)
   // One-shot analytics when the modal opens. Kept separate from the ESC
@@ -87,6 +90,13 @@ const LowResolutionModal = ({
     phCapture("vectorization_accepted", payload)
     onAcceptVectorization()
     onClose()
+  }
+
+  const fireContinue = () => {
+    const payload = { worst_dpi: worstDpi }
+    trackVectorizationFunnel("modal_dismissed", payload)
+    phCapture("vectorization_modal_continue_anyway", payload)
+    onContinueAnyway?.()
   }
 
   if (!open) return null
@@ -176,13 +186,24 @@ const LowResolutionModal = ({
             are free.
           </p>
 
-          <button
-            type="button"
-            onClick={fireDismissed}
-            className="w-full text-xs text-ui-fg-subtle hover:text-ui-fg-base mt-1"
-          >
-            I&apos;ll decide later
-          </button>
+          {onContinueAnyway ? (
+            <button
+              type="button"
+              onClick={fireContinue}
+              className="w-full rounded-lg border border-ui-border-base px-4 py-2.5 text-sm text-ui-fg-subtle hover:text-ui-fg-base mt-1"
+            >
+              Add to cart anyway
+              <span className="block text-xs mt-0.5">It may print blurry</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={fireDismissed}
+              className="w-full text-xs text-ui-fg-subtle hover:text-ui-fg-base mt-1"
+            >
+              I&apos;ll decide later
+            </button>
+          )}
         </div>
       </div>
     </div>
