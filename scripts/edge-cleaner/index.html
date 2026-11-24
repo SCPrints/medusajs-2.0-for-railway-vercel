@@ -155,6 +155,9 @@
   <h2>Fades <button class="qm" data-help="flatDots" title="What does this do?">?</button></h2>
   <label style="display:block;margin:0 0 6px"><input type="checkbox" id="flatDots"> Turn soft fades into halftone dots</label>
   <small style="display:block;margin-bottom:10px">For brush strokes, glows and soft shadows that fade into the background. They print as dots of their full colour instead of a pale solid patch.</small>
+  <label class="row" id="scopeRow" hidden><span>Dots on <button class="qm" data-help="flatDots" title="What does this do?">?</button></span>
+    <select id="halftoneScope"><option value="edges" selected>Fades at the edges only</option><option value="whole">The whole picture</option></select>
+    <small>Whole picture also turns soft tones inside the art into dots, printed on the old background colour (white on most art).</small></label>
   <div id="flatDotRows"></div>
   </div>
 
@@ -234,7 +237,7 @@
   <div class="bd"><div id="helpText"></div><div id="helpEx"></div></div>
 </dialog>
 
-<script src="edge-clean.js?v=16"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
+<script src="edge-clean.js?v=17"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
 <script>
 "use strict";
 if (!window.EdgeClean) { // opened from inside a zip, or copied without its partner file
@@ -364,7 +367,7 @@ for (const b of $("kinds").children) b.onclick = () => setKind(b.dataset.kind);
 const flatDots = () => kind === "flat" && $("flatDots").checked;
 function placeRows() { // show this type's controls: the main ones up front, the rest under Advanced
   const px = $("dotUnit").value === "px", on = kind !== "flat" || flatDots();
-  $("darkAdv").hidden = !on; $("outlineNote").hidden = kind === "flat";
+  $("darkAdv").hidden = !on; $("outlineNote").hidden = kind === "flat"; $("scopeRow").hidden = !flatDots();
   for (const r in ROWS) {
     const el = document.querySelector(`[data-row=${r}]`), main = MAIN[kind].includes(r);
     el.hidden = !on || !ROWS[r].includes(kind) || (r === "lpi" && px) || (r === "dotpx" && !px);
@@ -373,6 +376,7 @@ function placeRows() { // show this type's controls: the main ones up front, the
   }
 }
 $("flatDots").onchange = () => { placeRows(); renderChecks(); schedule(); };
+$("halftoneScope").onchange = schedule;
 $("kindInfo").textContent = KIND_INFO.flat;
 
 function autoRemove() {
@@ -602,7 +606,7 @@ $("scale").addEventListener("change", () => (wantScale = +$("scale").value));
 function settings() {
   if (kind !== "flat") return darkSettings();
   return { ...flatOpts(flatNow(), +$("scale").value), minLinePx: MIN_LINE_MM / 25.4 * outPpi(),
-    halftone: flatDots() ? { dot: darkDot(), angle: +$("angle").value, shape: $("shape").value } : null };
+    halftone: flatDots() ? { dot: darkDot(), angle: +$("angle").value, shape: $("shape").value, whole: $("halftoneScope").value === "whole" } : null };
 }
 const matteOf = (m) => (m === "black" ? [0, 0, 0] : m === "white" ? [255, 255, 255] : m === "custom" ? hexRgb($("matteColour").value) : m);
 function flatNow() { // the flat-background settings as the sliders show them
@@ -1018,6 +1022,7 @@ Object.assign(HELP, {
     "DTF can't print see-through ink, so a brush stroke or glow that fades into the background normally prints as a pale solid patch with a hard edge where the background was cut away.",
     "Ticked, those fades print as dots of their full colour instead: thick dots where the fade is strong, sparse dots where it fades out, so it blends into the shirt.",
     "Only soft parts that run out into the removed background change. Solid art keeps its smooth edges, and pale areas inside an outline (like the white inside a ring) stay solid. <b>Dots</b> sets the dot size; angle and shape are under Advanced.",
+    "<b>Dots on: the whole picture</b> also turns soft tones inside the art into dots, like a pale pink patch on a white area. The gaps between those dots print as the old background colour (white on most art), so the design stays one solid piece with no holes through to the shirt. Strong colours and black stay solid either way.",
   ] },
   view: { title: "Zoom and Preview on", text: [
     "<b>Zoom:</b> Fit shows the whole image. 100% and above show the real pixels, which is where edge problems show up. Scroll to zoom and drag to move. F = fit, 1 = 100%.",
@@ -1112,6 +1117,7 @@ Object.assign(PATTERNS, {
   fadeRing: () => onWhite(200, 140, (x, y) => { // black ring, white inside, red brush glow fading out into the white
     const r = Math.hypot(x - 100, y - 70);
     if (r >= 34 && r < 40) return [10, 10, 10];
+    if (r < 34) { const t = 0.5 * Math.max(0, 1 - Math.hypot(x - 88, y - 60) / 18); return [255 - 25 * t, 255 - 215 * t, 255 - 215 * t]; } // pink glow on the white inside
     if (r >= 40 && r < 68) { const t = 0.85 * (1 - (r - 40) / 28); return [255 - 25 * t, 255 - 215 * t, 255 - 215 * t]; }
   }),
   clicks: () => onWhite(160, 120, (x, y) => { // blue block with a white cloud inside it, and a grey shadow underneath
@@ -1133,10 +1139,11 @@ const paintTiles = (list) => (src) => list.map(([cap, sub, shape]) => {
     paint: shape ? { width: src.width, height: src.height, data: m } : null }).image };
 });
 const DEMOS = {
-  flatDots: { pat: "fadeRing", bg: "#1e2a4a", note: "A black ring with a red glow fading out into a white background, cut out and shown on a navy shirt.",
+  flatDots: { pat: "fadeRing", bg: "#1e2a4a", note: "A black ring with a red glow fading out into a white background and a pink glow on the white inside it, cut out and shown on a navy shirt.",
     tiles: (src) => { const cut = EdgeClean.removeOutside(src, 40); const o = { ...flatOpts({ ...CUT, cutFrom: cut.ref }, 2), halftone: { dot: 6, angle: 22.5, shape: "round" } };
       return [{ cap: "Box off", sub: "the glow prints as a pale solid patch", img: EdgeClean.process(cut.image, { ...o, halftone: null }).image },
-        { cap: "Box ticked", sub: "the glow prints as red dots", img: EdgeClean.process(cut.image, o).image }]; } },
+        { cap: "Edges only", sub: "the glow outside prints as red dots", img: EdgeClean.process(cut.image, o).image },
+        { cap: "Whole picture", sub: "the pink inside the ring is dots too", img: EdgeClean.process(cut.image, { ...o, halftone: { ...o.halftone, whole: true } }).image }]; } },
   paint: { pat: "design", bg: "#1e2a4a", note: "A bright ring with a black middle and a dim orange glow, done as <i>On black: black shirts</i> on a navy shirt. The black middle has gone see-through, so navy shows there.",
     tiles: paintTiles([["No painting", "", null], ["Paint art back", "over the middle: it now prints solid black", (x, y) => (Math.hypot(x - 160, y - 75) < 41 ? 1 : 0)], ["Paint away", "over the right-hand side", (x, y) => (x > 196 ? 2 : 0)]]) },
   brush: { pat: "design", bg: "#1e2a4a", note: "The same test picture with one stroke of <i>Paint away</i> across it.",

@@ -451,3 +451,26 @@ console.log("ok: faint pixels take the colour of the art round them");
   assert.strictEqual(inside.cover, 1, "white enclosed by the ring must stay solid");
   console.log(`ok: flat halftone (fade ${inner.cover.toFixed(2)} -> ${outer.cover.toFixed(2)} coverage, ring and enclosed white solid)`);
 }
+
+// Whole picture: a pale pink patch inside the white of the ring becomes red dots on solid white (no holes
+// through to the shirt); with "edges only" it stays a solid pale patch.
+{
+  const { flatHalftone, DEFAULTS } = require("./edge-clean.js");
+  const N = 100, img = { width: N, height: N, data: new Uint8ClampedArray(N * N * 4) };
+  for (let i = 0; i < N * N; i++) {
+    const x = i % N, y = (i - x) / N, r = Math.hypot(x + 0.5 - 50, y + 0.5 - 50);
+    img.data.set(r >= 20 && r < 24 ? [0, 0, 0, 255] : r < 10 ? [255, 150, 150, 255] : [255, 255, 255, 255], i * 4);
+  }
+  const cut = removeOutside(img, 40), S = 2, ht = { dot: 6, angle: 45, shape: "round" };
+  const spot = (o) => { let red = 0, white = 0, pale = 0, holes = 0;
+    for (let y = 0; y < N * S; y++) for (let x = 0; x < N * S; x++) {
+      const r = Math.hypot((x + 0.5) / S - 50, (y + 0.5) / S - 50); if (r >= 7) continue;
+      const p = (y * N * S + x) * 4, d = o.data;
+      if (d[p + 3] !== 255) holes++; else if (d[p + 1] > 230) white++; else if (d[p + 1] < 60) red++; else pale++;
+    } return { red, white, pale, holes }; };
+  const edges = spot(flatHalftone(cut.image, { ...DEFAULTS, cutFrom: cut.ref, scale: S, halftone: ht }).image);
+  const whole = spot(flatHalftone(cut.image, { ...DEFAULTS, cutFrom: cut.ref, scale: S, halftone: { ...ht, whole: true } }).image);
+  assert(edges.pale > 0 && edges.red === 0 && edges.holes === 0, "edges only: the patch inside the ring stays solid pale pink " + JSON.stringify(edges));
+  assert(whole.red > 0 && whole.white > 0 && whole.holes === 0, "whole picture: red dots on solid white, no holes " + JSON.stringify(whole));
+  console.log("ok: whole-picture halftone (dots on solid white inside the ring, no holes)", JSON.stringify(whole));
+}

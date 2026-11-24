@@ -976,18 +976,25 @@
       if (x === 0 || y === 0 || x === w - 1 || y === h - 1 || !s[(i - 1) * 4 + 3] || !s[(i + 1) * 4 + 3] || !s[(i - w) * 4 + 3] || !s[(i + w) * 4 + 3]) seeds.push(i);
     }
     var fade = flood(w, n, seeds, fadeOk);
+    // whole: the soft tones away from the cut edge too (pink inside a white ring). Their dots sit on the old
+    // background colour printed solid (white ink between the dots), so the art stays one solid piece.
+    var inner = opts.halftone.whole && bg ? new Uint8Array(n) : null;
     var solid = { width: w, height: h, data: new Uint8ClampedArray(s) }, soft = { width: w, height: h, data: new Uint8ClampedArray(n * 4) }, f = soft.data;
     for (i = 0; i < n; i++) {
-      if (!fade[i]) continue;
+      if (!fade[i] && !(inner && fadeOk(i) && (inner[i] = 1))) continue;
       p = i * 4;
       for (c = 0; c < 3; c++) f[p + c] = bg ? bg[c] + (s[p + c] - bg[c]) / mix[i] : s[p + c];
       f[p + 3] = s[p + 3] * mix[i];
-      solid.data[p] = solid.data[p + 1] = solid.data[p + 2] = solid.data[p + 3] = 0;
+      if (fade[i]) solid.data[p] = solid.data[p + 1] = solid.data[p + 2] = solid.data[p + 3] = 0;
+      else { solid.data[p] = bg[0]; solid.data[p + 1] = bg[1]; solid.data[p + 2] = bg[2]; }
     }
-    var out = clean(solid, opts), img = out.image, d = img.data;
+    var out = clean(solid, opts), img = out.image, d = img.data, W = img.width, S = W / w;
     if (opts.minLinePx) out.thin = thinLines(img, opts.minLinePx); // the solid shapes only: dots are thin on purpose
     var t = dots(opts.scale > 1 ? upscale(soft, opts.scale) : soft, { dot: opts.halftone.dot, angle: opts.halftone.angle, shape: opts.halftone.shape, unmix: false }).image.data;
-    for (p = 0; p < d.length; p += 4) if (!d[p + 3] && t[p + 3]) { d[p] = t[p]; d[p + 1] = t[p + 1]; d[p + 2] = t[p + 2]; d[p + 3] = 255; }
+    for (p = 0; p < d.length; p += 4) {
+      if (!t[p + 3] || (d[p + 3] && !(inner && inner[Math.floor(p / 4 / W / S) * w + Math.floor(p / 4 % W / S)]))) continue;
+      d[p] = t[p]; d[p + 1] = t[p + 1]; d[p + 2] = t[p + 2]; d[p + 3] = 255;
+    }
     return out;
   }
 
