@@ -26,7 +26,7 @@ const CheckoutSummary = ({ cart }: { cart: any }) => {
         <p className="mt-1 text-sm text-ui-fg-subtle">
           Order summary — prices in {cart?.currency_code?.toUpperCase() ?? "AUD"}
           {cart?.currency_code?.toLowerCase() === "aud"
-            ? ", excluding GST (calculated below)"
+            ? ", GST included"
             : ""}
           .
         </p>

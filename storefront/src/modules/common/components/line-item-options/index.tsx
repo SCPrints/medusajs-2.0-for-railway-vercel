@@ -12,6 +12,8 @@ const LineItemOptions = ({
   "data-testid": dataTestid,
   "data-value": dataValue,
 }: LineItemOptionsProps) => {
+  // Service lines (names, postage) have no variant title: no empty "Variant:".
+  if (!variant?.title?.trim()) return null
   return (
     <Text
       data-testid={dataTestid}

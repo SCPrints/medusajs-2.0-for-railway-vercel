@@ -49,6 +49,10 @@ const groupKeyFor = (item: HttpTypes.StoreCartLineItem): string => {
   if (designId) {
     return `design:${designId}`
   }
+  // Names / numbers and home-delivery postage share one hidden service
+  // product: grouping them by product put both under one "Home delivery"
+  // heading. Each stands on its own.
+  if (metadata?.names_numbers || metadata?.home_delivery_postage) return `line:${item.id}`
   return `product:${item.product_id ?? item.variant?.product_id ?? "unknown"}`
 }
 

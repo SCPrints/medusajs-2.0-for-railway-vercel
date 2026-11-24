@@ -117,6 +117,7 @@ export default function AllowanceTab({ orgId, range, roster }: { orgId: string; 
         res.fees_for_staff.length ? `We'll confirm the price of: ${res.fees_for_staff.join(", ")}.` : "",
       ].filter(Boolean).join(" ")
     )
+    void reload() // the allowance is now closed / that person ordered: show it
     // Something to read first (people left out, a size gone, a price to confirm): stay, show a button.
     if (res.left_out.length || res.unmatched.length || res.fees_for_staff.length) setCartReady(true)
     else router.push(`/${cc}/cart`)
@@ -138,6 +139,16 @@ export default function AllowanceTab({ orgId, range, roster }: { orgId: string; 
     setNote(`Link for ${who} created and copied. Send it to them.`)
     setNewPerson("")
     void reload()
+  }
+
+  // Opening one can take a few seconds (it loads the garments' sizes): say so.
+  if (openId && !detail) {
+    return (
+      <div className="flex flex-col gap-4">
+        <button type="button" onClick={() => setOpenId(null)} className="min-h-11 self-start text-sm font-medium text-ui-fg-interactive hover:underline">← All allowances</button>
+        <p role="status" className="text-sm text-ui-fg-subtle">Loading…</p>
+      </div>
+    )
   }
 
   if (detail && openId) {

@@ -1,7 +1,7 @@
 import { cleanNamesNumbers, namesNumbersLabel, namesNumbersUnitMajor } from "../names-numbers"
 import { poDocumentFileName, poDocumentFromMetadata } from "../po-document"
 import { teamOrderFromMetadata } from "../roster"
-import { isSizingKitLine, sizingKitProblem, sizingKitReturnBy } from "../sizing-kit"
+import { colourFrontImage, isSizingKitLine, sizingKitProblem, sizingKitReturnBy } from "../sizing-kit"
 import { stripServerTrustMetadata } from "../client-line-metadata"
 
 describe("names and numbers", () => {
@@ -37,6 +37,23 @@ describe("sizing kit", () => {
     expect(sizingKitReturnBy("2026-11-24T00:00:00Z").toISOString().slice(0, 10)).toBe("2026-12-08")
     expect(isSizingKitLine({ sizing_kit: true })).toBe(true)
     expect(stripServerTrustMetadata({ sizing_kit: true, names_numbers: {}, product_handle: "x" })).toEqual({ product_handle: "x" })
+  })
+})
+
+describe("sizing kit thumbnail", () => {
+  const urls = [
+    "https://cdn/x/5001_STAPLE_TEE_MAIN__1.jpg?c=1",
+    "https://cdn/x/5001_STAPLE_TEE_BLACK_BACK__2.jpg?c=1",
+    "https://cdn/x/5001_STAPLE_TEE_BLACK__3.jpg?c=1",
+    "https://cdn/x/5001_STAPLE_TEE_DARK_GREY__4.jpg",
+    "https://r2/jbs-wear/1HT_NAVY_front.jpg",
+    "https://r2/jbs-wear/1HT_NAVY_back.jpg",
+  ]
+  it("picks the colour's front photo, never the back", () => {
+    expect(colourFrontImage(urls, "BLACK")).toBe("https://cdn/x/5001_STAPLE_TEE_BLACK__3.jpg?c=1")
+    expect(colourFrontImage(urls, "Dark Grey")).toBe("https://cdn/x/5001_STAPLE_TEE_DARK_GREY__4.jpg")
+    expect(colourFrontImage(urls, "Navy")).toBe("https://r2/jbs-wear/1HT_NAVY_front.jpg")
+    expect(colourFrontImage(urls, "Pink")).toBeNull()
   })
 })
 

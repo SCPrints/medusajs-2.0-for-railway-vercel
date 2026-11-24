@@ -114,7 +114,8 @@ const Item = ({ item, type = "full" }: ItemProps) => {
                 // the colour the customer actually picked — important when
                 // the design only landed on a sleeve/printed_tag (those
                 // mockups always render against a white placeholder).
-                resolveCartLineImageUrl(item)
+                // Sizing-kit lines carry their colour's front photo, set server-side.
+                (item.metadata?.sizing_kit === true && item.thumbnail) || resolveCartLineImageUrl(item)
               }
               productImages={item.variant?.product?.images}
               size="square"

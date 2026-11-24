@@ -34,9 +34,11 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   return (
     <div className="flex-1 small:py-12" data-testid="account-page">
       <div className="content-container mx-auto flex h-full max-w-5xl flex-1 flex-col bg-white">
-        <div className="grid grid-cols-1 py-12 small:grid-cols-[240px_1fr]">
+        {/* minmax(0,1fr) + min-w-0: wide content (the organisation tab bar, tables)
+            scrolls inside the column instead of stretching the page past the window. */}
+        <div className="grid grid-cols-1 py-12 small:grid-cols-[240px_minmax(0,1fr)]">
           <div>{customer && <AccountNav customer={customer} />}</div>
-          <div className="flex-1">{children}</div>
+          <div className="min-w-0 flex-1">{children}</div>
         </div>
         <div className="flex flex-col items-start justify-between gap-6 border-t border-ui-border-base py-12 small:flex-row small:items-end">
           <div>

@@ -26,3 +26,18 @@ export function sizingKitProblem(variants: Array<{ id: string; product_id: strin
   if (new Set(variants.map((v) => v.product_id)).size !== 1) return "A sizing kit is for one garment at a time."
   return null
 }
+
+/**
+ * The colour's front photo for a kit line's thumbnail (the cart shows the
+ * product's main photo otherwise — a blue tee for a Black kit). Supplier
+ * photos carry the colour in the file name: "5001_STAPLE_TEE_BLACK__…" (front),
+ * "…_BLACK_BACK__…", "jbs-wear/1HT_NAVY_front.jpg". null = no match.
+ */
+export function colourFrontImage(urls: string[], colour: string | null | undefined): string | null {
+  const token = String(colour ?? "").trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_")
+  if (!token) return null
+  const named = urls.map((url) => ({ url, name: (url.split("?")[0].split("/").pop() ?? "").toUpperCase() }))
+  const hit = (re: RegExp) => named.find((n) => re.test(n.name) && !/BACK/.test(n.name))?.url ?? null
+  const t = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return hit(new RegExp(`_${t}__`)) ?? hit(new RegExp(`_${t}_FRONT`)) ?? hit(new RegExp(`_${t}(_|\\.)`))
+}

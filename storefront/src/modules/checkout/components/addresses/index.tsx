@@ -26,7 +26,10 @@ const Addresses = ({
   const router = useRouter()
   const pathname = usePathname()
 
-  const isOpen = searchParams.get("step") === "address"
+  // A cart can carry an address with only a country (Medusa fills it in): that
+  // isn't an address yet, so keep the form open and don't tick the step.
+  const hasAddress = !!cart?.shipping_address?.address_1?.trim()
+  const isOpen = searchParams.get("step") === "address" || !hasAddress
 
   const { state: sameAsBilling, toggle: toggleSameAsBilling } = useToggleState(
     cart?.shipping_address && cart?.billing_address

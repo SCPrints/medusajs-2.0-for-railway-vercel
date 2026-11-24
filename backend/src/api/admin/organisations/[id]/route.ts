@@ -1,4 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { ORGANISATION_MODULE } from "../../../../modules/organisation"
@@ -38,10 +39,24 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   } catch {
     return res.status(404).json({ error: "not_found" })
   }
-  const members = await service.listOrganisationMembers(
-    { organisation_id: id },
-    { take: 500 }
-  )
+  const rows = (await service.listOrganisationMembers({ organisation_id: id }, { take: 500 })) as any[]
+  // Who each member is, so staff see names, not customer ids.
+  const customers = rows.length
+    ? ((await (req.scope.resolve(Modules.CUSTOMER) as any).listCustomers(
+        { id: rows.map((m) => m.customer_id) },
+        { take: rows.length, select: ["id", "email", "first_name", "last_name", "company_name"] }
+      )) as any[])
+    : []
+  const byId = new Map(customers.map((c) => [c.id, c]))
+  const members = rows.map((m) => {
+    const c = byId.get(m.customer_id)
+    return {
+      ...m,
+      email: c?.email ?? null,
+      name: [c?.first_name, c?.last_name].filter(Boolean).join(" ") || null,
+      company_name: c?.company_name ?? null,
+    }
+  })
   res.json({ organisation: org, members })
 }
 
@@ -73,9 +88,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   res.json({ organisation: updated, tier_members_added: tier?.added ?? 0 })
 }
 
+/**
+ * DELETE /admin/organisations/:id
+ * Takes back the organisation's pricing tier from its members, removes the
+ * members and cancels open invites, then deletes the organisation. Without
+ * this, ex-members kept its discount and could still open its pages.
+ */
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   const id = req.params.id
   const service = req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
+  await dropOrganisationTier(req.scope as any, id)
+  const members = (await service.listOrganisationMembers({ organisation_id: id } as any, { take: 1000 })) as any[]
+  if (members.length) await service.deleteOrganisationMembers(members.map((m) => m.id))
+  const invites = (await service.listOrganisationInvites({ organisation_id: id, accepted_at: null, revoked_at: null } as any, { take: 1000 })) as any[]
+  if (invites.length) await service.updateOrganisationInvites(invites.map((i) => ({ id: i.id, revoked_at: new Date() })))
   await service.deleteOrganisations([id])
-  res.json({ ok: true })
+  res.json({ ok: true, members_removed: members.length, invites_cancelled: invites.length })
 }

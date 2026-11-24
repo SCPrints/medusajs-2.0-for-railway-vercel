@@ -33,7 +33,9 @@ const TeamOrderSummary = ({ metadata }: { metadata: Record<string, unknown> | nu
         {names ? (
           <li>
             {metadata?.names_numbers
-              ? "Names and numbers are in your cart. We'll use the names on your list."
+              ? roster?.total
+                ? "Names and numbers are in your cart. We'll use the names on your list."
+                : "Names and numbers are in your cart. We'll email you for the names and numbers after you order."
               : "We'll confirm the price for names and numbers before we print."}
           </li>
         ) : null}

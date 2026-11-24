@@ -86,6 +86,9 @@ const SavedDesigns = ({
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  // The choice shows at once and stays while the list refreshes (it used to
+  // snap back to "Just me" until a reload, so sharing looked like it failed).
+  const [shareOverride, setShareOverride] = useState<Record<string, string | null>>({})
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameDraft, setRenameDraft] = useState("")
   const [, startTransition] = useTransition()
@@ -128,9 +131,17 @@ const SavedDesigns = ({
   const handleShare = async (id: string, orgId: string | null) => {
     setError(null)
     setBusyId(id)
+    setShareOverride((o) => ({ ...o, [id]: orgId }))
     const res = await shareMyDesign(id, orgId)
     setBusyId(null)
-    if (!res.ok) return setError(res.error)
+    if (!res.ok) {
+      setShareOverride((o) => {
+        const rest = { ...o }
+        delete rest[id]
+        return rest
+      })
+      return setError(res.error)
+    }
     phCapture("design_shared", { design_id: id, shared: Boolean(orgId) })
     refresh()
   }
@@ -209,7 +220,7 @@ const SavedDesigns = ({
                   <label className="flex items-center gap-2 text-xs text-ui-fg-subtle">
                     <span className="shrink-0">Share with</span>
                     <select
-                      value={design.organisation_id ?? ""}
+                      value={(design.id in shareOverride ? shareOverride[design.id] : design.organisation_id) ?? ""}
                       disabled={isBusy}
                       onChange={(e) => handleShare(design.id, e.target.value || null)}
                       className="min-h-11 flex-1 rounded-md border border-ui-border-base bg-white px-2 text-sm text-ui-fg-base"

@@ -4,7 +4,7 @@ import { addToCartWorkflow } from "@medusajs/medusa/core-flows"
 import { z } from "zod"
 
 import { recomputeScpCartPricing } from "../../../../../lib/recompute-scp-cart-pricing"
-import { SIZING_KIT_MAX_SIZES, sizingKitProblem } from "../../../../../lib/sizing-kit"
+import { SIZING_KIT_MAX_SIZES, colourFrontImage, sizingKitProblem } from "../../../../../lib/sizing-kit"
 
 const bodySchema = z.object({
   variant_ids: z.array(z.string().min(1).max(100)).min(1).max(SIZING_KIT_MAX_SIZES * 2),
@@ -34,7 +34,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { data: variants } = await query.graph({
     entity: "variant",
     filters: { id: wanted },
-    fields: ["id", "product_id", "product.status", "product.handle"],
+    fields: ["id", "title", "product_id", "product.status", "product.handle", "product.images.url", "options.value", "options.option.title"],
   })
   const live = ((variants ?? []) as any[]).filter((v) => v.product?.status === "published")
   const problem = sizingKitProblem(live.map((v) => ({ id: v.id, product_id: v.product_id ?? null })), wanted)
@@ -43,11 +43,18 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   await addToCartWorkflow(req.scope as never).run({
     input: {
       cart_id: cartId,
-      items: live.map((v) => ({
-        variant_id: v.id,
-        quantity: 1,
-        metadata: { sizing_kit: true, product_handle: v.product?.handle ?? null },
-      })),
+      items: live.map((v) => {
+        const colour =
+          (v.options ?? []).find((o: any) => /colou?r/i.test(o?.option?.title ?? ""))?.value ??
+          String(v.title ?? "").split(" / ")[0]
+        const thumbnail = colourFrontImage(((v.product?.images ?? []) as any[]).map((i) => i?.url).filter(Boolean), colour)
+        return {
+          variant_id: v.id,
+          quantity: 1,
+          ...(thumbnail ? { thumbnail } : {}),
+          metadata: { sizing_kit: true, product_handle: v.product?.handle ?? null },
+        }
+      }),
     },
   })
   // Normal garment price for the cart (same as any blank line).

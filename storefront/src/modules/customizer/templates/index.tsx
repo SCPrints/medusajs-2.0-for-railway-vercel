@@ -4546,9 +4546,11 @@ export default function CustomizerTemplate({
     // "Save" should update the existing Design row (with a version
     // snapshot — handled by the backend POST endpoint) rather than
     // create a duplicate "Logo v1 · 5/23/2026" alongside the original.
-    // Create path: ask for a name and call createMyDesign. A design moved
-    // onto another garment, or shared by an organisation, saves as a new one
-    // (and later saves this session update that new one).
+    // Create path: save under a default name and call createMyDesign (it can
+    // be renamed on My designs). No window.prompt: in-app browsers (Instagram,
+    // Facebook) and embedded viewers block it, and the save silently failed.
+    // A design moved onto another garment, or shared by an organisation,
+    // saves as a new one (and later saves this session update that new one).
     const existingDesignId =
       savedDesignIdThisSession ??
       (designIdFromUrl &&
@@ -4559,14 +4561,11 @@ export default function CustomizerTemplate({
     const isUpdatingExisting = !!existingDesignId
     let resolvedName: string | null = null
     if (!isUpdatingExisting) {
-      const defaultName = `${
-        selectedProduct.title ?? "Design"
-      } · ${new Date().toLocaleDateString()}`
-      const proposedName = window.prompt("Name this design", defaultName)
-      if (proposedName === null) {
-        return
-      }
-      resolvedName = proposedName.trim() || defaultName
+      resolvedName = `${selectedProduct.title ?? "Design"} · ${new Date().toLocaleDateString("en-AU", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })}`
     }
 
     setIsSavingDesign(true)
@@ -4626,7 +4625,7 @@ export default function CustomizerTemplate({
       setStatusMessage(
         isUpdatingExisting
           ? `Updated "${result.design.name}" in your designs.`
-          : `Saved "${result.design.name}" to your designs.`
+          : `Saved "${result.design.name}" to your designs. You can rename it there.`
       )
       const savedPayload = {
         product_id: selectedProduct.id,

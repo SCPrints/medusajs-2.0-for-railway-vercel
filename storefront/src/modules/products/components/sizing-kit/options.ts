@@ -1,5 +1,6 @@
 import { HttpTypes } from "@medusajs/types"
 
+import { sizeRank } from "@lib/util/size-list"
 import { isColorOptionTitle } from "@modules/products/lib/variant-options"
 
 export type SizingKitOptions = Array<{ colour: string; sizes: Array<{ size: string; variant_id: string }> }>
@@ -26,6 +27,10 @@ export function sizingKitOptions(product: HttpTypes.StoreProduct): SizingKitOpti
     list.push({ size, variant_id: v.id })
     byColour.set(colour, list)
   }
-  const out = [...byColour.entries()].map(([colour, sizes]) => ({ colour, sizes }))
+  // Sizes smallest to largest (XS, S, M … 3XL), whatever order the variants came in.
+  const out = [...byColour.entries()].map(([colour, sizes]) => ({
+    colour,
+    sizes: [...sizes].sort((a, b) => sizeRank(a.size) - sizeRank(b.size)),
+  }))
   return out.some((c) => c.sizes.length >= 2) ? out.filter((c) => c.sizes.length >= 2) : []
 }

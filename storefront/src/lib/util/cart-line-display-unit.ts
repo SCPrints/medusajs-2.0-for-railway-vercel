@@ -58,8 +58,13 @@ export function cartLineUsesExplicitUnitPrice(
   if (customizerDesign && typeof customizerDesign === "object") {
     const pricing = customizerDesign.pricing as Record<string, unknown> | undefined
     if (pricing?.server && typeof pricing.server === "object") return true
+    return false
   }
-  return false
+  // Path C: a plain line (no design: sizing kit, blanks, service lines). The
+  // server reprices these (organisation tier, bulk aggregation) and the cart
+  // total is built from `unit_price`, so show that — the variant's catalogue
+  // price would show $32.49 on a line actually charged $11.93.
+  return true
 }
 
 export function resolveCartLineDisplayUnitMinor(

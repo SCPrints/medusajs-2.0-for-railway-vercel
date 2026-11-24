@@ -63,7 +63,14 @@ type Member = {
   customer_id: string
   role: "owner" | "purchaser" | "viewer"
   accepted_at: string | null
+  email?: string | null
+  name?: string | null
+  company_name?: string | null
 }
+
+type CustomerHit = { id: string; email: string | null; first_name: string | null; last_name: string | null; company_name: string | null }
+const customerLabel = (c: CustomerHit) =>
+  [[c.first_name, c.last_name].filter(Boolean).join(" "), c.email, c.company_name].filter(Boolean).join(" · ") || c.id
 
 type DetailTab =
   | "overview"
@@ -101,6 +108,26 @@ const OrganisationsPage = () => {
   const [selected, setSelected] = useState<Organisation | null>(null)
   const [members, setMembers] = useState<Member[]>([])
   const [memberDraft, setMemberDraft] = useState("")
+  const [memberHits, setMemberHits] = useState<CustomerHit[]>([])
+  const [memberPick, setMemberPick] = useState<CustomerHit | null>(null)
+  // Find customers by name or email as staff type (customer ids still work).
+  useEffect(() => {
+    const q = memberDraft.trim()
+    if (memberPick || q.length < 2 || q.startsWith("cus_")) return setMemberHits([])
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(
+          `/admin/customers?q=${encodeURIComponent(q)}&limit=8&fields=id,email,first_name,last_name,company_name`,
+          { credentials: "include" }
+        )
+        const j = await r.json()
+        setMemberHits(j.customers ?? [])
+      } catch {
+        setMemberHits([])
+      }
+    }, 250)
+    return () => clearTimeout(t)
+  }, [memberDraft, memberPick])
   const [memberRole, setMemberRole] = useState<"owner" | "purchaser" | "viewer">(
     "purchaser"
   )
@@ -222,7 +249,11 @@ const OrganisationsPage = () => {
   }
 
   const addMember = async () => {
-    if (!selected || !memberDraft.trim()) return
+    const customerId = memberPick?.id ?? (memberDraft.trim().startsWith("cus_") ? memberDraft.trim() : "")
+    if (!selected || !customerId) {
+      toast.error("Pick the customer from the list.")
+      return
+    }
     try {
       const res = await fetch(
         `/admin/organisations/${selected.id}/members`,
@@ -231,13 +262,14 @@ const OrganisationsPage = () => {
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            customer_id: memberDraft.trim(),
+            customer_id: customerId,
             role: memberRole,
           }),
         }
       )
       if (!res.ok) throw new Error(await res.text())
       setMemberDraft("")
+      setMemberPick(null)
       await loadDetail(selected.id)
     } catch (err: any) {
       toast.error(err?.message ?? "Add failed")
@@ -359,15 +391,38 @@ const OrganisationsPage = () => {
   const renderMembers = () => (
     <div>
       <div className="flex items-center gap-x-2">
-        <Input
-          placeholder="customer_id (cus_...)"
-          value={memberDraft}
-          onChange={(e) => setMemberDraft(e.target.value)}
-        />
+        <div className="relative flex-1">
+          <Input
+            placeholder="Customer name or email"
+            value={memberPick ? customerLabel(memberPick) : memberDraft}
+            onChange={(e) => {
+              setMemberPick(null)
+              setMemberDraft(e.target.value)
+            }}
+          />
+          {memberHits.length > 0 && !memberPick ? (
+            <ul className="absolute z-10 mt-1 w-full rounded-md border border-ui-border-base bg-ui-bg-base shadow-elevation-flyout">
+              {memberHits.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMemberPick(c)
+                      setMemberHits([])
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-ui-fg-base hover:bg-ui-bg-base-hover"
+                  >
+                    {customerLabel(c)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
         <select
           value={memberRole}
           onChange={(e) => setMemberRole(e.target.value as any)}
-          className="rounded-md border border-ui-border-base bg-white px-2 py-1.5 text-sm"
+          className="rounded-md border border-ui-border-base bg-ui-bg-field px-2 py-1.5 text-sm text-ui-fg-base"
         >
           <option value="owner">Owner</option>
           <option value="purchaser">Purchaser</option>
@@ -393,10 +448,10 @@ const OrganisationsPage = () => {
                   href={`/app/customers/${m.customer_id}`}
                   className="text-sm font-semibold hover:underline"
                 >
-                  {m.customer_id}
+                  {m.name || m.email || m.customer_id}
                 </AppLink>
                 <Text size="xsmall" className="text-ui-fg-muted">
-                  {m.role}
+                  {[m.email && m.name ? m.email : null, m.company_name, m.role].filter(Boolean).join(" · ")}
                 </Text>
               </div>
               <button
