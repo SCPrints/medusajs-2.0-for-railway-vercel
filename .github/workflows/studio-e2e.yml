@@ -28,7 +28,10 @@ jobs:
       run:
         working-directory: storefront
     env:
-      STUDIO_BASE_URL: ${{ github.event.deployment_status.target_url || github.event.inputs.base_url || 'https://www.scprints.com.au' }}
+      # Production deploys are tested on the real domain: STORE_CORS only allows
+      # scprints.com.au + this team's long-form preview URLs (0d56de2e), so the
+      # short <project>-<hash>.vercel.app deploy URL can't upload big files direct.
+      STUDIO_BASE_URL: ${{ github.event.deployment.environment == 'Production' && 'https://www.scprints.com.au' || github.event.deployment_status.target_url || github.event.inputs.base_url || 'https://www.scprints.com.au' }}
       # Public storefront key (it ships in the site's JS); used to read test carts back.
       STUDIO_PUBLISHABLE_KEY: ${{ vars.STUDIO_PUBLISHABLE_KEY }}
       # Admin secret key for quote / POS / proof journeys (never printed).
