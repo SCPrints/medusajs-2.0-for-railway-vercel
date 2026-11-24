@@ -9,8 +9,8 @@ import { parseDateRange } from "../../../../lib/reports/orders"
 /**
  * GET /admin/reports/email-channel-roi
  *
- * Aggregates GA4 sessions + ecommerce metrics filtered to traffic with
- * `sessionMedium = "email"`, broken down by `sessionCampaignName`. Tells
+ * Aggregates GA4 sessions + ecommerce metrics filtered to email traffic
+ * (`sessionSource` or `sessionMedium` = "email"), broken down by `sessionCampaignName`. Tells
  * you which outbound emails (transactional vs marketing, reorder vs
  * winback, etc.) actually drive revenue back to the store.
  *
@@ -18,6 +18,13 @@ import { parseDateRange } from "../../../../lib/reports/orders"
  * `tagUrl` helper in backend/src/lib/email-utm.ts handles this for
  * reorder reminders, winbacks, and production-stage notifications.
  */
+// Our links say source=email with medium transactional/marketing/ops
+// (lib/email-utm.ts); other tools say medium=email. Count either (review 5-36).
+const exact = (fieldName: string) => ({
+  filter: { fieldName, stringFilter: { matchType: "EXACT", value: "email" } },
+})
+const EMAIL_TRAFFIC = { orGroup: { expressions: [exact("sessionSource"), exact("sessionMedium")] } }
+
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const logger = (req.scope as any).resolve?.("logger") ?? console
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
@@ -62,15 +69,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
           { name: "ecommercePurchases" },
           { name: "purchaseRevenue" },
         ],
-        dimensionFilter: {
-          filter: {
-            fieldName: "sessionMedium",
-            stringFilter: {
-              matchType: "EXACT",
-              value: "email",
-            },
-          },
-        },
+        dimensionFilter: EMAIL_TRAFFIC,
         orderBys: [
           { metric: { metricName: "purchaseRevenue" }, desc: true },
         ],
@@ -84,15 +83,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
           { name: "ecommercePurchases" },
           { name: "purchaseRevenue" },
         ],
-        dimensionFilter: {
-          filter: {
-            fieldName: "sessionMedium",
-            stringFilter: {
-              matchType: "EXACT",
-              value: "email",
-            },
-          },
-        },
+        dimensionFilter: EMAIL_TRAFFIC,
       }),
     ])
 
