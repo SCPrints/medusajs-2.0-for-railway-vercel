@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto"
 import type { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/framework/utils"
 import { addToCartWorkflow } from "@medusajs/medusa/core-flows"
 import { z } from "zod"
 
@@ -17,7 +17,7 @@ import {
 import { requireCustomer } from "../../../../../../../lib/require-customer"
 import { addScpLinesToCart, type ScpAddLineInput } from "../../../../../../../lib/scp-add-lines"
 import { resolveTierForCartCustomer } from "../../../../../../../lib/scp-resolve-garment-unit-price"
-import { approvedDesignFor, loadOwnOrder } from "../../../../../../../services/reorder/load"
+import { approvedDesignFor, loadReorderableOrder } from "../../../../../../../services/reorder/load"
 
 // The hidden setup-fee service products (scripts/seed-*-setup-product.ts);
 // the Studio adds the same variants via NEXT_PUBLIC_*_SETUP_VARIANT_ID.
@@ -51,16 +51,18 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   }
   const { cart_id, line_ids } = parsed.data
 
-  const order = await loadOwnOrder(req.scope, req.params.id, customerId)
+  const order = await loadReorderableOrder(req.scope, req.params.id, customerId)
   if (!order) throw new MedusaError(MedusaError.Types.NOT_FOUND, "Order not found.")
 
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   const { data: carts } = await query.graph({
     entity: "cart",
     filters: { id: cart_id },
-    fields: ["id", "customer_id", "completed_at"],
+    fields: ["id", "customer_id", "completed_at", "metadata"],
   })
-  const cart = carts?.[0] as { id: string; customer_id?: string | null; completed_at?: unknown } | undefined
+  const cart = carts?.[0] as
+    | { id: string; customer_id?: string | null; completed_at?: unknown; metadata?: Record<string, unknown> | null }
+    | undefined
   if (!cart || cart.customer_id !== customerId) {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, "Cart not found.")
   }
@@ -212,6 +214,18 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
       // eslint-disable-next-line no-console
       console.error(`order-again: setup-fee add failed for order ${order.id}`, error)
       for (const f of addable) needs_staff.push(feeNeedsStaff(f))
+    }
+  }
+
+  // An organisation's order stays the organisation's: checkout preselects it
+  // ("Who is this order for?"). The order-placed subscriber re-checks membership.
+  const orgId = order.metadata?.organisation_id
+  if (typeof orgId === "string" && orgId && !cart.metadata?.organisation_id) {
+    try {
+      const cartModule = req.scope.resolve(Modules.CART) as any
+      await cartModule.updateCarts(cart.id, { metadata: { ...(cart.metadata ?? {}), organisation_id: orgId } })
+    } catch {
+      /* the customer can still pick it at checkout */
     }
   }
 

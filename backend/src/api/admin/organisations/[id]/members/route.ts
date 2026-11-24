@@ -5,6 +5,7 @@ import { ORGANISATION_MODULE } from "../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../modules/organisation/service"
 import { writeAudit } from "../../../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../lib/audit-entities"
+import { applyOrganisationTier } from "../../../../../services/organisation-tier"
 
 const addSchema = z.object({
   customer_id: z.string().min(1),
@@ -57,6 +58,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     actor_id: actor,
     details: { organisation_id: orgId, role: body.role },
   })
+  await applyOrganisationTier(req.scope as any, orgId, [body.customer_id])
   res.status(201).json({ member: created })
 }
 

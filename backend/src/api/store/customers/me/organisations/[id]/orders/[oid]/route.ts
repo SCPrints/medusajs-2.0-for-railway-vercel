@@ -46,6 +46,7 @@ export async function GET(
         "created_at",
         "updated_at",
         "metadata",
+        "customer_id",
         "shipping_address.*",
         "billing_address.*",
         // Explicit line fields — never `items.metadata`: the org-orders
@@ -94,7 +95,8 @@ export async function GET(
 
   // Hydrate the "placed by" customer (best effort, name + email only)
   let placedBy: { id: string; email: string | null; first_name: string | null; last_name: string | null } | null = null
-  const placedById = order.metadata?.placed_by_customer_id
+  // Held-stock pulls record who placed them; a member's own order is theirs.
+  const placedById = order.metadata?.placed_by_customer_id ?? order.customer_id
   if (placedById) {
     try {
       const { data } = await query.graph({
@@ -116,5 +118,7 @@ export async function GET(
     }
   }
 
-  res.json({ order, destination, placed_by: placedBy, role: membership.role })
+  const kind = order.metadata?.fulfillment_order === true ? "stock" : "order"
+  delete order.customer_id
+  res.json({ order, destination, placed_by: placedBy, role: membership.role, kind })
 }

@@ -90,6 +90,9 @@ export type InventoryRow = {
 }
 
 export type OrgOrderSummary = {
+  /** "stock" = a held-stock pull; "order" = a member's own order (can be ordered again). */
+  kind?: "stock" | "order"
+  placed_by_name?: string | null
   id: string
   display_id: string | number
   total: number
@@ -115,6 +118,7 @@ export type OrgOrderDetail = {
     last_name: string | null
   } | null
   role: OrgRole
+  kind?: "stock" | "order"
 }
 
 /* ------------------------------------------------------------------ *

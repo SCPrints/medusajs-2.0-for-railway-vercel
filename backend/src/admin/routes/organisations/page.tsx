@@ -23,6 +23,26 @@ import DesignsTab from "./components/designs-tab"
 import DestinationsTab from "./components/destinations-tab"
 import InventoryTab from "./components/inventory-tab"
 import { AppLink } from "../../lib/nav"
+import { TIERS, TIER_GROUP_NAME_PREFIX } from "../../../lib/customer-tiers"
+import { orgTier } from "../../../lib/org-range-from-order"
+
+/** Members are put in this tier's customer group when they join (and when it's set). */
+function TierSelect({ value, onChange }: { value: string | null; onChange: (slug: string | null) => void }) {
+  return (
+    <select
+      className="h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+      value={orgTier(value)?.slug ?? ""}
+      onChange={(e) => onChange(e.target.value || null)}
+    >
+      <option value="">None</option>
+      {TIERS.map((t) => (
+        <option key={t.slug} value={t.slug}>
+          {t.name.replace(TIER_GROUP_NAME_PREFIX, "")}
+        </option>
+      ))}
+    </select>
+  )
+}
 
 type Organisation = {
   id: string
@@ -272,13 +292,9 @@ const OrganisationsPage = () => {
         </div>
         <div>
           <Label size="xsmall">Default pricing tier</Label>
-          <Input
-            defaultValue={selected.default_pricing_tier ?? ""}
-            onBlur={(e) =>
-              patchSelected({
-                default_pricing_tier: e.target.value || null,
-              })
-            }
+          <TierSelect
+            value={selected.default_pricing_tier}
+            onChange={(slug) => patchSelected({ default_pricing_tier: slug })}
           />
         </div>
         <div className="small:col-span-2">
@@ -456,7 +472,7 @@ const OrganisationsPage = () => {
               body: "Top-level accounts for schools, sports clubs, businesses — anything that groups multiple customers under one shared purchasing identity.",
               bullets: [
                 "Each member is linked to a customer record. Members have a role (owner / purchaser / viewer).",
-                "Set a default_pricing_tier to drive future price-list overrides.",
+                "Default pricing tier: every member is put in that tier's customer group (when they join, and when the tier is set).",
                 "tax_exempt on the org snapshots to orders placed by members.",
                 "Designs / Inventory / Destinations tabs are part of the customer fulfillment service build — see Docs/FULFILLMENT_PHASE_1_SPEC.md.",
               ],
@@ -495,11 +511,7 @@ const OrganisationsPage = () => {
           </div>
           <div>
             <Label size="xsmall">Default pricing tier</Label>
-            <Input
-              value={nTier}
-              onChange={(e) => setNTier(e.target.value)}
-              placeholder="e.g. wholesale, vip"
-            />
+            <TierSelect value={nTier} onChange={(slug) => setNTier(slug ?? "")} />
           </div>
           <div className="flex items-end gap-x-2">
             <Switch

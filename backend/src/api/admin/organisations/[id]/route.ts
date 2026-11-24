@@ -3,6 +3,8 @@ import { z } from "zod"
 
 import { ORGANISATION_MODULE } from "../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../modules/organisation/service"
+import { orgTier } from "../../../../lib/org-range-from-order"
+import { applyOrganisationTier } from "../../../../services/organisation-tier"
 
 const updateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -51,14 +53,19 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   } catch (err: any) {
     return res.status(400).json({ error: err?.message ?? "invalid" })
   }
+  if (body.default_pricing_tier && !orgTier(body.default_pricing_tier)) {
+    return res.status(400).json({ error: `Unknown pricing tier "${body.default_pricing_tier}".` })
+  }
   const update: Record<string, unknown> = { id }
   for (const k of Object.keys(body) as Array<keyof typeof body>) {
     if (body[k] !== undefined) (update as any)[k] = body[k]
   }
   const service = req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
   await service.updateOrganisations([update])
+  // A new tier applies to everyone already in the organisation.
+  const tier = body.default_pricing_tier ? await applyOrganisationTier(req.scope as any, id) : null
   const updated = await service.retrieveOrganisation(id)
-  res.json({ organisation: updated })
+  res.json({ organisation: updated, tier_members_added: tier?.added ?? 0 })
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {

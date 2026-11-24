@@ -2,6 +2,7 @@ import { Modules } from "@medusajs/framework/utils"
 import type { IOrderModuleService } from "@medusajs/framework/types"
 
 import { mergeApprovedProofs, type MergeApprovedProofsResult } from "../../lib/approved-proof-design"
+import { listCustomerOrgs, SHARE_ROLES } from "../../lib/customer-org-sharing"
 import type { OrderLineLike } from "../../lib/reorder-lines"
 import { restoreSideLayouts } from "../../lib/side-layouts-archive"
 
@@ -30,6 +31,35 @@ export async function loadOwnOrder(
   orderId: string,
   customerId: string
 ): Promise<ReorderSourceOrder | null> {
+  const order = await loadOrderLines(scope, orderId)
+  return order && order.customer_id === customerId ? order : null
+}
+
+/**
+ * An order the customer may re-order: their own, or one placed for an
+ * organisation where they're an owner or purchaser (a colleague's order).
+ * Viewers and outsiders get null → 404.
+ */
+export async function loadReorderableOrder(
+  scope: { resolve: (key: string) => unknown },
+  orderId: string,
+  customerId: string
+): Promise<ReorderSourceOrder | null> {
+  const order = await loadOrderLines(scope, orderId)
+  if (!order) return null
+  if (order.customer_id === customerId) return order
+  const orgId = order.metadata?.organisation_id
+  if (typeof orgId !== "string" || !orgId) return null
+  const orgs = await listCustomerOrgs(scope as any, customerId)
+  const membership = orgs.find((o) => o.organisation_id === orgId)
+  return membership && SHARE_ROLES.includes(membership.role) ? order : null
+}
+
+/** Any order with its current lines; null when missing. No ownership check. */
+export async function loadOrderLines(
+  scope: { resolve: (key: string) => unknown },
+  orderId: string
+): Promise<ReorderSourceOrder | null> {
   const orders = scope.resolve(Modules.ORDER) as IOrderModuleService
   let raw: any
   try {
@@ -37,7 +67,7 @@ export async function loadOwnOrder(
   } catch {
     return null
   }
-  if (!raw || raw.customer_id !== customerId) return null
+  if (!raw) return null
   return {
     id: raw.id,
     display_id: raw.display_id ?? null,

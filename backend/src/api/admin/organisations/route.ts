@@ -3,6 +3,7 @@ import { z } from "zod"
 
 import { ORGANISATION_MODULE } from "../../../modules/organisation"
 import type OrganisationModuleService from "../../../modules/organisation/service"
+import { orgTier } from "../../../lib/org-range-from-order"
 
 const createSchema = z.object({
   handle: z.string().min(1).max(80),
@@ -36,6 +37,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     body = createSchema.parse(req.body ?? {})
   } catch (err: any) {
     return res.status(400).json({ error: err?.message ?? "invalid" })
+  }
+  if (body.default_pricing_tier && !orgTier(body.default_pricing_tier)) {
+    return res.status(400).json({ error: `Unknown pricing tier "${body.default_pricing_tier}".` })
   }
   const service = req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
   const base =

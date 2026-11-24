@@ -10,6 +10,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import ProductionStageTracker from "@modules/order/components/production-stage-tracker"
 
 import CancelOrderButton from "@modules/account/components/organisations/cancel-order-button"
+import OrderAgainButton from "@modules/order/components/order-again-button"
 
 export const metadata: Metadata = {
   title: "Order",
@@ -56,6 +57,8 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
 
   const { organisation, role } = detail
   const { order, destination, placed_by: placedBy } = orderDetail
+  // A member's own order (not a held-stock pull): owners / purchasers can order it again.
+  const isMemberOrder = orderDetail.kind === "order"
 
   const items = (order.items ?? []) as any[]
   const stage = (order.metadata?.production_stage ?? "received") as string
@@ -265,7 +268,21 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
         ) : null}
       </section>
 
-      {/* Cancel */}
+      {isMemberOrder && role !== "viewer" ? (
+        <section className="mb-6 rounded-2xl border border-ui-border-base bg-white p-5">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
+            Need more?
+          </h2>
+          <p className="mt-2 text-sm text-ui-fg-subtle">
+            Same garments and the artwork we approved, at today&apos;s prices. You can change sizes and
+            quantities in your cart.
+          </p>
+          <OrderAgainButton orderId={order.id} className="mt-3" />
+        </section>
+      ) : null}
+
+      {/* Cancel: held-stock pulls only (a print job goes through us) */}
+      {isMemberOrder ? null : (
       <section className="rounded-2xl border border-ui-border-base bg-white p-5">
         <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
           Need to change this order?
@@ -280,6 +297,7 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
           />
         </div>
       </section>
+      )}
     </div>
   )
 }

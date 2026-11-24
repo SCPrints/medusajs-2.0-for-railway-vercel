@@ -15,6 +15,7 @@ import {
   listCustomerOrgs,
 } from "../../../../../../lib/customer-org-sharing"
 import { requireCustomer } from "../../../../../../lib/require-customer"
+import { restoreSideLayouts } from "../../../../../../lib/side-layouts-archive"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
 
@@ -44,6 +45,10 @@ export async function GET(
   // Readable when own or shared to one of my organisations.
   const { design, orgs } = await loadVisibleDesign(req.scope, params.id, customerId)
   const [decorated] = await decorateDesigns(req.scope, [design], customerId, orgs)
+  // Range designs made from an order can carry archived layouts: re-inline for the Studio.
+  if (decorated?.customizer_metadata?.sideLayouts_archived_url) {
+    decorated.customizer_metadata = await restoreSideLayouts(decorated.customizer_metadata)
+  }
   res.json({ design: decorated })
 }
 

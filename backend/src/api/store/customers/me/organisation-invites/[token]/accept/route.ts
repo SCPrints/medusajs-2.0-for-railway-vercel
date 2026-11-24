@@ -8,6 +8,7 @@ import { acceptCheck } from "../../../../../../../lib/org-invites"
 import { ORGANISATION_MODULE } from "../../../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../../../modules/organisation/service"
 import { findPendingByToken } from "../../../../../../../services/org-invites"
+import { applyOrganisationTier } from "../../../../../../../services/organisation-tier"
 
 /**
  * POST /store/customers/me/organisation-invites/:token/accept
@@ -37,6 +38,7 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     memberId = created.id
   }
   await service.updateOrganisationInvites([{ id: invite.id, accepted_at: new Date() }])
+  await applyOrganisationTier(req.scope as any, invite.organisation_id, [customerId])
   await writeAudit({
     container: req.scope as any,
     entity: AUDIT_ENTITY.ORGANISATION,

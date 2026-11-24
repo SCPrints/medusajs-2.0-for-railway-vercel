@@ -13,6 +13,7 @@ import { DspPackPanel } from "./dsp-pack"
 import { ProofPins } from "./proof-pins"
 import { EnterSizes } from "./enter-sizes"
 import { TeamOrder } from "./team-order"
+import { OrgRangePanel } from "./org-range"
 import { BrandKitLine, SplitDeliveryNote } from "./org-order-notes"
 import { QuoteTools } from "../quote/quote-detail"
 import * as W from "./widgets"
@@ -568,6 +569,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
               ) : null}
             </Container>
           ) : null}
+          {order ? <OrgRangePanel key={order.id} orderId={order.id} /> : null}
         </div>
 
         <Diary job={job} onChanged={onChanged} draft={draft} />

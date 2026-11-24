@@ -55,6 +55,10 @@ export async function POST(
   if (!order || order.metadata?.organisation_id !== membership.organisation_id) {
     return res.status(404).json({ error: "not_found" })
   }
+  // Only held-stock pulls cancel here. A member's paid print job goes through us.
+  if (order.metadata?.fulfillment_order !== true) {
+    return res.status(403).json({ error: "This order can't be cancelled online. Contact SC Prints." })
+  }
 
   if (order.canceled_at) {
     return res.status(400).json({ error: "Order already cancelled." })

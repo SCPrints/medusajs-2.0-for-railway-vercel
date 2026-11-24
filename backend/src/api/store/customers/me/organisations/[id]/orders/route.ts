@@ -29,7 +29,8 @@ const DEFAULT_TAKE = 20
  *
  * Order history filtered to this org via metadata.organisation_id.
  * Supports basic pagination (limit + offset). Members of any role can
- * read.
+ * read. `kind`: "stock" = a held-stock pull, "order" = a member's order
+ * (owners / purchasers may order it again).
  */
 export async function GET(
   req: AuthenticatedMedusaRequest,
@@ -44,9 +45,10 @@ export async function GET(
 
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as any
 
+  // Every order placed for the organisation: held-stock pulls AND members'
+  // own orders (checkout "Who is this order for?", range, staff-tagged jobs).
   const filters: Record<string, unknown> = {
     metadata: {
-      fulfillment_order: true,
       organisation_id: membership.organisation_id,
     },
   }
@@ -73,6 +75,7 @@ export async function GET(
         "status",
         "created_at",
         "metadata",
+        "customer_id",
         "items.id",
         "items.title",
         "items.quantity",
@@ -90,9 +93,37 @@ export async function GET(
     return res.status(500).json({ error: err?.message ?? "list failed" })
   }
 
+  // Who placed each member order (name only — members see each other's orders).
+  const nameById = new Map<string, string>()
+  const placerIds = [
+    ...new Set(
+      orders
+        .map((o) => (o.metadata?.fulfillment_order ? o.metadata?.placed_by_customer_id : o.customer_id))
+        .filter((v): v is string => typeof v === "string" && !!v)
+    ),
+  ]
+  if (placerIds.length) {
+    try {
+      const { data } = await query.graph({
+        entity: "customer",
+        filters: { id: placerIds },
+        fields: ["id", "first_name", "last_name", "email"],
+      })
+      for (const c of (data ?? []) as any[]) {
+        nameById.set(c.id, [c.first_name, c.last_name].filter(Boolean).join(" ").trim() || c.email || "")
+      }
+    } catch {
+      /* names are a nicety */
+    }
+  }
+
   const slim = orders.map((o) => {
     const items = (o.items ?? []) as any[]
+    const stock = o.metadata?.fulfillment_order === true
+    const placer = stock ? o.metadata?.placed_by_customer_id : o.customer_id
     return {
+      kind: stock ? ("stock" as const) : ("order" as const),
+      placed_by_name: (placer && nameById.get(placer)) || null,
       id: o.id,
       display_id: o.display_id,
       total: o.total,

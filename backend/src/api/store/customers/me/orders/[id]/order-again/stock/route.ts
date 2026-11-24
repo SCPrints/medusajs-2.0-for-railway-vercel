@@ -5,7 +5,7 @@ import { variantAvailable } from "../../../../../../../../lib/search-product-doc
 import { classifyReorderLines, lineTitle } from "../../../../../../../../lib/reorder-lines"
 import { checkReorderStock, type StockLineInput, type StockVariant } from "../../../../../../../../lib/reorder-stock"
 import { requireCustomer } from "../../../../../../../../lib/require-customer"
-import { loadOwnOrder } from "../../../../../../../../services/reorder/load"
+import { loadReorderableOrder } from "../../../../../../../../services/reorder/load"
 
 /**
  * GET /store/customers/me/orders/:id/order-again/stock
@@ -15,7 +15,7 @@ import { loadOwnOrder } from "../../../../../../../../services/reorder/load"
  */
 export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) {
   const customerId = requireCustomer(req)
-  const order = await loadOwnOrder(req.scope, req.params.id, customerId)
+  const order = await loadReorderableOrder(req.scope, req.params.id, customerId)
   if (!order) throw new MedusaError(MedusaError.Types.NOT_FOUND, "Order not found.")
 
   const { design } = classifyReorderLines(order.items)

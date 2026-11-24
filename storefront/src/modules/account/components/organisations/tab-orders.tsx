@@ -109,6 +109,8 @@ export default function OrdersTab({ orgId, orders, destinations }: Props) {
                       {destById[o.destination_id].name}
                     </>
                   ) : null}
+                  {o.placed_by_name ? <> · {o.placed_by_name}</> : null}
+                  {o.kind === "stock" ? <> · From held stock</> : null}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">

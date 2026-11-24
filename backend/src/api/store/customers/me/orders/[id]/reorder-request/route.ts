@@ -22,7 +22,7 @@ import { EmailTemplates } from "../../../../../../../modules/email-notifications
 import { QUOTE_MODULE } from "../../../../../../../modules/quote"
 import { adminJobUrl } from "../../../../../../../services/jobs/start-from-enquiry"
 import { bustTodayCache } from "../../../../../../../services/jobs/today"
-import { approvedDesignFor, loadOwnOrder } from "../../../../../../../services/reorder/load"
+import { approvedDesignFor, loadReorderableOrder } from "../../../../../../../services/reorder/load"
 
 const bodySchema = z.object({
   line_ids: z.array(z.string().min(1).max(80)).max(300).optional(),
@@ -48,7 +48,7 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   const note = parsed.data.note?.trim() || null
   const wanted = parsed.data.line_ids?.length ? new Set(parsed.data.line_ids) : null
 
-  const order = await loadOwnOrder(req.scope, req.params.id, customerId)
+  const order = await loadReorderableOrder(req.scope, req.params.id, customerId)
   if (!order) throw new MedusaError(MedusaError.Types.NOT_FOUND, "Order not found.")
   const displayId = order.display_id ?? order.id
 
