@@ -22,6 +22,9 @@ export default function DesignsTab({ designs, inventory }: Props) {
           No designs yet. Once SC Prints adds your approved artwork, it&apos;ll
           appear here.
         </p>
+        <p className="mt-2 text-sm text-ui-fg-subtle">
+          Designs you share with the organisation from the Studio are on the Our range tab.
+        </p>
       </div>
     )
   }

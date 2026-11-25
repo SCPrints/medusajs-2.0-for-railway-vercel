@@ -26,4 +26,18 @@ describe("dropStaleTeamCartMetadata", () => {
     expect(dropStaleTeamCartMetadata({ po_number: "x" }, [])).toBeNull()
     expect(dropStaleTeamCartMetadata(null, [])).toBeNull()
   })
+
+  it("rebuilds home-delivery addresses from the postage lines still in the cart", () => {
+    const alpha = { name: "Alpha" }
+    const out = dropStaleTeamCartMetadata({ home_delivery: [{ name: "Gone" }, alpha] }, [
+      { metadata: { home_delivery_postage: true, home_delivery_parcels: [alpha] } },
+    ])
+    expect(out).toEqual({ home_delivery: [alpha] })
+  })
+
+  it("keeps the cart's addresses when an older postage line has no list of its own", () => {
+    expect(
+      dropStaleTeamCartMetadata({ home_delivery: [{ name: "A" }] }, [{ metadata: { home_delivery_postage: true } }])
+    ).toBeNull()
+  })
 })

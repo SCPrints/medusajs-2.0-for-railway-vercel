@@ -6,9 +6,9 @@ import { cleanHomeAddress } from "../../../../lib/home-delivery"
 import { designChoices, orgService } from "../../../../services/org-allowance"
 
 /**
- * Public, no login: a roster person's private allowance link. Unknown token,
- * closed allowance and anything else all return the same 404, so a guesser
- * learns nothing. Only this person's own name and picks come back — no prices,
+ * Public, no login: a roster person's private allowance link. An unknown token
+ * (or a person since removed) returns 404, so a guesser learns nothing; a real
+ * link that has closed returns `closed: true`, read-only. Only this person's own name and picks come back — no prices,
  * no other people, no organisation details beyond the allowance's name.
  */
 const notFound = (res: MedusaResponse) => res.status(404).json({ error: "not_found" })
@@ -18,15 +18,17 @@ async function load(req: MedusaRequest) {
   if (token.length < 10 || token.length > 80) return null
   const service = orgService(req.scope)
   const [pick] = (await service.listOrganisationAllowancePicks({ token } as any, { take: 1 })) as any[]
-  // Already ordered (new-starter packs): the link has done its job.
-  if (!pick || pick.cart_id) return null
+  if (!pick) return null
   const [a] = (await service.listOrganisationAllowances({ id: pick.allowance_id } as any, { take: 1 })) as any[]
-  if (!a || allowanceClosed(a)) return null
+  if (!a) return null
   const [person] = (await service.listOrganisationRosterMembers({ id: pick.roster_member_id } as any, { take: 1 })) as any[]
   if (!person || person.is_active === false) return null
+  // Ordered (their pack is in a cart) or closed: the holder of a real link sees
+  // "closed" and what they chose, read-only. A guesser never gets this far.
+  const closed = !!pick.cart_id || allowanceClosed(a)
   const items = (a.items ?? []) as Array<{ design_id: string; per_person: number }>
   const choices = await designChoices(req.scope, a.organisation_id, items.map((i) => i.design_id))
-  return { service, pick, a, person, items, choices }
+  return { service, pick, a, person, items, choices, closed }
 }
 
 /**
@@ -58,6 +60,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }),
     picks: pick.picks ?? [],
     submitted: !!pick.submitted_at,
+    closed: ctx.closed,
   })
 }
 
@@ -77,6 +80,7 @@ const bodySchema = z.object({
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const ctx = await load(req)
   if (!ctx) return notFound(res)
+  if (ctx.closed) return res.status(409).json({ error: "Choices for this have closed." })
   const parsed = bodySchema.safeParse(req.body ?? {})
   if (!parsed.success) return res.status(400).json({ error: "Check your choices and try again." })
   const sizesByDesign: Record<string, string[]> = {}

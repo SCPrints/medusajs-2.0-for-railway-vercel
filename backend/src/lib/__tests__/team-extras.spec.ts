@@ -19,7 +19,7 @@ describe("names and numbers", () => {
   })
 
   it("labels and rides on the order", () => {
-    expect(namesNumbersLabel({ names: "up_to_a4", numbers: "up_to_a6" })).toBe("Names (up to a4) + numbers (up to a6)")
+    expect(namesNumbersLabel({ names: "up_to_a4", numbers: "up_to_a6" })).toBe("Names (up to A4) + numbers (up to A6)")
     expect(teamOrderFromMetadata({ names_numbers: { names: "up_to_a3" } }).names_numbers).toEqual({ names: "up_to_a3", numbers: null })
   })
 })

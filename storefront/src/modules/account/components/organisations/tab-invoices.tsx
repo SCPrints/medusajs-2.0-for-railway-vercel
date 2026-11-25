@@ -7,7 +7,7 @@ import { getOrgInvoices, type OrgInvoice } from "@lib/data/org-account"
 const aud = (n: number) =>
   new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(n)
 const day = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "—"
+  iso ? new Date(iso).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "short", year: "numeric" }) : "—"
 
 const STATUS: Record<OrgInvoice["status"], { label: string; className: string }> = {
   paid: { label: "Paid", className: "bg-emerald-50 text-emerald-800" },

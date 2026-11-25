@@ -35,9 +35,10 @@ export function namesNumbersUnitMajor(choice: NamesNumbers, garments: number): n
   return Math.round((part(choice.names) + part(choice.numbers)) * 100) / 100
 }
 
-const sizeLabel = (s: NamePrintSize) => SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === s)?.label.toLowerCase() ?? s
+// "Up to A4" → "up to A4": paper sizes keep their capital.
+const sizeLabel = (s: NamePrintSize) => SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === s)?.label.replace(/^Up /, "up ") ?? s
 
-/** "Names (up to a4) + numbers (up to a6)". */
+/** "Names (up to A4) + numbers (up to A6)". */
 export function namesNumbersLabel(choice: NamesNumbers): string {
   return [
     choice.names ? `Names (${sizeLabel(choice.names)})` : null,

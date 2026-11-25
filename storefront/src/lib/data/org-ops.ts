@@ -189,6 +189,8 @@ export type PublicAllowance = {
   }>
   picks: Array<{ design_id: string; size: string; quantity: number }>
   submitted: boolean
+  /** Ordered or closed: show what they chose, read-only. */
+  closed?: boolean
 }
 
 export async function getPublicAllowance(token: string): Promise<PublicAllowance | null> {

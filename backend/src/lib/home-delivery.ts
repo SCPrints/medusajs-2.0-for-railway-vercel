@@ -69,6 +69,22 @@ export function weightlessLine(line: LineLike): boolean {
   return !!m.names_numbers || m.home_delivery === true
 }
 
+/**
+ * The parcels behind the cart's postage lines: each postage line carries its
+ * own (`home_delivery_parcels`), so removing a line drops its addresses.
+ * null when a postage line from before that carries none (keep what the cart has).
+ */
+export function parcelsFromLines(items: LineLike[] | null | undefined): HomeDelivery[] | null {
+  const out: HomeDelivery[] = []
+  for (const line of items ?? []) {
+    if (line?.metadata?.home_delivery_postage !== true) continue
+    const parcels = line.metadata.home_delivery_parcels
+    if (!Array.isArray(parcels)) return null
+    out.push(...(parcels as HomeDelivery[]))
+  }
+  return out
+}
+
 export const cartHasHomePostage = (items: LineLike[] | null | undefined): boolean =>
   (items ?? []).some((i) => i?.metadata?.home_delivery_postage === true)
 

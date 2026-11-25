@@ -16,7 +16,7 @@ import type { OrgRole } from "@lib/data/organisations"
 const aud = (n: number | null | undefined) =>
   n == null ? "No limit" : new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(n)
 const day = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "No expiry"
+  iso ? new Date(iso).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "short", year: "numeric" }) : "No expiry"
 
 const card = "rounded-2xl border border-ui-border-base bg-white p-5"
 const input =

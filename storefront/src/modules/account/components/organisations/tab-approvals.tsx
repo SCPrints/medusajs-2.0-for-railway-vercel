@@ -18,7 +18,7 @@ import {
 const aud = (n: number | null) =>
   n == null ? "" : new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(n)
 const day = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : ""
+  iso ? new Date(iso).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "short" }) : ""
 
 const STATUS: Record<OrgCartStatus, { label: string; className: string }> = {
   draft: { label: "Draft", className: "bg-ui-bg-subtle text-ui-fg-subtle" },

@@ -19,7 +19,7 @@ import {
 } from "../../lib/org-range"
 import { recomputeScpCartPricingPure } from "../../lib/recompute-scp-cart-pricing"
 import { setupFeesByGroup } from "../../lib/reorder-lines"
-import { compactOrderRoster, garmentGroupFor, isPackingChoice, type RosterGarmentGroup } from "../../lib/roster"
+import { compactOrderRoster, garmentGroupFor, isPackingChoice, mergeOrderRoster, type RosterGarmentGroup } from "../../lib/roster"
 import { computeScpLineDescriptor, type ScpLineDescriptor } from "../../lib/scp-line-descriptor"
 import {
   resolveGarmentUnitAmountMajor,
@@ -402,20 +402,18 @@ export async function applyTeamDetailsToCart(
   details: TeamDetailsInput
 ): Promise<void> {
   const patch: Record<string, unknown> = { organisation_id: organisationId }
-  if (details.roster !== undefined) {
-    let people: any[] = []
-    if (details.roster) {
-      const service = scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
-      people = (await service.listOrganisationRosterMembers(
-        {
-          organisation_id: organisationId,
-          is_active: true,
-          ...(details.roster === "all" ? {} : { id: details.roster }),
-        } as any,
-        { take: 1000, order: { name: "ASC" } }
-      )) as any[]
-    }
-    patch.roster = compactOrderRoster(people)
+  // null ("just quantities") leaves the list alone: earlier adds on this cart still need theirs.
+  if (details.roster) {
+    const service = scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
+    const people = (await service.listOrganisationRosterMembers(
+      {
+        organisation_id: organisationId,
+        is_active: true,
+        ...(details.roster === "all" ? {} : { id: details.roster }),
+      } as any,
+      { take: 1000, order: { name: "ASC" } }
+    )) as any[]
+    patch.roster = mergeOrderRoster(cart.metadata?.roster, people)
   }
   const hasRoster = patch.roster !== undefined ? !!patch.roster : !!compactOrderRoster(cart.metadata?.roster)
   if (details.packing !== undefined) {

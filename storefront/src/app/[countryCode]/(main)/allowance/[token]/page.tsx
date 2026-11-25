@@ -25,6 +25,40 @@ export default async function AllowancePage({ params }: { params: Promise<{ coun
     )
   }
 
+  if (data.closed) {
+    const nameOf = new Map(data.items.map((i) => [i.design_id, i.product_title ? `${i.name} (${i.product_title})` : i.name]))
+    const chosen = data.submitted ? data.picks.filter((p) => p.quantity > 0) : []
+    return (
+      <div className="content-container py-10 small:py-16">
+        <div className="mx-auto max-w-xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em]">{data.allowance.name}</p>
+          <h1 className="mt-2 text-2xl font-semibold text-ui-fg-base">Hi {data.person.name}, choices have closed</h1>
+          {chosen.length ? (
+            <>
+              <p className="mt-4 text-base text-ui-fg-subtle">You chose:</p>
+              <ul className="mt-2 list-disc pl-5 text-base text-ui-fg-base">
+                {chosen.map((p, i) => (
+                  <li key={i}>
+                    {p.quantity} × {nameOf.get(p.design_id) ?? "Item"}, size {p.size}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-4 text-base text-ui-fg-subtle">
+                {data.allowance.delivery === "home" && data.address
+                  ? `We'll post it to ${data.address.city} ${data.address.province} ${data.address.postal_code}. You don't need to do anything else.`
+                  : "You don't need to do anything else."}
+              </p>
+            </>
+          ) : (
+            <p className="mt-4 text-base text-ui-fg-subtle">
+              You didn&apos;t choose before it closed. Ask whoever sent you the link if you still need something.
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="content-container py-10 small:py-16">
       <div className="mx-auto max-w-xl">

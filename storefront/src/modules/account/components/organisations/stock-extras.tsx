@@ -76,7 +76,7 @@ export default function StockExtras({ orgId, row, low }: { orgId: string; row: I
           <ul className="mt-1 flex flex-col gap-1 text-xs text-ui-fg-base">
             {moves.map((m) => (
               <li key={m.id} className="flex flex-wrap gap-x-2">
-                <span className="text-ui-fg-subtle">{new Date(m.date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}</span>
+                <span className="text-ui-fg-subtle">{new Date(m.date).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "short", year: "numeric" })}</span>
                 <span className="font-semibold tabular-nums">{SIGN[m.direction]}{m.quantity}</span>
                 <span>{REASON[m.reason] ?? m.reason}</span>
                 {m.reference ? <span className="text-ui-fg-subtle">({m.reference})</span> : null}

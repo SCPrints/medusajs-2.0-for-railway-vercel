@@ -2,6 +2,7 @@ import type { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { money } from "../../../../../../../lib/org-account"
+import { SERVICE_LINE_HANDLE } from "../../../../../../../lib/sizes-pending"
 import { ORGANISATION_MODULE } from "../../../../../../../modules/organisation"
 
 /** The parked cart row for `:row_id`, only if it belongs to this organisation. */
@@ -57,6 +58,7 @@ export async function summariseCarts(
       "items.variant_title",
       "items.product_title",
       "items.quantity",
+      "items.product_handle",
       "items.unit_price",
       "items.thumbnail",
     ],
@@ -68,7 +70,8 @@ export async function summariseCarts(
       customer_id: c.customer_id ?? null,
       completed: !!c.completed_at,
       total: money(c.total),
-      item_count: items.reduce((n, it) => n + (Number(it.quantity) || 0), 0),
+      // Garments only: names/numbers, postage and fees are lines on the hidden service product.
+      item_count: items.reduce((n, it) => (it.product_handle === SERVICE_LINE_HANDLE ? n : n + (Number(it.quantity) || 0)), 0),
       metadata: (c.metadata ?? {}) as Record<string, unknown>,
       has_delivery: !!c.shipping_address?.address_1 && (c.shipping_methods ?? []).length > 0,
       lines: items.map((it) => ({

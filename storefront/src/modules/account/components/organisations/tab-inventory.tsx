@@ -46,8 +46,8 @@ export default function InventoryTab({ orgId, inventory, designs }: Props) {
     return (
       <div className="rounded-2xl border border-dashed border-ui-border-base bg-white p-10 text-center">
         <p className="text-sm text-ui-fg-subtle">
-          No inventory rows configured yet. Once SC Prints sets up your
-          (design × garment) catalog, it&apos;ll appear here.
+          No stock held for you yet. When we print garments to keep in stock
+          for your organisation, they&apos;ll show here.
         </p>
       </div>
     )
@@ -104,7 +104,7 @@ export default function InventoryTab({ orgId, inventory, designs }: Props) {
 
       {/* Summary line */}
       <p className="mt-3 text-xs text-ui-fg-muted">
-        {filtered.length} of {inventory.length} SKUs
+        {filtered.length} of {inventory.length} stock items
         {belowReorderCount > 0 ? (
           <>
             {" · "}

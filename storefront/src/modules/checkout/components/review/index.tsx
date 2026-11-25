@@ -16,10 +16,21 @@ const PACKING_LABEL: Record<string, string> = {
 }
 
 /** What the team order form attached to this cart (roster, packing, names). */
-const TeamOrderSummary = ({ metadata }: { metadata: Record<string, unknown> | null | undefined }) => {
+const TeamOrderSummary = ({
+  metadata,
+  items,
+}: {
+  metadata: Record<string, unknown> | null | undefined
+  items: Array<{ metadata?: Record<string, unknown> | null }>
+}) => {
   const roster = metadata?.roster as { total?: number } | undefined
   const packing = typeof metadata?.packing === "string" ? PACKING_LABEL[metadata.packing] : null
   const names = metadata?.personalisation_requested === true
+  // The names line says whether its order picked a people list (older lines: the cart's list).
+  const namesLines = items.filter((i) => i.metadata?.names_numbers)
+  const namesFromList = namesLines.length
+    ? namesLines.some((i) => i.metadata?.names_from_list === true || (i.metadata?.names_from_list === undefined && !!roster?.total))
+    : !!roster?.total
   if (!roster?.total && !packing && !names) return null
   return (
     <div
@@ -33,7 +44,7 @@ const TeamOrderSummary = ({ metadata }: { metadata: Record<string, unknown> | nu
         {names ? (
           <li>
             {metadata?.names_numbers
-              ? roster?.total
+              ? namesFromList
                 ? "Names and numbers are in your cart. We'll use the names on your list."
                 : "Names and numbers are in your cart. We'll email you for the names and numbers after you order."
               : "We'll confirm the price for names and numbers before we print."}
@@ -51,6 +62,14 @@ const Review = ({ cart }: { cart: any }) => {
 
   const paidByGiftcard =
     cart?.gift_cards && cart?.gift_cards?.length > 0 && cart?.total === 0
+
+  // Each postage line carries its own parcels (older lines: the cart's list).
+  const postageLines = (cart?.items ?? []).filter((i: any) => i?.metadata?.home_delivery_postage === true)
+  const parcelCount = postageLines.every((i: any) => Array.isArray(i.metadata?.home_delivery_parcels))
+    ? postageLines.reduce((n: number, i: any) => n + i.metadata.home_delivery_parcels.length, 0)
+    : Array.isArray(cart?.metadata?.home_delivery)
+    ? cart.metadata.home_delivery.length
+    : 0
 
   const previousStepsCompleted =
     cart.shipping_address &&
@@ -86,13 +105,11 @@ const Review = ({ cart }: { cart: any }) => {
           </div>
           {/* These notes outlive removed lines on the cart; show them only while their lines are there. */}
           {cart?.items?.some((i: any) => typeof i?.metadata?.organisation_id === "string") ? (
-            <TeamOrderSummary metadata={cart?.metadata as Record<string, unknown> | null} />
+            <TeamOrderSummary metadata={cart?.metadata as Record<string, unknown> | null} items={cart?.items ?? []} />
           ) : null}
-          {Array.isArray(cart?.metadata?.home_delivery) &&
-          cart.metadata.home_delivery.length &&
-          cart?.items?.some((i: any) => i?.metadata?.home_delivery_postage === true) ? (
+          {postageLines.length && parcelCount ? (
             <p className="mb-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-sm text-ui-fg-base" data-testid="home-delivery-summary">
-              We&apos;ll post each pack to the {cart.metadata.home_delivery.length === 1 ? "address" : `${cart.metadata.home_delivery.length} addresses`} your people gave us. That postage is a line in your cart.
+              We&apos;ll post each pack to the {parcelCount === 1 ? "address" : `${parcelCount} addresses`} your people gave us. That postage is a line in your cart.
             </p>
           ) : null}
           <div className="mb-6">

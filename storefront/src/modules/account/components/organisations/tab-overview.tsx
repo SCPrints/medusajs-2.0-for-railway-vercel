@@ -76,7 +76,7 @@ export default function OverviewTab({
           <div className="rounded-2xl border border-ui-border-base bg-white p-5">
             <p className="text-3xl font-semibold text-ui-fg-base">{skuCount}</p>
             <p className="mt-1 text-xs uppercase tracking-widest text-ui-fg-muted">
-              SKUs
+              Stock items
             </p>
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function OverviewTab({
                       #{o.display_id}
                     </p>
                     <p className="text-xs text-ui-fg-muted">
-                      {new Date(o.created_at).toLocaleDateString("en-AU", {
+                      {new Date(o.created_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney",
                         day: "numeric",
                         month: "short",
                       })}

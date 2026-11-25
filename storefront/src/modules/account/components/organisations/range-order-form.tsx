@@ -539,14 +539,15 @@ export default function RangeOrderForm({
 
       {/* Packing + names, then the total */}
       {ready.length > 0 ? (
-        <section className="grid gap-4 rounded-2xl border border-ui-border-base bg-white p-4 tablet:grid-cols-2 tablet:p-5">
-          <div className="flex flex-col gap-3">
+        <section className="grid grid-cols-[minmax(0,1fr)] gap-4 rounded-2xl border border-ui-border-base bg-white p-4 tablet:grid-cols-2 tablet:p-5">
+          {/* min-w-0 + w-full: a long option ("Bagged and labelled…") must not widen the page on a phone. */}
+          <div className="flex min-w-0 flex-col gap-3">
             <label className="flex flex-col gap-1">
               <span className="text-sm font-semibold text-ui-fg-base">How should we pack it?</span>
               <select
                 value={packing}
                 onChange={(e) => setPacking(e.target.value)}
-                className="min-h-11 rounded-md border border-ui-border-base bg-white px-3 text-base tablet:text-sm"
+                className="min-h-11 w-full min-w-0 rounded-md border border-ui-border-base bg-white px-3 text-base tablet:text-sm"
               >
                 {packingOptions.map((p) => (
                   <option key={p.key} value={p.key} disabled={p.key === "individual" && audience === "none"}>
@@ -558,19 +559,19 @@ export default function RangeOrderForm({
             </label>
             <fieldset className="flex flex-col gap-2">
               <legend className="text-sm font-semibold text-ui-fg-base">Names and numbers</legend>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
                 {(
                   [
                     ["Names", nameSize, setNameSize],
                     ["Numbers", numberSize, setNumberSize],
                   ] as const
                 ).map(([label, value, set]) => (
-                  <label key={label} className="flex flex-col gap-1 text-xs text-ui-fg-subtle">
+                  <label key={label} className="flex min-w-0 flex-col gap-1 text-xs text-ui-fg-subtle">
                     {label}
                     <select
                       value={value}
                       onChange={(e) => set(e.target.value as NameSize | "")}
-                      className="min-h-11 rounded-md border border-ui-border-base bg-white px-3 text-base text-ui-fg-base tablet:text-sm"
+                      className="min-h-11 w-full min-w-0 rounded-md border border-ui-border-base bg-white px-3 text-base text-ui-fg-base tablet:text-sm"
                     >
                       <option value="">None</option>
                       {NAME_SIZES.map((s) => (

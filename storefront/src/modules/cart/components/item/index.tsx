@@ -93,9 +93,38 @@ const Item = ({ item, type = "full" }: ItemProps) => {
   const fixedQuantity =
     isChargeLine(item) || item.metadata?.home_delivery === true || item.metadata?.sizing_kit === true
 
+  // On a phone the cart has no room for a quantity column: the controls sit under the name.
+  const quantityControls = (suffix: string) => (
+    <>
+      <div className="flex gap-2 items-center w-28">
+        <DeleteButton id={item.id} data-testid={`product-delete-button${suffix}`} />
+        {fixedQuantity ? (
+          <span className="w-14 text-center txt-medium" data-testid={`product-fixed-quantity${suffix}`}>
+            {item.quantity}
+          </span>
+        ) : (
+          <CartItemSelect
+            value={item.quantity}
+            onChange={(value) => changeQuantity(parseInt(value.target.value))}
+            className="w-14 h-10 p-4"
+            data-testid={`product-select-button${suffix}`}
+          >
+            {Array.from({ length: maxQuantity }, (_, i) => (
+              <option value={i + 1} key={i}>
+                {i + 1}
+              </option>
+            ))}
+          </CartItemSelect>
+        )}
+        {updating && <Spinner />}
+      </div>
+      <ErrorMessage error={error} data-testid={`product-error-message${suffix}`} />
+    </>
+  )
+
   return (
     <Table.Row className="w-full" data-testid="product-row">
-      <Table.Cell className="pl-0! p-4 w-24">
+      <Table.Cell className={clx("pl-0!", type === "full" ? "p-2 small:p-4 w-14 small:w-24" : "p-4 w-24")}>
         {/* Charge lines use a hidden service product: its page is a 404. */}
         {handle && !isChargeLine(item) ? (
           <LocalizedClientLink
@@ -174,35 +203,10 @@ const Item = ({ item, type = "full" }: ItemProps) => {
             ) : null}
           </>
         )}
+        {type === "full" ? <div className="mt-2 small:hidden">{quantityControls("-mobile")}</div> : null}
       </Table.Cell>
 
-      {type === "full" && (
-        <Table.Cell>
-          <div className="flex gap-2 items-center w-28">
-            <DeleteButton id={item.id} data-testid="product-delete-button" />
-            {fixedQuantity ? (
-              <span className="w-14 text-center txt-medium" data-testid="product-fixed-quantity">
-                {item.quantity}
-              </span>
-            ) : (
-              <CartItemSelect
-                value={item.quantity}
-                onChange={(value) => changeQuantity(parseInt(value.target.value))}
-                className="w-14 h-10 p-4"
-                data-testid="product-select-button"
-              >
-                {Array.from({ length: maxQuantity }, (_, i) => (
-                  <option value={i + 1} key={i}>
-                    {i + 1}
-                  </option>
-                ))}
-              </CartItemSelect>
-            )}
-            {updating && <Spinner />}
-          </div>
-          <ErrorMessage error={error} data-testid="product-error-message" />
-        </Table.Cell>
-      )}
+      {type === "full" && <Table.Cell className="hidden small:table-cell">{quantityControls("")}</Table.Cell>}
 
       {type === "full" && (
         <Table.Cell className="hidden small:table-cell">

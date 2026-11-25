@@ -242,7 +242,7 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
               Placed:{" "}
             </span>
             <span className="text-ui-fg-base">
-              {new Date(order.created_at).toLocaleString("en-AU")}
+              {new Date(order.created_at).toLocaleString("en-AU", { timeZone: "Australia/Sydney" })}
             </span>
           </p>
           {order.metadata?.requested_ship_by ? (

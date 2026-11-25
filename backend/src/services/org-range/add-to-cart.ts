@@ -102,6 +102,8 @@ export async function addRangeToCart(
               variant_title: label,
               metadata: {
                 names_numbers: namesNumbers,
+                // Whose names: the people list chosen on this add, or emailed to us after the order.
+                names_from_list: body.roster === "all" || (Array.isArray(body.roster) && body.roster.length > 0),
                 organisation_id: membership.organisation_id,
                 // Server-priced from the print card; the checkout check leaves it be.
                 price_override: { source: "names_numbers", garments },

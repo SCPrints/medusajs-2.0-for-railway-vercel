@@ -4,7 +4,7 @@ import { addToCartWorkflow } from "@medusajs/medusa/core-flows"
 
 import type { AllowancePick } from "../../lib/allowance"
 import { SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS, SHIPPING_PACKAGING_OVERHEAD_GRAMS } from "../../lib/constants"
-import { parcelGrams, type HomeAddress, type HomeDelivery } from "../../lib/home-delivery"
+import { parcelGrams, parcelsFromLines, type HomeAddress, type HomeDelivery } from "../../lib/home-delivery"
 import { resolveShippingRate } from "../../lib/shippit-quote"
 import { SERVICE_LINE_HANDLE } from "../../lib/sizes-pending"
 import { variantForSize, type DesignChoice } from "./index"
@@ -83,6 +83,7 @@ export async function addHomeDeliveryPostage(
           metadata: {
             home_delivery: true,
             home_delivery_postage: true,
+            home_delivery_parcels: parcels,
             // Server-priced per parcel; the checkout check leaves it be.
             price_override: { source: "home_delivery", parcels: parcels.length },
           },
@@ -92,9 +93,11 @@ export async function addHomeDeliveryPostage(
   })
 
   const cartModule = scope.resolve(Modules.CART) as any
-  const cart = await cartModule.retrieveCart(cartId, { select: ["id", "metadata"] })
+  const cart = await cartModule.retrieveCart(cartId, { select: ["id", "metadata"], relations: ["items"] })
   const existing = Array.isArray(cart?.metadata?.home_delivery) ? (cart.metadata.home_delivery as HomeDelivery[]) : []
+  // Rebuilt from the postage lines still in the cart, so removed parcels don't linger.
+  const home_delivery = parcelsFromLines(cart?.items) ?? [...existing, ...parcels]
   // updateCarts replaces metadata: merge first.
-  await cartModule.updateCarts([{ id: cartId, metadata: { ...(cart?.metadata ?? {}), home_delivery: [...existing, ...parcels] } }])
+  await cartModule.updateCarts([{ id: cartId, metadata: { ...(cart?.metadata ?? {}), home_delivery } }])
   return total
 }

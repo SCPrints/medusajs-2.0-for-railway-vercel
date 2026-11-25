@@ -46,8 +46,9 @@ const tidySizes = (sizes: Record<string, string>) =>
       .filter(([, v]) => v)
   )
 
+// No w-full: each column sets its own width, so the whole table fits the page.
 const cellInput =
-  "w-full min-h-11 rounded-md border border-transparent bg-transparent px-2 text-base text-ui-fg-base hover:border-ui-border-base focus:border-ui-border-base focus:bg-white focus:outline-hidden focus-visible:ring-2 tablet:text-sm"
+  "min-h-11 rounded-md border border-transparent bg-transparent px-2 text-base text-ui-fg-base hover:border-ui-border-base focus:border-ui-border-base focus:bg-white focus:outline-hidden focus-visible:ring-2 tablet:text-sm"
 
 /**
  * "People": the organisation's roster as a table you just type in. A row
@@ -235,11 +236,11 @@ export default function PeopleTab({ orgId, roster, knownSizes, onChange }: Props
         <table className="w-full min-w-max border-collapse text-left">
           <thead className="bg-ui-bg-subtle text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-subtle">
             <tr>
-              <th className="sticky left-0 z-10 bg-ui-bg-subtle px-3 py-2">Name</th>
-              <th className="px-3 py-2">Unit / team</th>
-              <th className="px-3 py-2">No.</th>
+              <th className="sticky left-0 z-10 bg-ui-bg-subtle px-2 py-2">Name</th>
+              <th className="px-2 py-2">Unit / team</th>
+              <th className="px-2 py-2">No.</th>
               {groups.map((g) => (
-                <th key={g.key} className="px-3 py-2">
+                <th key={g.key} className="px-2 py-2">
                   {g.label}
                 </th>
               ))}
@@ -259,7 +260,7 @@ export default function PeopleTab({ orgId, roster, knownSizes, onChange }: Props
                       onBlur={save}
                       aria-label="Name"
                       disabled={!canEdit}
-                      className={`${cellInput} w-40 font-semibold tablet:w-52`}
+                      className={`${cellInput} w-40 font-semibold tablet:w-44`}
                     />
                   </td>
                   <td className="px-1 py-0.5">
@@ -270,7 +271,7 @@ export default function PeopleTab({ orgId, roster, knownSizes, onChange }: Props
                       aria-label={`Unit or team for ${m.name}`}
                       disabled={!canEdit}
                       list="roster-units"
-                      className={`${cellInput} w-36`}
+                      className={`${cellInput} w-32`}
                     />
                   </td>
                   <td className="px-1 py-0.5">
@@ -329,7 +330,7 @@ export default function PeopleTab({ orgId, roster, knownSizes, onChange }: Props
                     onChange={(e) => setFresh({ ...fresh, name: e.target.value })}
                     placeholder="Add a person…"
                     aria-label="New person's name"
-                    className={`${cellInput} w-40 border-ui-border-base bg-white font-semibold tablet:w-52`}
+                    className={`${cellInput} w-40 border-ui-border-base bg-white font-semibold tablet:w-44`}
                   />
                 </td>
                 <td className="px-1 py-0.5">
@@ -339,7 +340,7 @@ export default function PeopleTab({ orgId, roster, knownSizes, onChange }: Props
                     placeholder="Unit / team"
                     aria-label="New person's unit or team"
                     list="roster-units"
-                    className={`${cellInput} w-36 border-ui-border-base bg-white`}
+                    className={`${cellInput} w-32 border-ui-border-base bg-white`}
                   />
                 </td>
                 <td className="px-1 py-0.5">

@@ -63,7 +63,7 @@ export default async function OrganisationsPage() {
                           {ROLE_LABEL[m.role] ?? m.role}
                         </span>
                         {m.joined_at
-                          ? ` · joined ${new Date(m.joined_at).toLocaleDateString("en-AU")}`
+                          ? ` · joined ${new Date(m.joined_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney" })}`
                           : ""}
                       </p>
                     </div>

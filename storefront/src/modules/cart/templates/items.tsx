@@ -184,7 +184,7 @@ const ItemsTemplate = ({ items }: ItemsTemplateProps) => {
           <Table.Row className="text-ui-fg-subtle txt-medium-plus">
             <Table.HeaderCell className="pl-0!">Item</Table.HeaderCell>
             <Table.HeaderCell></Table.HeaderCell>
-            <Table.HeaderCell>Quantity</Table.HeaderCell>
+            <Table.HeaderCell className="hidden small:table-cell">Quantity</Table.HeaderCell>
             <Table.HeaderCell className="hidden small:table-cell">
               Price
             </Table.HeaderCell>
@@ -273,7 +273,11 @@ const CartItemGroup = ({
 
   const mockupArtifacts = firstLine ? getCustomizerMockupArtifacts(firstLine) : []
   const mockupUrls = firstLine ? getCustomizerMockupUrls(firstLine) : []
-  const fallbackThumb = resolveCartLineImageUrl(firstLine) ?? undefined
+  // Sizing-kit and range lines carry their colour's front photo (server-set).
+  const fallbackThumb =
+    ((firstLine?.metadata?.sizing_kit === true || firstLine?.metadata?.colour_thumbnail === true) && firstLine?.thumbnail) ||
+    resolveCartLineImageUrl(firstLine) ||
+    undefined
   const showThumbnail = isDesignGroup && !!firstLine
 
   return (
@@ -281,11 +285,11 @@ const CartItemGroup = ({
       <Table.Row className="bg-ui-bg-subtle hover:bg-ui-bg-subtle-hover transition-colors">
         {/* Medusa UI's Table.Cell prop type doesn't declare `colSpan`, but it forwards rest props to <td>. */}
         <Table.Cell {...({ colSpan: 5 } as any)} className="py-2!">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="flex flex-1 items-center justify-between gap-3 rounded-md text-left transition-colors focus-visible:outline-hidden focus-visible:ring-2"
+              className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md text-left transition-colors focus-visible:outline-hidden focus-visible:ring-2"
               aria-expanded={open}
               aria-label={open ? "Collapse group" : "Expand group to see variants"}
               data-testid="cart-group-toggle"

@@ -4,6 +4,8 @@
  * lines were removed would still tell staff to post packs to people's homes or
  * pack by a people list. Pure — admin-safe.
  */
+import { parcelsFromLines } from "./home-delivery"
+
 type Line = { metadata?: Record<string, unknown> | null }
 
 const TEAM_KEYS = ["roster", "packing", "personalisation_requested", "names_numbers"] as const
@@ -17,9 +19,16 @@ export function dropStaleTeamCartMetadata(
   const lines = items ?? []
   const next = { ...metadata }
   let changed = false
-  if ("home_delivery" in next && !lines.some((l) => l?.metadata?.home_delivery_postage === true)) {
-    delete next.home_delivery
-    changed = true
+  if ("home_delivery" in next) {
+    // From the postage lines in the cart; null = an older line without its own list.
+    const fromLines = lines.some((l) => l?.metadata?.home_delivery_postage === true) ? parcelsFromLines(lines) : []
+    if (fromLines && !fromLines.length) {
+      delete next.home_delivery
+      changed = true
+    } else if (fromLines && JSON.stringify(fromLines) !== JSON.stringify(next.home_delivery)) {
+      next.home_delivery = fromLines
+      changed = true
+    }
   }
   if (!lines.some((l) => typeof l?.metadata?.organisation_id === "string")) {
     for (const k of TEAM_KEYS) {

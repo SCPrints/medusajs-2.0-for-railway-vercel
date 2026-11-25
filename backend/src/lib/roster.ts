@@ -129,6 +129,19 @@ export function compactOrderRoster(people: unknown): OrderRoster | null {
   }
 }
 
+/**
+ * The cart's list plus new people, without repeats. A cart can hold several
+ * team adds (a range order, gift links, starter packs): each must keep the
+ * people the others brought.
+ */
+export function mergeOrderRoster(existing: unknown, people: unknown): OrderRoster | null {
+  const key = (p: OrderRosterPerson) => `${p.name.toLowerCase()}|${p.unit ?? ""}|${p.number ?? ""}`
+  const kept = compactOrderRoster(existing)?.people ?? []
+  const seen = new Set(kept.map(key))
+  const fresh = (compactOrderRoster(people)?.people ?? []).filter((p) => !seen.has(key(p)) && seen.add(key(p)))
+  return compactOrderRoster([...kept, ...fresh])
+}
+
 export type TeamOrderMeta = {
   organisation_id: string | null
   roster: OrderRoster | null

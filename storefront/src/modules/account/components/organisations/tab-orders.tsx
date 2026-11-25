@@ -97,7 +97,7 @@ export default function OrdersTab({ orgId, orders, destinations }: Props) {
                   #{o.display_id}
                 </p>
                 <p className="text-xs text-ui-fg-muted">
-                  {new Date(o.created_at).toLocaleDateString("en-AU", {
+                  {new Date(o.created_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney",
                     day: "numeric",
                     month: "short",
                     year: "numeric",

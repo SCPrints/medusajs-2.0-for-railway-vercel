@@ -18,7 +18,7 @@ import type { OrgRange, OrgRoster } from "@lib/data/org-team"
 const primary = "min-h-11 rounded-md bg-ink px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
 const secondary = "min-h-11 rounded-md border border-ui-border-base px-4 text-sm font-semibold text-ink hover:bg-ui-bg-subtle disabled:opacity-50"
 const field = "min-h-11 w-full rounded-md border border-ui-border-base bg-white px-3 text-base focus:outline-hidden focus:ring-2 focus:ring-ink"
-const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "")
+const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "short", year: "numeric" }) : "")
 
 const csvCell = (v: string) => `"${v.replace(/"/g, '""')}"`
 

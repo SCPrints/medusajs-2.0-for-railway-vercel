@@ -169,7 +169,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
                 <div>
                   <p className="text-sm font-semibold text-ui-fg-base">{i.email}</p>
                   <p className="text-xs text-ui-fg-muted">
-                    {ROLE_LABEL[i.role]} · expires {new Date(i.expires_at).toLocaleDateString("en-AU")}
+                    {ROLE_LABEL[i.role]} · expires {new Date(i.expires_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney" })}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
