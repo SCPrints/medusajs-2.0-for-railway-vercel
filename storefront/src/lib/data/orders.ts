@@ -113,7 +113,9 @@ export const listOrders = cache(async function (
     Math.max(limit, limit * OVER_FETCH_MULTIPLIER)
   )
   return sdk.store.order
-    .list({ limit: overFetch, offset, fields: ORDER_FIELDS }, headers)
+    // Newest first: the account overview's "Latest order" and "Same again?"
+    // read the first row, and the API's default order is oldest first.
+    .list({ limit: overFetch, offset, fields: ORDER_FIELDS, order: "-created_at" } as any, headers)
     .then(({ orders }) => {
       const filtered = (orders ?? []).filter(
         (o: any) => o?.metadata?.fulfillment_order !== true

@@ -10,7 +10,7 @@ import { isStudioLine } from "@modules/order/lib/design-groups"
 import {
   CUSTOMER_MILESTONES,
   CUSTOMER_MILESTONE_LABEL,
-  customerMilestoneForStage,
+  currentCustomerMilestone,
   milestoneIndex,
   readProductionStageMetadata,
 } from "@modules/order/lib/production-stage"
@@ -62,11 +62,12 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
 const OrdersInProgress = ({ orders }: { orders: HttpTypes.StoreOrder[] }) => {
   const jobs = orders
     .map((order) => {
-      const { stage } = readProductionStageMetadata(
+      const tracks = readProductionStageMetadata(
         (order.metadata ?? null) as Record<string, unknown> | null
       )
+      const stage = tracks.stage
       if (!stage || (order as { status?: string }).status === "canceled") return null
-      const milestone = customerMilestoneForStage(stage)
+      const milestone = currentCustomerMilestone({ ...tracks, stage })
       return milestone === "delivered" ? null : { order, milestone }
     })
     .filter((j): j is NonNullable<typeof j> => j !== null)

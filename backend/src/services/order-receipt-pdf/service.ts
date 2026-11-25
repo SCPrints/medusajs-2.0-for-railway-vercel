@@ -295,6 +295,7 @@ function formatMoney(
 function formatDate(d: Date | string | null | undefined): string {
   const date = d ? (typeof d === "string" ? new Date(d) : d) : new Date()
   return date.toLocaleDateString("en-AU", {
+    timeZone: "Australia/Sydney",
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -830,7 +831,7 @@ function buildPdf(params: {
       .fontSize(8)
       .fillColor(TEXT_MUTED)
       .text(
-        `Generated ${new Date().toLocaleString("en-AU")}  ·  SC PRINTS  ·  ${order.id}`,
+        `Generated ${new Date().toLocaleString("en-AU", { timeZone: "Australia/Sydney" })}  ·  SC PRINTS  ·  ${order.id}`,
         ML,
         footerY,
         { width: usableW, align: "center" }

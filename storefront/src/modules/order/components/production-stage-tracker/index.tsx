@@ -8,6 +8,7 @@ import {
   CUSTOMER_MILESTONES,
   CUSTOMER_MILESTONE_LABEL,
   PRODUCTION_STAGE_LABEL,
+  currentCustomerMilestone,
   customerMilestoneForStage,
   milestoneIndex,
   readProductionStageMetadata,
@@ -91,14 +92,21 @@ const MiniTrack = <T extends string>({
 }
 
 const ProductionStageTracker = ({ order }: Props) => {
-  const { stage, changedAt, history, artworkStage, blanksStage } =
+  const { stage, changedAt, history, artworkStage, blanksStage, downstreamStage } =
     readProductionStageMetadata((order.metadata ?? null) as Record<string, unknown> | null)
 
   if (!stage) {
     return null
   }
 
-  const activeMilestone: CustomerMilestone = customerMilestoneForStage(stage)
+  // Was customerMilestoneForStage(stage): stayed on "Order received" right
+  // through artwork approval, because only production_stage was read.
+  const activeMilestone: CustomerMilestone = currentCustomerMilestone({
+    stage,
+    artworkStage,
+    blanksStage,
+    downstreamStage,
+  })
   const activeIndex = milestoneIndex(activeMilestone)
 
   const lastEntryByMilestone = new Map<CustomerMilestone, string>()
@@ -199,7 +207,7 @@ const ProductionStageTracker = ({ order }: Props) => {
       {awaitingApproval ? (
         <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
           <p className="text-sm font-medium text-amber-900">
-            Action needed: please reply to our proof email to approve your artwork.
+            Action needed: approve your artwork proof below, or reply to our proof email.
           </p>
           <p className="text-xs text-amber-800 mt-1">
             We&apos;ll start production as soon as you sign off — your blanks may

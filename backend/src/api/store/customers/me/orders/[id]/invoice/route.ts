@@ -96,6 +96,7 @@ export async function GET(
 
   const placed = order.created_at ? new Date(order.created_at) : new Date()
   const dateStr = placed.toLocaleDateString("en-AU", {
+    timeZone: "Australia/Sydney",
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -139,7 +140,7 @@ export async function GET(
   const dueRow =
     Number(order.balance_due ?? 0) > 0.005 && order.due_at
       ? `<tr><td><strong>Payment due ${escape(
-          new Date(order.due_at).toLocaleDateString("en-AU", { year: "numeric", month: "long", day: "numeric" })
+          new Date(order.due_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", year: "numeric", month: "long", day: "numeric" })
         )}</strong></td><td class="amount"><strong>${formatMoney(order.balance_due, currency)}</strong></td></tr>`
       : ""
 
@@ -231,7 +232,7 @@ export async function GET(
     ? `<p class="muted" style="margin-top:24px;">This is a no-GST tax invoice issued to a tax-exempt customer${taxExemptReason ? `: ${escape(taxExemptReason)}` : ""}.</p>`
     : ""}
 
-  <div class="footer">Generated ${escape(new Date().toLocaleString("en-AU"))} · SC PRINTS · ${escape(String(orderId))}</div>
+  <div class="footer">Generated ${escape(new Date().toLocaleString("en-AU", { timeZone: "Australia/Sydney" }))} · SC PRINTS · ${escape(String(orderId))}</div>
 
   <button type="button" class="print-cta" onclick="window.print()">Print / save as PDF</button>
 </div>

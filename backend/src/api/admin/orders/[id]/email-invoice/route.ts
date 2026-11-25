@@ -99,7 +99,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }).format(Number(totalValue))
   const orderDateFormatted = new Date(order.created_at).toLocaleDateString(
     "en-AU",
-    { day: "numeric", month: "short", year: "numeric" }
+    { timeZone: "Australia/Sydney", day: "numeric", month: "short", year: "numeric" }
   )
 
   // One email per recipient (repo convention — same loop shape as the

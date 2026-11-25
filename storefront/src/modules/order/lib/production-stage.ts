@@ -195,6 +195,23 @@ export function milestoneIndex(milestone: CustomerMilestone): number {
   return CUSTOMER_MILESTONES.indexOf(milestone)
 }
 
+/**
+ * The step the customer sees as "now". Artwork and blanks run on their own
+ * tracks while production_stage stays "received" until printing starts, so
+ * "Preparing your order" is current once either of them has moved.
+ * Storefront-only display helper (not part of the backend mirror).
+ */
+export function currentCustomerMilestone(t: {
+  stage: ProductionStage
+  artworkStage: ArtworkStage
+  blanksStage: BlanksStage
+  downstreamStage: DownstreamStage
+}): CustomerMilestone {
+  if (t.downstreamStage !== "received") return customerMilestoneForStage(t.downstreamStage)
+  if (t.artworkStage !== "pending" || t.blanksStage !== "not_started") return "preparing"
+  return customerMilestoneForStage(t.stage)
+}
+
 export function isProductionStage(value: unknown): value is ProductionStage {
   return typeof value === "string" && (PRODUCTION_STAGES as readonly string[]).includes(value)
 }
