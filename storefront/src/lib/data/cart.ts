@@ -1130,17 +1130,15 @@ export async function initiatePaymentSession(
     .catch(actionError)
 }
 
-export async function applyPromotions(codes: string[]) {
-  const cartId = await getCartId()
-  if (!cartId) {
-    throw new Error("No existing cart found")
+/** null, or { error } with the reason: a thrown message is hidden in production. */
+export async function applyPromotions(codes: string[]): Promise<{ error: string } | null> {
+  try {
+    // updateCart refreshes the cart and turns the API refusal into a clean message.
+    await updateCart({ promo_codes: codes })
+    return null
+  } catch (e) {
+    return { error: e instanceof Error && e.message ? e.message : "We couldn't apply that code. Please try again." }
   }
-
-  await updateCart({ promo_codes: codes })
-    .then(() => {
-      updateTag("cart")
-    })
-    .catch(medusaError)
 }
 
 export async function applyGiftCard(code: string) {
@@ -1184,18 +1182,6 @@ export async function removeGiftCard(
   //   } catch (error: any) {
   //     throw error
   //   }
-}
-
-export async function submitPromotionForm(
-  currentState: unknown,
-  formData: FormData
-) {
-  const code = formData.get("code") as string
-  try {
-    await applyPromotions([code])
-  } catch (e: any) {
-    return e.message
-  }
 }
 
 function trimFormField(entry: FormDataEntryValue | null): string {

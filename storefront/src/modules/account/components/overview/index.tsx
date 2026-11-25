@@ -146,7 +146,7 @@ const PickUpWhereYouLeftOff = ({
             <SectionLabel>Same again?</SectionLabel>
             <p className="mt-2 text-sm text-ui-fg-subtle">
               Re-order #{lastStudioOrder.display_id} from{" "}
-              {new Date(lastStudioOrder.created_at).toLocaleDateString("en-AU", {
+              {new Date(lastStudioOrder.created_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney",
                 day: "numeric",
                 month: "short",
                 year: "numeric",
@@ -235,7 +235,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
                   #{latestOrder.display_id}
                 </p>
                 <p className="mt-0.5 text-xs text-ui-fg-subtle">
-                  {new Date(latestOrder.created_at).toLocaleDateString(undefined, {
+                  {new Date(latestOrder.created_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney",
                     day: "numeric",
                     month: "short",
                     year: "numeric",

@@ -221,7 +221,8 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
                   />
                 </span>
               ) : null}
-              <span className="pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-0 z-20 origin-bottom-left whitespace-nowrap rounded-full bg-ui-fg-base px-2.5 py-1 text-[11px] font-semibold text-ui-bg-base opacity-0 shadow-md transition-all duration-200 ease-out -translate-y-0.5 scale-75 group-hover/swatch:opacity-100 group-hover/swatch:-translate-y-1 group-hover/swatch:scale-100 group-focus-within/swatch:opacity-100 group-focus-within/swatch:-translate-y-1 group-focus-within/swatch:scale-100">
+              {/* Hover label only: on touch screens it can't show, and as an invisible box it widened the page (sideways drag on phones). */}
+              <span className="pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-0 z-20 origin-bottom-left whitespace-nowrap pointer-coarse:hidden rounded-full bg-ui-fg-base px-2.5 py-1 text-[11px] font-semibold text-ui-bg-base opacity-0 shadow-md transition-all duration-200 ease-out -translate-y-0.5 scale-75 group-hover/swatch:opacity-100 group-hover/swatch:-translate-y-1 group-hover/swatch:scale-100 group-focus-within/swatch:opacity-100 group-focus-within/swatch:-translate-y-1 group-focus-within/swatch:scale-100">
                 {v}
               </span>
             </div>

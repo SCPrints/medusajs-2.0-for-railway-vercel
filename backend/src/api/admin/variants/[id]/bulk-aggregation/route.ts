@@ -6,6 +6,8 @@ import {
 } from "@medusajs/framework/utils"
 import { z } from "zod"
 
+import { metadataPatch } from "../../../../../lib/metadata-patch"
+
 const bodySchema = z.object({
   exclude_from_bulk_aggregation: z.boolean(),
 })
@@ -69,7 +71,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     updateProductVariants: (id: string, data: { metadata: Record<string, unknown> }) => Promise<unknown>
   }
   await productModuleService.updateProductVariants(variantId, {
-    metadata: nextMeta,
+    metadata: metadataPatch(existingMeta, nextMeta),
   })
 
   return res.status(200).json({

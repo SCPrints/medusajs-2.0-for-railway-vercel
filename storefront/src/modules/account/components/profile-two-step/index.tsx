@@ -3,6 +3,7 @@
 import { useState } from "react"
 
 import { confirmTwoStep, startTwoStep, turnOffTwoStep } from "@lib/data/identity"
+import { confirmDialog } from "@modules/common/lib/confirm-dialog"
 
 type Props = { email: string; initial: { enabled: boolean; factorId: string | null } }
 type Setup = { factorId: string; secret: string; url: string }
@@ -38,7 +39,7 @@ export default function ProfileTwoStep({ email, initial }: Props) {
     } else setError(r.error)
   }
   const turnOff = async () => {
-    if (!state.factorId || !window.confirm("Turn off two-step login?")) return
+    if (!state.factorId || !(await confirmDialog("Turn off two-step login?", "Turn off"))) return
     setBusy(true)
     const r = await turnOffTwoStep(state.factorId)
     setBusy(false)

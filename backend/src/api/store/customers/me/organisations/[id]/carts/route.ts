@@ -5,6 +5,7 @@ import {
 import { Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
+import { metadataPatch } from "../../../../../../../lib/metadata-patch"
 import { canApprove, money } from "../../../../../../../lib/org-account"
 import { ORGANISATION_MODULE } from "../../../../../../../modules/organisation"
 import { customersById, notifyOrgCart } from "../../../../../../../services/org-account"
@@ -155,7 +156,7 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   } else {
     delete meta.organisation_po_id
   }
-  await (req.scope.resolve(Modules.CART) as any).updateCarts(cart.id, { metadata: meta })
+  await (req.scope.resolve(Modules.CART) as any).updateCarts(cart.id, { metadata: metadataPatch(cart.metadata, meta) })
 
   if (status === "awaiting_approval") {
     const org = await service.retrieveOrganisation(membership.organisation_id)

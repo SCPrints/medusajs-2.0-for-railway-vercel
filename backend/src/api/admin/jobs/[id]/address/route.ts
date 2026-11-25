@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import { ASCOLOUR_WORKSHOP_ADDRESS_1 } from "../../../../../lib/constants"
 import { deliveryAddressSchema, normaliseDeliveryAddress } from "../../../../../lib/delivery-address"
+import { metadataPatch } from "../../../../../lib/metadata-patch"
 import { mergeOrderMetadata } from "../../../../../lib/order-metadata"
 import { QUOTE_MODULE } from "../../../../../modules/quote"
 import { getJob } from "../../../../../services/jobs/build"
@@ -40,7 +41,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const quotes = req.scope.resolve(QUOTE_MODULE) as any
     const q = await quotes.retrieveQuote(job.quote.id)
     const { delivery_address: _old, ...rest } = (q.metadata ?? {}) as Record<string, unknown>
-    await quotes.updateQuotes([{ id: job.quote.id, metadata: { ...rest, delivery_method: method, ...(addr ? { delivery_address: addr } : {}) } }])
+    await quotes.updateQuotes([
+      { id: job.quote.id, metadata: metadataPatch(q.metadata, { ...rest, delivery_method: method, ...(addr ? { delivery_address: addr } : {}) }) },
+    ])
   }
   if (job.order) {
     if (addr) {

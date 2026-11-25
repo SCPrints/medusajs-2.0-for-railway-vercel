@@ -2,9 +2,8 @@
 
 import { Badge, Heading, Input, Label, Text, Tooltip } from "@medusajs/ui"
 import React from "react"
-import { useFormState } from "react-dom"
 
-import { applyPromotions, submitPromotionForm } from "@lib/data/cart"
+import { applyPromotions } from "@lib/data/cart"
 import { convertMinorToLocale } from "@lib/util/money"
 import { InformationCircleSolid } from "@medusajs/icons"
 import { HttpTypes } from "@medusajs/types"
@@ -22,35 +21,31 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
   const [isOpen, setIsOpen] = React.useState(false)
 
   const { items = [], promotions = [] } = cart
-  const removePromotionCode = async (code: string) => {
-    const validPromotions = promotions.filter(
-      (promotion) => promotion.code !== code
-    )
+  const [message, setMessage] = React.useState<string | null>(null)
+  // The codes already on the cart (automatic promotions have none).
+  const appliedCodes = promotions.map((p) => p.code).filter((c): c is string => !!c)
 
-    await applyPromotions(
-      validPromotions.filter((p) => p.code === undefined).map((p) => p.code!)
-    )
+  const removePromotionCode = async (code: string) => {
+    setMessage(null)
+    const res = await applyPromotions(appliedCodes.filter((c) => c !== code))
+    if (res?.error) setMessage(res.error)
   }
 
   const addPromotionCode = async (formData: FormData) => {
-    const code = formData.get("code")
+    setMessage(null)
+    const code = formData.get("code")?.toString().trim()
     if (!code) {
       return
     }
     const input = document.getElementById("promotion-input") as HTMLInputElement
-    const codes = promotions
-      .filter((p) => p.code === undefined)
-      .map((p) => p.code!)
-    codes.push(code.toString())
-
-    await applyPromotions(codes)
+    // A refused code comes back as a message; thrown, it would take the cart down.
+    const res = await applyPromotions([...appliedCodes, code])
+    if (res?.error) return setMessage(res.error)
 
     if (input) {
       input.value = ""
     }
   }
-
-  const [message, formAction] = useFormState(submitPromotionForm, null)
 
   return (
     <div className="flex w-full flex-col bg-transparent">

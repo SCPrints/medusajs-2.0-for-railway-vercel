@@ -1,6 +1,7 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "zod"
 
+import { metadataPatch } from "../../../../../lib/metadata-patch"
 import { mergeOrderMetadata } from "../../../../../lib/order-metadata"
 import { QUOTE_MODULE } from "../../../../../modules/quote"
 import { getJob } from "../../../../../services/jobs/build"
@@ -34,7 +35,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const quotes = req.scope.resolve(QUOTE_MODULE) as any
     const q = await quotes.retrieveQuote(job.quote.id)
     const { needed_by: _old, ...rest } = (q.metadata ?? {}) as Record<string, unknown>
-    await quotes.updateQuotes([{ id: job.quote.id, metadata: { ...rest, ...(date ? { needed_by: date } : {}) } }])
+    await quotes.updateQuotes([{ id: job.quote.id, metadata: metadataPatch(q.metadata, { ...rest, ...(date ? { needed_by: date } : {}) }) }])
   }
   if (job.order) {
     await mergeOrderMetadata(req.scope, job.order.id, date ? { needed_by: date } : {}, date ? {} : { unset: ["needed_by"] })

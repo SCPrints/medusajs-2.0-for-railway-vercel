@@ -17,6 +17,7 @@ import {
   sanitizeMethodFilter,
   type PrintProfileArea,
 } from "../../../../../lib/print-profile"
+import { metadataPatch } from "../../../../../lib/metadata-patch"
 import {
   revalidateStorefrontTags,
   tagsForProduct,
@@ -233,7 +234,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     else delete meta.decoration_pricing_class
   }
 
-  await productModule.updateProducts(id, { metadata: meta })
+  await productModule.updateProducts(id, { metadata: metadataPatch(product.metadata, meta) })
 
   try {
     const actorId =

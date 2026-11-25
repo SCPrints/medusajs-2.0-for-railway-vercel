@@ -16,6 +16,7 @@ import {
 } from "@medusajs/medusa/core-flows"
 
 import { SUPPORT_REPLY_TO_EMAIL } from "../../lib/constants"
+import { metadataPatch } from "../../lib/metadata-patch"
 import {
   accountDueDate,
   canOrderForOrg,
@@ -231,7 +232,8 @@ export async function checkOrgCheckout(
   const cartModule = container.resolve(Modules.CART) as any
   const writeMeta = async (next: Record<string, unknown>) => {
     if (!stamp || JSON.stringify(next) === JSON.stringify(cart.metadata ?? {})) return
-    await cartModule.updateCarts(cart.id, { metadata: next })
+    // Patch, so the keys deleted above really go (Medusa merges metadata).
+    await cartModule.updateCarts(cart.id, { metadata: metadataPatch(cart.metadata, next) })
   }
 
   if (!orgId) {

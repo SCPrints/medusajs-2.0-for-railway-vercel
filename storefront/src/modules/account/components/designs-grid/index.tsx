@@ -28,7 +28,7 @@ type Props = {
 const formatDate = (iso: string): string => {
   const ts = Date.parse(iso)
   if (!Number.isFinite(ts)) return ""
-  return new Date(ts).toLocaleDateString("en-AU", {
+  return new Date(ts).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney",
     day: "numeric",
     month: "short",
     year: "numeric",

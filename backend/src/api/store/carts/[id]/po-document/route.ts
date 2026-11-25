@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
+import { metadataPatch } from "../../../../../lib/metadata-patch"
 import { PO_DOCUMENT_EXTENSIONS, PO_DOCUMENT_MAX_BYTES, poDocumentFileName } from "../../../../../lib/po-document"
 
 const bodySchema = z.object({
@@ -61,6 +62,6 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   const cart = await loadOpenCart(req)
   const { po_document: _gone, ...rest } = cart.metadata ?? {}
   const cartModule = req.scope.resolve(Modules.CART) as any
-  await cartModule.updateCarts(cart.id, { metadata: rest })
+  await cartModule.updateCarts(cart.id, { metadata: metadataPatch(cart.metadata, rest) })
   res.json({ po_document: null })
 }

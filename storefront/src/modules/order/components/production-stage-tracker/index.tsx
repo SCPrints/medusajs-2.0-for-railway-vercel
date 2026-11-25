@@ -25,7 +25,7 @@ const formatDate = (iso: string | null | undefined): string => {
   if (!iso) return ""
   const ts = Date.parse(iso)
   if (!Number.isFinite(ts)) return ""
-  return new Date(ts).toLocaleDateString(undefined, {
+  return new Date(ts).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney",
     day: "numeric",
     month: "short",
     year: "numeric",

@@ -474,7 +474,8 @@ async function handleSetPrintProfile(
       meta.print_profile = profile_handle
       // Bulk assignment always uses a stored profile — clear any prior
       // per-product custom override so the assignment is unambiguous.
-      delete meta.print_config
+      // "" removes it: Medusa merges metadata, so a missing key would be kept.
+      meta.print_config = ""
       await productModule.updateProducts(id, { metadata: meta })
       succeeded.push(id)
     } catch (err: any) {

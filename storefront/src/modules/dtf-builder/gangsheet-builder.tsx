@@ -1,6 +1,7 @@
 "use client"
 
-import { addToCart } from "@lib/data/cart"
+import { addToCartSafe } from "@lib/data/cart"
+import { confirmDialog } from "@modules/common/lib/confirm-dialog"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ProductPrice from "@modules/products/components/product-price"
 import { parseSheetDimensionsFromVariant } from "@modules/dtf-builder/parse-sheet-size"
@@ -253,12 +254,13 @@ export default function GangsheetBuilder({
     }
   }, [canvasReady, designId, initialVariantId])
 
-  const handleVariantChange = (nextId: string) => {
+  const handleVariantChange = async (nextId: string) => {
     const hasArt = fabricCanvasRef.current && fabricCanvasRef.current.getObjects().length > 0
 
     if (hasArt && nextId !== initialVariantId) {
-      const ok = window.confirm(
-        "Changing the sheet size clears the canvas layout. Copy your design or download it first. Continue?"
+      const ok = await confirmDialog(
+        "Changing the sheet size clears the canvas layout. Copy your design or download it first. Continue?",
+        "Change size"
       )
       if (!ok) {
         return
@@ -478,7 +480,7 @@ export default function GangsheetBuilder({
       }
     }
 
-    await addToCart({
+    const added = await addToCartSafe({
       variantId: selectedVariant.id,
       quantity: 1,
       countryCode,
@@ -495,7 +497,9 @@ export default function GangsheetBuilder({
 
     setIsAdding(false)
 
-    if (imageCount > 0 && !artworkUrl) {
+    if (!added.ok) {
+      setStatusMessage(added.error)
+    } else if (imageCount > 0 && !artworkUrl) {
       setStatusMessage(
         "Added to cart, but we couldn't upload your artwork automatically — please download the 300 DPI PNG and email it to support so we can print it."
       )

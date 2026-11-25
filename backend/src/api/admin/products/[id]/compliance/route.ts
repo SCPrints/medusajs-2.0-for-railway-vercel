@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/frame
 import { z } from "zod"
 
 import { cleanCompliance, mergeCompliance } from "../../../../../lib/compliance"
+import { metadataPatch } from "../../../../../lib/metadata-patch"
 import { revalidateStorefrontTags, tagsForProduct } from "../../../../../lib/storefront-revalidate"
 
 const bodySchema = z.object({ compliance: z.record(z.string(), z.unknown()).nullable() })
@@ -36,7 +37,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const own = cleanCompliance(body.data.compliance)
   if (own) next.compliance = own
   else delete next.compliance
-  await req.scope.resolve(Modules.PRODUCT).updateProducts(product.id, { metadata: next })
+  await req.scope.resolve(Modules.PRODUCT).updateProducts(product.id, { metadata: metadataPatch(product.metadata, next) })
   void revalidateStorefrontTags(tagsForProduct(product.handle))
   res.json({ compliance: own, brand_default: brandDefault, merged: mergeCompliance(brandDefault, own) })
 }

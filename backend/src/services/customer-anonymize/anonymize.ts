@@ -11,6 +11,7 @@ import {
 import { Pool } from "pg"
 
 import { DATABASE_URL } from "../../lib/constants"
+import { metadataPatch } from "../../lib/metadata-patch"
 
 const REDACT_STRING = "[redacted]"
 
@@ -74,13 +75,15 @@ export async function anonymizeCustomer(
     last_name: REDACT_STRING,
     phone: null,
     company_name: null,
-    metadata: {
+    // A patch that removes every old key: Medusa merges metadata, so a bare
+    // object would keep everything else the customer had.
+    metadata: metadataPatch((customer as any).metadata, {
       anonymized_at: new Date().toISOString(),
       anonymized_by: options.actorId ?? "system",
-    },
+    }),
   })
 
-  const addresses = ((customer as any).addresses ?? []) as Array<{ id: string }>
+  const addresses = ((customer as any).addresses ?? []) as Array<{ id: string; metadata?: Record<string, unknown> | null }>
   let addressesRedacted = 0
   for (const a of addresses) {
     try {
@@ -94,7 +97,7 @@ export async function anonymizeCustomer(
         postal_code: REDACT_STRING,
         province: null,
         phone: null,
-        metadata: { anonymized_at: new Date().toISOString() },
+        metadata: metadataPatch(a.metadata, { anonymized_at: new Date().toISOString() }),
       })
       addressesRedacted += 1
     } catch (err: any) {

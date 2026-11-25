@@ -7,6 +7,8 @@ jest.mock("../../../modules/email-notifications/templates", () => ({
   EmailTemplates: { CUSTOMER_MESSAGE: "customer-message" },
 }))
 
+import { mergeMetadata } from "@medusajs/framework/utils"
+
 import { checkOrgCheckout } from "../index"
 
 const now = new Date("2026-11-20T00:00:00Z")
@@ -33,7 +35,11 @@ function world(w: World) {
         }
       }
       if (key === "cart") {
-        return { updateCarts: async (_id: string, data: any) => void written.push(data.metadata) }
+        // Like the real cart module: the update is merged into what's stored ("" removes a key).
+        return {
+          updateCarts: async (_id: string, data: any) =>
+            void written.push(mergeMetadata(w.cart?.metadata ?? {}, data.metadata)),
+        }
       }
       if (key === "organisation") {
         return {

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 
 import { searchCustomizerProducts } from "@lib/data/customizer-product-search"
+import { confirmDialog } from "@modules/common/lib/confirm-dialog"
 
 // Mode/session params that must survive a "Change product" navigation so the
 // customiser stays in quote (or POS) mode on the new product. Per-product or
@@ -134,16 +135,15 @@ const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, ba
     return null
   }
 
-  const handlePick = (handle: string) => {
+  const handlePick = async (handle: string) => {
     if (handle === currentHandle) {
       setOpen(false)
       return
     }
+    // On-page box: in-app browsers (Instagram, Facebook) answer window.confirm "no" at once.
     if (
       hasUnsavedDesign?.() &&
-      !window.confirm(
-        "Switching products will discard your current design. Continue?"
-      )
+      !(await confirmDialog("Switching products will discard your current design. Continue?", "Switch product"))
     ) {
       return
     }

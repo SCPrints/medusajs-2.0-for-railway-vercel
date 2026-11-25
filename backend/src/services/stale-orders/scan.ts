@@ -15,6 +15,7 @@ import {
   type NotifyResult,
 } from "./notify"
 import { isNotProceeding } from "../../lib/reports/orders"
+import { metadataPatch } from "../../lib/metadata-patch"
 import { businessDaysBetween } from "../../lib/business-days"
 import {
   isDownstreamStage,
@@ -245,7 +246,7 @@ export async function scanStaleOrders(
 
     if (plan.metadata) {
       try {
-        await orderModuleService.updateOrders(o.id, { metadata: plan.metadata })
+        await orderModuleService.updateOrders(o.id, { metadata: metadataPatch(meta, plan.metadata) })
         if (!plan.stuck) cleared += 1
       } catch (err: any) {
         logger.warn(`stale-orders: failed to update ${o.id}: ${err?.message ?? err}`)

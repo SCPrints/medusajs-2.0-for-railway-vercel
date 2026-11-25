@@ -116,7 +116,7 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
             {initial.design_approved_at
               ? ` on ${new Date(initial.design_approved_at).toLocaleDateString(
                   "en-AU",
-                  { day: "numeric", month: "short", year: "numeric" }
+                  { timeZone: "Australia/Sydney", day: "numeric", month: "short", year: "numeric" }
                 )}`
               : ""}
             . Thanks — we&apos;ll be in touch with next steps.

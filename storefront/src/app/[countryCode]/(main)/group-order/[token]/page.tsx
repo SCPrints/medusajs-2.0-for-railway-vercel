@@ -88,7 +88,7 @@ export default async function GroupOrderJoinPage({
             <p className="mt-1 text-sm text-ui-fg-subtle">
               Submit by{" "}
               <span className="font-semibold text-ui-fg-base">
-                {new Date(group_order.deadline_at).toLocaleDateString("en-AU", {
+                {new Date(group_order.deadline_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney",
                   weekday: "long",
                   day: "numeric",
                   month: "short",

@@ -39,7 +39,7 @@ const STATUS_LABEL: Record<RequestStatus, string> = {
 }
 
 const when = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+  new Date(iso).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
 
 const describe = (r: CustomerRequest) =>
   r.kind === "size_swap"

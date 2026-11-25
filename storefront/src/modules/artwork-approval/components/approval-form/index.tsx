@@ -166,7 +166,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
               ? ` by ${initial.artwork_approver_name}`
               : ""}
             {initial.artwork_approved_at
-              ? ` on ${new Date(initial.artwork_approved_at).toLocaleDateString("en-AU", {
+              ? ` on ${new Date(initial.artwork_approved_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney",
                   day: "numeric",
                   month: "short",
                   year: "numeric",

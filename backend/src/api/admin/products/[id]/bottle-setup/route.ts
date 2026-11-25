@@ -6,6 +6,8 @@ import {
 } from "@medusajs/framework/utils"
 import { z } from "zod"
 
+import { metadataPatch } from "../../../../../lib/metadata-patch"
+
 const paramsSchema = z.object({ id: z.string().min(1) })
 
 const bodySchema = z.object({
@@ -125,7 +127,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     else next.bottle_shop_id = body.bottle_shop_id
   }
 
-  await productModule.updateProducts(params.id, { metadata: next })
+  await productModule.updateProducts(params.id, { metadata: metadataPatch(existing, next) })
 
   res.json({ ok: true, metadata: next })
 }

@@ -60,7 +60,7 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
       {terms && unpaid && dueAt ? (
         <Row label="Payment due">
           <span data-testid="order-payment-due">
-            {dueAt.toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}
+            {dueAt.toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "long", year: "numeric" })}
           </span>
         </Row>
       ) : null}

@@ -4,6 +4,7 @@ import { z } from "zod"
 import { QUOTE_MODULE } from "../../../modules/quote"
 import type QuoteModuleService from "../../../modules/quote/service"
 import { getPostHog } from "../../../lib/posthog"
+import { metadataPatch } from "../../../lib/metadata-patch"
 import { writeAudit } from "../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../lib/audit-entities"
 import { notifyQuoteCustomerAction } from "../../../lib/notify-quote-action"
@@ -121,8 +122,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     ? "approved"
     : "changes_requested"
 
-  // Read-modify-write: a bare { metadata: { oneKey } } REPLACES the whole jsonb
-  // column, wiping every other key. Always spread the existing metadata.
+  // The metadata as it should be; metadataPatch turns it into the update
+  // (Medusa merges metadata, so a deleted key must be sent as "").
   const updates: Record<string, unknown> = {
     ...meta,
     design_approval_status: nextStatus,
@@ -140,7 +141,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     if (body.comment) updates.design_changes_comment = body.comment
   }
 
-  await service.updateQuotes([{ id: body.quote, metadata: updates }])
+  await service.updateQuotes([{ id: body.quote, metadata: metadataPatch(meta, updates) }])
 
   try {
     await service.createQuoteEvents([

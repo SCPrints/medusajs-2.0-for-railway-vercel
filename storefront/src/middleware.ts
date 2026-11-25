@@ -1,5 +1,5 @@
 import { HttpTypes } from "@medusajs/types"
-import { NextRequest, NextResponse } from "next/server"
+import { NextFetchEvent, NextRequest, NextResponse } from "next/server"
 import { resolveCountryPath } from "@lib/util/country-path"
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
@@ -9,48 +9,62 @@ const DEFAULT_REGION = (process.env.NEXT_PUBLIC_DEFAULT_REGION || "au").toLowerC
 const regionMapCache = {
   regionMap: new Map<string, HttpTypes.StoreRegion>(),
   regionMapUpdated: Date.now(),
+  // After a failed fetch, wait a minute before the next try: retrying on every
+  // request made each visitor wait out the 5 s timeout while the backend was down
+  // (Vercel: 293 timeouts across 89 visitors, Aug–Nov 2026).
+  retryAfter: 0,
+  refreshing: null as Promise<void> | null,
 }
 
-async function getRegionMap() {
-  const { regionMap, regionMapUpdated } = regionMapCache
+async function refreshRegionMap() {
+  // Must never throw: an unguarded fetch/parse here turns a backend restart (Fly
+  // runs a single machine + a migrate release command) into a site-wide HTTP 500,
+  // which is what Search Console reported as "Server error (5xx)" on 2026-08-24.
+  // On failure we keep serving the map we have.
+  try {
+    // Fetch regions from Medusa. We can't use the JS client here because middleware is running on Edge and the client needs a Node environment.
+    const regionFetchRes = await fetch(`${BACKEND_URL}/store/regions`, {
+      headers: {
+        "x-publishable-api-key": PUBLISHABLE_API_KEY!,
+      },
+      signal: AbortSignal.timeout(5000),
+      next: {
+        revalidate: 3600,
+        tags: ["regions"],
+      },
+    })
 
-  if (
-    !regionMap.keys().next().value ||
-    regionMapUpdated < Date.now() - 3600 * 1000
-  ) {
-    // This runs on EVERY request, so it must never throw: an unguarded fetch/parse
-    // here turns a backend restart (Fly runs a single machine + a migrate release
-    // command) into a site-wide HTTP 500, which is what Search Console reported as
-    // "Server error (5xx)" on 2026-08-24. On failure we keep serving the stale map;
-    // `regionMapUpdated` is deliberately left untouched so the next request retries.
-    try {
-      // Fetch regions from Medusa. We can't use the JS client here because middleware is running on Edge and the client needs a Node environment.
-      const regionFetchRes = await fetch(`${BACKEND_URL}/store/regions`, {
-        headers: {
-          "x-publishable-api-key": PUBLISHABLE_API_KEY!,
-        },
-        signal: AbortSignal.timeout(5000),
-        next: {
-          revalidate: 3600,
-          tags: ["regions"],
-        },
+    const { regions } = await regionFetchRes.json()
+
+    if (regions?.length) {
+      // Create a map of country codes to regions.
+      regions.forEach((region: HttpTypes.StoreRegion) => {
+        region.countries?.forEach((c) => {
+          regionMapCache.regionMap.set(c.iso_2 ?? "", region)
+        })
       })
 
-      const { regions } = await regionFetchRes.json()
-
-      if (regions?.length) {
-        // Create a map of country codes to regions.
-        regions.forEach((region: HttpTypes.StoreRegion) => {
-          region.countries?.forEach((c) => {
-            regionMapCache.regionMap.set(c.iso_2 ?? "", region)
-          })
-        })
-
-        regionMapCache.regionMapUpdated = Date.now()
-      }
-    } catch (error) {
-      console.error("middleware: /store/regions fetch failed", error)
+      regionMapCache.regionMapUpdated = Date.now()
     }
+  } catch (error) {
+    regionMapCache.retryAfter = Date.now() + 60 * 1000
+    console.error("middleware: /store/regions fetch failed", error)
+  }
+}
+
+async function getRegionMap(event?: NextFetchEvent) {
+  const { regionMap, regionMapUpdated, retryAfter } = regionMapCache
+  const empty = !regionMap.keys().next().value
+  const stale = regionMapUpdated < Date.now() - 3600 * 1000
+
+  if ((empty || stale) && Date.now() >= retryAfter) {
+    regionMapCache.refreshing ??= refreshRegionMap().finally(() => {
+      regionMapCache.refreshing = null
+    })
+    // A cold instance has nothing to serve, so it waits; a warm one serves the
+    // map it has and refreshes it in the background.
+    if (empty) await regionMapCache.refreshing
+    else event?.waitUntil(regionMapCache.refreshing)
   }
 
   // Empty when the backend is unreachable on a cold instance; resolveCountryPath
@@ -62,7 +76,7 @@ async function getRegionMap() {
 /**
  * Middleware to handle region selection and onboarding status.
  */
-export async function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const searchParams = request.nextUrl.searchParams
   const isOnboarding = searchParams.get("onboarding") === "true"
   const cartId = searchParams.get("cart_id")
@@ -70,7 +84,7 @@ export async function middleware(request: NextRequest) {
   const onboardingCookie = request.cookies.get("_medusa_onboarding")
   const cartIdCookie = request.cookies.get("_medusa_cart_id")
 
-  const regionMap = await getRegionMap()
+  const regionMap = await getRegionMap(event)
 
   const countryPath = resolveCountryPath(
     request.nextUrl.pathname,

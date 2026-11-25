@@ -1,6 +1,7 @@
 import type { MedusaNextFunction, MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { Modules } from "@medusajs/framework/utils"
 
+import { metadataPatch } from "../../lib/metadata-patch"
 import { dropStaleTeamCartMetadata } from "../../lib/team-cart-metadata"
 
 /**
@@ -17,7 +18,7 @@ export async function dropStaleTeamCartMetadataMiddleware(
     const cartModule = req.scope.resolve(Modules.CART) as any
     const cart = await cartModule.retrieveCart(req.params.id, { select: ["id", "metadata"], relations: ["items"] })
     const cleaned = dropStaleTeamCartMetadata(cart?.metadata, cart?.items)
-    if (cleaned) await cartModule.updateCarts(cart.id, { metadata: cleaned })
+    if (cleaned) await cartModule.updateCarts(cart.id, { metadata: metadataPatch(cart.metadata, cleaned) })
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error(`drop stale team cart metadata failed for ${req.params.id}`, error)

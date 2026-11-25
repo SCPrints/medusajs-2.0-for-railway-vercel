@@ -172,7 +172,7 @@ const OwnerRoster = ({ orders }: Props) => {
               ) : null}
               {o.deadline_at ? (
                 <p className="mt-1 text-xs text-ui-fg-muted">
-                  Closes {new Date(o.deadline_at).toLocaleDateString("en-AU")}
+                  Closes {new Date(o.deadline_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney" })}
                 </p>
               ) : null}
             </div>

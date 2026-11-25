@@ -29,7 +29,7 @@ const PaymentDetails = ({ order }: PaymentDetailsProps) => {
         <Text className="text-sm text-ink font-medium" data-testid="payment-method">
           On account
           {terms.due_at
-            ? ` · payment due ${new Date(terms.due_at).toLocaleDateString("en-AU", {
+            ? ` · payment due ${new Date(terms.due_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney",
                 day: "numeric",
                 month: "long",
                 year: "numeric",
