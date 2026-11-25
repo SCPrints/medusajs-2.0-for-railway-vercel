@@ -11,6 +11,7 @@ import { placeOrder } from "@lib/data/cart"
 import { HttpTypes } from "@medusajs/types"
 import { isManual, isPaypal, isStripe } from "@lib/constants"
 import { phCapture } from "@lib/posthog"
+import { orThrow } from "@lib/util/action-result"
 
 type PaymentButtonProps = {
   cart: HttpTypes.StoreCart
@@ -69,7 +70,7 @@ const GiftCardPaymentButton = () => {
 
   const handleOrder = async () => {
     setSubmitting(true)
-    await placeOrder()
+    await orThrow(placeOrder())
   }
 
   return (
@@ -99,7 +100,7 @@ const StripePaymentButton = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const onPaymentCompleted = async () => {
-    await placeOrder()
+    await orThrow(placeOrder())
       .catch((err) => {
         setErrorMessage(err.message)
       })
@@ -228,7 +229,7 @@ const PayPalPaymentButton = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const onPaymentCompleted = async () => {
-    await placeOrder()
+    await orThrow(placeOrder())
       .catch((err) => {
         setErrorMessage(err.message)
       })
@@ -299,7 +300,7 @@ const ManualTestPaymentButton = ({ notReady }: { notReady: boolean }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const onPaymentCompleted = async () => {
-    await placeOrder()
+    await orThrow(placeOrder())
       .catch((err) => {
         setErrorMessage(err.message)
       })

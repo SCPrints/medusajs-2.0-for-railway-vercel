@@ -102,6 +102,9 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   if (members.length) await service.deleteOrganisationMembers(members.map((m) => m.id))
   const invites = (await service.listOrganisationInvites({ organisation_id: id, accepted_at: null, revoked_at: null } as any, { take: 1000 })) as any[]
   if (invites.length) await service.updateOrganisationInvites(invites.map((i) => ({ id: i.id, revoked_at: new Date() })))
+  // Saved drafts / approvals: left behind, they'd keep claiming their carts.
+  const parked = (await service.listOrganisationCarts({ organisation_id: id } as any, { take: 1000 })) as any[]
+  if (parked.length) await (service as any).deleteOrganisationCarts(parked.map((c) => c.id))
   await service.deleteOrganisations([id])
   res.json({ ok: true, members_removed: members.length, invites_cancelled: invites.length })
 }

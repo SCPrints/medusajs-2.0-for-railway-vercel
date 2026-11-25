@@ -53,7 +53,18 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   const chosen = rows.filter(
     (r) => r.submitted_at && ((r.picks ?? []) as AllowancePick[]).some((p) => p.quantity > 0) && (!home || r.address)
   )
-  const leftOut = rows.filter((r) => !chosen.includes(r)).map((r) => nameOf.get(r.roster_member_id) ?? "Removed from roster")
+  // Each with why, so "chose nothing" doesn't read as "hasn't answered".
+  const leftOut = rows
+    .filter((r) => !chosen.includes(r))
+    .map((r) => {
+      const name = nameOf.get(r.roster_member_id) ?? "Removed from roster"
+      const why = !r.submitted_at
+        ? "hasn't chosen yet"
+        : !((r.picks ?? []) as AllowancePick[]).some((p) => p.quantity > 0)
+        ? "chose nothing"
+        : "no address yet"
+      return `${name} (${why})`
+    })
   if (chosen.length === 0) {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, ongoing ? "They haven't chosen their sizes yet." : "Nobody has chosen sizes yet.")
   }

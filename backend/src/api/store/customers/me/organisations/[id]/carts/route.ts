@@ -110,9 +110,16 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
     decline_reason: null,
     approved_total: null,
   }
-  const [existing] = (await service.listOrganisationCarts({ cart_id: cart.id }, { take: 1 })) as any[]
+  let [existing] = (await service.listOrganisationCarts({ cart_id: cart.id }, { take: 1 })) as any[]
   if (existing && existing.organisation_id !== membership.organisation_id) {
-    return res.status(409).json({ error: "This cart is already saved with another organisation.", message: "This cart is already saved with another organisation." })
+    // Waiting on (or approved by) another organisation's owner: that decision stands.
+    if (existing.status === "awaiting_approval" || existing.status === "approved") {
+      return res.status(409).json({ error: "This cart is already saved with another organisation.", message: "This cart is already saved with another organisation." })
+    }
+    // A draft (or declined) reopened into the cart and now saved for this
+    // organisation, or one whose organisation was deleted: it moves here.
+    await service.deleteOrganisationCarts([existing.id])
+    existing = undefined
   }
   let row: any
   if (existing) {

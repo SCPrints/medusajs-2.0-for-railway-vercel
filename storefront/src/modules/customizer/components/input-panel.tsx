@@ -82,6 +82,8 @@ type InputPanelProps = {
   onUpdateSelectedText?: (patch: Partial<{ text: string; color: string; fontFamily: string; letterSpacing: number }>) => void
   /** Drops the canvas selection so the panel returns to add-text mode. */
   onDeselectText?: () => void
+  /** New text starts white on a dark garment (black text on a black tee is invisible). */
+  darkGarment?: boolean
   className?: string
 }
 
@@ -101,11 +103,19 @@ function InputPanel({
   selectedText,
   onUpdateSelectedText,
   onDeselectText,
+  darkGarment = false,
   className,
 }: InputPanelProps) {
   const [text, setText] = useState("")
   const [fontFamily, setFontFamily] = useState("Inter")
-  const [color, setColor] = useState("#111827")
+  const defaultColor = darkGarment ? "#FFFFFF" : "#111827"
+  const [color, setColor] = useState(defaultColor)
+  // Follow the garment until the customer picks a colour themselves.
+  const colorPicked = useRef(false)
+  useEffect(() => {
+    if (!colorPicked.current && !selectedText) setColor(defaultColor)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultColor])
   const [addingText, setAddingText] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [addingCartDesignId, setAddingCartDesignId] = useState<string | null>(null)
@@ -134,6 +144,7 @@ function InputPanel({
   }, [selectedText])
 
   const applyColor = (next: string) => {
+    if (!isEditingText) colorPicked.current = true
     setColor(next)
     if (isEditingText) onUpdateSelectedText?.({ color: next })
   }

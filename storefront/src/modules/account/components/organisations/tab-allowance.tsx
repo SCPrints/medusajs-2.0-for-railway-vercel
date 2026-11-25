@@ -111,7 +111,7 @@ export default function AllowanceTab({ orgId, range, roster }: { orgId: string; 
         res.already_added ? "It was already added. Opening your cart." : "Added to your cart.",
         res.postage ? `Postage to every address: $${res.postage.toFixed(2)} (in your cart).` : "",
         res.left_out.length
-          ? `Left out (${detail.allowance.delivery === "home" ? "no choices or address yet" : "no choices yet"}): ${res.left_out.join(", ")}.`
+          ? `Not in this order: ${res.left_out.join(", ")}.`
           : "",
         res.unmatched.length ? `A size is no longer available for: ${res.unmatched.join(", ")}.` : "",
         res.fees_for_staff.length ? `We'll confirm the price of: ${res.fees_for_staff.join(", ")}.` : "",
@@ -170,7 +170,15 @@ export default function AllowanceTab({ orgId, range, roster }: { orgId: string; 
             {ongoing ? "New-starter pack: order each person's pack when they've chosen." : "One order for everyone."}{" "}
             {home ? "Posted to each person's home address." : "Delivered to you in one box."}
           </p>
-          <p className="mt-1 text-sm text-ui-fg-base">{picked.length} of {detail.people.length} {home ? "have chosen and given an address" : "have chosen"}.</p>
+          <p className="mt-1 text-sm text-ui-fg-base">
+            {picked.length} of {detail.people.length} {home ? "have chosen and given an address" : "have chosen"}
+            {/* People who answered "none" have answered: say so, or they read as not done yet. */}
+            {(() => {
+              const none = detail.people.filter((p) => p.submitted_at && !p.picks.length).length
+              return none ? `, ${none} chose nothing` : ""
+            })()}
+            .
+          </p>
         </div>
         {ongoing && !a.closed ? (
           <div className="flex flex-wrap items-end gap-2 rounded-2xl border border-ui-border-base bg-white p-3">

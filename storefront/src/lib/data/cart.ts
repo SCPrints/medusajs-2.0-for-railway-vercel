@@ -916,9 +916,11 @@ export async function updateLineItem({
     throw new Error("Missing cart ID when updating line item")
   }
 
-  await sdk.store.cart
+  const refused = await sdk.store.cart
     .updateLineItem(cartId, lineId, { quantity }, {}, await getAuthHeaders())
-    .catch(medusaError)
+    .then(() => null)
+    .catch(actionError)
+  if (refused) return refused.error
   // Re-aggregate after the qty change so other eligible lines reflect the
   // new tier (e.g. crossing the 50→100 boundary by bumping a line). Runs
   // synchronously before revalidation so the cart refetch sees the new
@@ -1097,6 +1099,21 @@ export async function setShippingMethod({
     })
 }
 
+/**
+ * A server action's thrown message is hidden in production ("Minified React
+ * error #441"), so the backend's reason (PO balance, account limit, minimums)
+ * never reached the customer. Checkout actions return it instead; callers
+ * wrap them in `orThrow` (lib/util/action-result.ts).
+ */
+function actionError(error: unknown): { error: string } {
+  try {
+    medusaError(error)
+  } catch (e) {
+    return { error: e instanceof Error && e.message ? e.message : "Something went wrong. Please try again." }
+  }
+  return { error: "Something went wrong. Please try again." }
+}
+
 export async function initiatePaymentSession(
   cart: HttpTypes.StoreCart,
   data: {
@@ -1110,7 +1127,7 @@ export async function initiatePaymentSession(
       revalidateTag("cart", "max")
       return resp
     })
-    .catch(medusaError)
+    .catch(actionError)
 }
 
 export async function applyPromotions(codes: string[]) {
@@ -1253,16 +1270,18 @@ export async function placeOrder() {
       revalidateTag("cart", "max")
       return cartRes
     })
-    .catch(medusaError)
+    .catch(actionError)
+  if (!("type" in cartRes)) return cartRes
 
-  if (cartRes?.type === "order") {
+  if (cartRes.type === "order") {
     const countryCode =
       cartRes.order.shipping_address?.country_code?.toLowerCase()
     await removeCartId()
     redirect(`/${countryCode}/order/confirmed/${cartRes?.order.id}`)
   }
 
-  return cartRes.cart
+  // Not an order (e.g. the payment wasn't authorised): say why instead of nothing.
+  return { error: cartRes.error?.message || "We couldn't place your order. Please check your payment and try again." }
 }
 
 /**

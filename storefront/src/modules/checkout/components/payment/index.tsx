@@ -31,6 +31,7 @@ import {
   stripePromise,
 } from "@modules/checkout/components/payment-wrapper"
 import { initiatePaymentSession, placeOrder } from "@lib/data/cart"
+import { orThrow } from "@lib/util/action-result"
 
 /** Medusa's manual provider: only ever offered as "Pay on account" to an approved organisation's buyer. */
 const ON_ACCOUNT_PROVIDER = "pp_system_default"
@@ -143,9 +144,11 @@ const Payment = ({
       // already calls `revalidateTag("cart", "max")`, so `router.push` will pick
       // up the new payment session on its own.
       if (needsPaymentInit) {
-        await initiatePaymentSession(cart, {
-          provider_id: selectedPaymentMethod,
-        })
+        await orThrow(
+          initiatePaymentSession(cart, {
+            provider_id: selectedPaymentMethod,
+          })
+        )
 
         // For Stripe we early-return here so the user can fill in the
         // PaymentElement before the second click advances to review.
@@ -280,7 +283,7 @@ const Payment = ({
                       const stripe = await stripePromise
                       const result = secret ? await stripe?.retrievePaymentIntent(secret) : undefined
                       if (isPaidIntentStatus(result?.paymentIntent?.status)) {
-                        await placeOrder().catch((err) => setError(err.message))
+                        await orThrow(placeOrder()).catch((err) => setError(err.message))
                         return
                       }
                       setError("The card form couldn't load. Please refresh the page and try again.")

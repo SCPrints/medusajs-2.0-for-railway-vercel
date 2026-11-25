@@ -131,6 +131,10 @@ const OrganisationsPage = () => {
   const [memberRole, setMemberRole] = useState<"owner" | "purchaser" | "viewer">(
     "purchaser"
   )
+  // An organisation's first member is almost always its owner.
+  useEffect(() => {
+    setMemberRole(members.length ? "purchaser" : "owner")
+  }, [selected?.id, members.length])
   const [activeTab, setActiveTab] = useState<DetailTab>("overview")
   const [designCount, setDesignCount] = useState<number | null>(null)
   const [destinationCount, setDestinationCount] = useState<number | null>(null)
@@ -139,6 +143,7 @@ const OrganisationsPage = () => {
   const [createOpen, setCreateOpen] = useState(false)
   const [nName, setNName] = useState("")
   const [nHandle, setNHandle] = useState("")
+  const [handleTouched, setHandleTouched] = useState(false)
   const [nEmail, setNEmail] = useState("")
   const [nAbn, setNAbn] = useState("")
   const [nNotes, setNNotes] = useState("")
@@ -214,16 +219,19 @@ const OrganisationsPage = () => {
         }),
       })
       if (!res.ok) throw new Error(await res.text())
+      const created = (await res.json().catch(() => null)) as { organisation?: { id: string } } | null
       toast.success("Created")
       setCreateOpen(false)
       setNName("")
       setNHandle("")
+      setHandleTouched(false)
       setNEmail("")
       setNAbn("")
       setNNotes("")
       setNTier("")
       setNTaxExempt(false)
       await load()
+      if (created?.organisation?.id) setSelectedId(created.organisation.id)
     } catch (err: any) {
       toast.error(err?.message ?? "Create failed")
     } finally {
@@ -331,30 +339,31 @@ const OrganisationsPage = () => {
         </div>
         <div className="small:col-span-2">
           <Label size="xsmall" className="flex items-center gap-x-1">
-            Primary contact customer
+            Primary contact
             <HelpTooltip
               text={{
-                title: "Primary contact customer",
-                body: "The single customer-of-record used on every fulfillment order placed against this org. Required before staff can enter fulfillment orders.",
-                bullets: [
-                  "Paste a customer ID (e.g. cus_01H…). The customer must already exist in Medusa.",
-                  "Fulfillment orders use this customer for billing/audit; the actual member who placed each order is stamped on order.metadata.placed_by_customer_id.",
-                  "Owner changes don't break historical orders — this is a long-lived business contact, not the rotating staff owner.",
-                ],
+                title: "Primary contact",
+                body: "The member stock orders and invoices are addressed to. When it's not set, the first owner is used.",
+                bullets: ["Pick from this organisation's members. Add them on the Members tab first."],
               }}
             />
           </Label>
-          <Input
-            placeholder="cus_… (paste a customer ID)"
-            defaultValue={primaryContactId}
-            onBlur={(e) => {
-              const next = e.target.value.trim()
-              if (next === primaryContactId) return
-              patchSelected({
-                primary_contact_customer_id: next || null,
-              })
-            }}
-          />
+          <select
+            className="h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+            value={primaryContactId}
+            onChange={(e) => patchSelected({ primary_contact_customer_id: e.target.value || null })}
+          >
+            <option value="">First owner (default)</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.customer_id}>
+                {[m.name, m.email].filter(Boolean).join(" · ") || m.customer_id} ({m.role})
+              </option>
+            ))}
+            {/* An older contact who isn't a member any more stays visible. */}
+            {primaryContactId && !members.some((m) => m.customer_id === primaryContactId) ? (
+              <option value={primaryContactId}>{primaryContactId} (not a member)</option>
+            ) : null}
+          </select>
           {primaryContactId ? (
             <AppLink
               href={`/app/customers/${primaryContactId}`}
@@ -362,11 +371,7 @@ const OrganisationsPage = () => {
             >
               Open customer →
             </AppLink>
-          ) : (
-            <Text size="xsmall" className="text-ui-fg-muted mt-1">
-              Not set — fulfillment order entry will be blocked until this is configured.
-            </Text>
-          )}
+          ) : null}
         </div>
         <div className="flex items-end gap-x-2 small:col-span-2">
           <Switch
@@ -546,13 +551,27 @@ const OrganisationsPage = () => {
         <div className="px-6 py-4 grid grid-cols-1 small:grid-cols-2 gap-3 border-b border-ui-border-base">
           <div>
             <Label size="xsmall">Name *</Label>
-            <Input value={nName} onChange={(e) => setNName(e.target.value)} />
+            <Input
+              value={nName}
+              onChange={(e) => {
+                setNName(e.target.value)
+                // Fill the handle from the name until staff type their own.
+                if (!handleTouched) {
+                  setNHandle(
+                    e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60)
+                  )
+                }
+              }}
+            />
           </div>
           <div>
             <Label size="xsmall">Handle * (url-safe)</Label>
             <Input
               value={nHandle}
-              onChange={(e) => setNHandle(e.target.value)}
+              onChange={(e) => {
+                setNHandle(e.target.value)
+                setHandleTouched(true)
+              }}
               placeholder="e.g. marrickville-lions"
             />
           </div>

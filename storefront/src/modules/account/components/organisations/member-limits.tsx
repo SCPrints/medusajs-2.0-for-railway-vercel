@@ -22,6 +22,7 @@ export default function MemberLimits({ orgId }: { orgId: string }) {
   const [limits, setLimits] = useState<OrgMemberLimit[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState<string | null>(null)
   const load = useCallback(async () => setLimits(await getOrgMemberLimits(orgId)), [orgId])
   useEffect(() => {
     void load()
@@ -30,8 +31,10 @@ export default function MemberLimits({ orgId }: { orgId: string }) {
   const save = async (memberId: string, order_limit: number | null, monthly_limit: number | null) => {
     setBusy(true)
     setError(null)
+    setSaved(null)
     const res = await setOrgMemberLimits(orgId, memberId, { order_limit, monthly_limit })
     if (!res.ok) setError(res.error)
+    else setSaved("Saved.")
     await load()
     setBusy(false)
   }
@@ -47,6 +50,11 @@ export default function MemberLimits({ orgId }: { orgId: string }) {
       {error ? (
         <p role="alert" className="mt-2 text-sm text-red-600">
           {error}
+        </p>
+      ) : null}
+      {saved ? (
+        <p role="status" className="mt-2 text-sm text-emerald-700">
+          {saved}
         </p>
       ) : null}
       <ul className="mt-3 divide-y divide-ui-border-base">

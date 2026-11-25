@@ -28,6 +28,8 @@ describe("parseDelimited", () => {
 describe("sizes", () => {
   it("treats spellings of the same size as one", () => {
     expect(sizeKey("X-Large")).toBe("xl")
+    expect(sizeKey("SM")).toBe("s")
+    expect(sizeKey("md")).toBe("m")
     expect(sizeKey("XXL")).toBe(sizeKey("2XL"))
     expect(normaliseSize("medium")).toBe("M")
     expect(normaliseSize("One Size")).toBe("OSFA")

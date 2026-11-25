@@ -6097,6 +6097,7 @@ export default function CustomizerTemplate({
                 >
                   <InputPanel
                     onUploadFile={inputPanelProps.onUploadFile}
+                  darkGarment={garmentIsDark}
                     uploads={inputPanelUploads}
                     onReuseUpload={inputPanelProps.onReuseUpload}
                     cartDesigns={isStaffStudio ? undefined : cartArtworkDesigns}
@@ -7620,6 +7621,7 @@ export default function CustomizerTemplate({
                 </span>
                 <InputPanel
                   onUploadFile={inputPanelProps.onUploadFile}
+                  darkGarment={garmentIsDark}
                   uploads={inputPanelUploads}
                   onReuseUpload={inputPanelProps.onReuseUpload}
                   cartDesigns={isStaffStudio ? undefined : cartArtworkDesigns}
