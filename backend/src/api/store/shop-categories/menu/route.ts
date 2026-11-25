@@ -24,12 +24,6 @@ import { TREE } from "../../../../lib/shop-categories"
  * never need to manually prune dead menu links.
  */
 
-type ProductRow = {
-  id: string
-  status: string | null
-  categories: Array<{ id: string; handle: string }> | null
-}
-
 type CategoryRow = {
   id: string
   name: string
@@ -38,18 +32,15 @@ type CategoryRow = {
   metadata: Record<string, unknown> | null
 }
 
-const MAX_PRODUCTS = 10000
-
 // ──────────────────────────────────────────────────────────────────────
 // In-process cache + request coalescing
 //
 // This route is hit on every storefront page render (it powers the
-// mega-menu). The build does two graph queries — including a 10k-row
-// product sweep — that take 1-2s warm and 10-20s cold. During a cold
-// burst, dozens of concurrent storefront RSC renders all fan out to
-// this endpoint and pile up worker threads, causing the Fly health
-// check to fail (observed 2026-05-25, machine e784595ea34d98 backed up
-// for ~32s with menu durations climbing to 21s before recovery).
+// mega-menu). Counts come from one SQL GROUP BY: until 2026-11-25 the
+// build swept every product through query.graph (10k rows hydrated in
+// JS), which blocked the event loop ~33s per rebuild — the Fly health
+// check failed and every request on the machine stalled, about every
+// 15 minutes (first seen 2026-05-25).
 //
 // Two layers of mitigation:
 //   1. Module-level cache: serves the last-built payload for 5 min.
@@ -74,7 +65,7 @@ type MenuPayload = { audiences: unknown[] }
 let menuCache: { exp: number; payload: MenuPayload } | null = null
 let menuInFlight: Promise<MenuPayload> | null = null
 
-async function buildMenuPayload(query: any): Promise<MenuPayload> {
+async function buildMenuPayload(query: any, pg: any): Promise<MenuPayload> {
   // 1. Load every product_category row so we can look up by handle and
   //    pick up admin overrides (renames, hide-from-menu toggle).
   const { data: categoryRows } = await query.graph({
@@ -86,26 +77,23 @@ async function buildMenuPayload(query: any): Promise<MenuPayload> {
     if (c.handle) categoriesByHandle.set(c.handle, c)
   }
 
-  // 2. Single sweep over published products to count category memberships.
-  //    Same approach as /admin/shop-categories/health — cheap because
-  //    Medusa's graph layer pulls categories.handle as a join in one query.
-  const { data: productRows } = await query.graph({
-    entity: "product",
-    fields: ["id", "status", "categories.handle"],
-    pagination: { take: MAX_PRODUCTS, skip: 0 },
-  })
-
-  const countsByHandle = new Map<string, number>()
-  for (const product of (productRows ?? []) as ProductRow[]) {
-    if ((product.status ?? "") !== "published") continue
-    for (const cat of product.categories ?? []) {
-      if (!cat.handle) continue
-      countsByHandle.set(
-        cat.handle,
-        (countsByHandle.get(cat.handle) ?? 0) + 1
-      )
-    }
-  }
+  // 2. Published products per category handle, counted in Postgres.
+  const countRows = (await pg("product_category_product")
+    .join("product", "product.id", "product_category_product.product_id")
+    .join(
+      "product_category",
+      "product_category.id",
+      "product_category_product.product_category_id"
+    )
+    .where("product.status", "published")
+    .whereNull("product.deleted_at")
+    .whereNull("product_category.deleted_at")
+    .groupBy("product_category.handle")
+    .select("product_category.handle as handle")
+    .count("product.id as count")) as Array<{ handle: string; count: string | number }>
+  const countsByHandle = new Map<string, number>(
+    countRows.map((r) => [r.handle, Number(r.count)])
+  )
 
   // 3. Walk the TREE and build the response. Filters compose in one place
   //    so the storefront can render naively (anything that comes back is
@@ -178,11 +166,12 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as any
+  const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
 
   if (!menuInFlight) {
     menuInFlight = (async () => {
       try {
-        const payload = await buildMenuPayload(query)
+        const payload = await buildMenuPayload(query, pg)
         menuCache = { exp: Date.now() + MENU_CACHE_TTL_MS, payload }
         return payload
       } finally {

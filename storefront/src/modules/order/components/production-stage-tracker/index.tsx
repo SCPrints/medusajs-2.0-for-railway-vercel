@@ -187,17 +187,19 @@ const ProductionStageTracker = ({ order }: Props) => {
         })}
       </ol>
 
+      {/* "Not started" isn't a step: once passed it got a tick ("Artwork not
+          started ✓"). Before work starts, no step is lit. */}
       {showPreparingDetail ? (
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <MiniTrack<ArtworkStage>
             title="Artwork approval"
-            stages={ARTWORK_STAGES}
+            stages={ARTWORK_STAGES.filter((s) => s !== "pending")}
             labels={ARTWORK_STAGE_LABEL}
             current={artworkStage}
           />
           <MiniTrack<BlanksStage>
             title="Garment stock"
-            stages={BLANKS_STAGES}
+            stages={BLANKS_STAGES.filter((s) => s !== "not_started")}
             labels={BLANKS_STAGE_LABEL}
             current={blanksStage}
           />

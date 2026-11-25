@@ -17,6 +17,7 @@ import {
 } from "../../lib/constants"
 import { isSystemPaymentProvider } from "../../lib/org-account"
 import { poNumberFromMetadata, resolveOrderPoNumber } from "../../lib/po-number"
+import { lineVariantLabel } from "../../lib/line-variant-label"
 
 const ASSETS_DIR = path.join(__dirname, "../../assets")
 const FONTS_DIR = path.join(ASSETS_DIR, "fonts")
@@ -573,7 +574,7 @@ function buildPdf(params: {
       }
 
       const title = String(item.title ?? item.product_title ?? "Item")
-      const variant = item.variant_title ? String(item.variant_title) : ""
+      const variant = lineVariantLabel(title, item.variant_title)
       const sku = item.variant_sku ? String(item.variant_sku) : ""
       const qty = Number(item.quantity ?? 0)
       const unit = formatMoney(item.unit_price, currency)

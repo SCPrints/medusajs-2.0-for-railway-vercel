@@ -12,6 +12,7 @@ import {
 import { loadReceiptOrder } from "../../../../../../../services/order-receipt-pdf/service"
 import { requireCustomer } from "../../../../../../../lib/require-customer"
 import { poNumberFromMetadata } from "../../../../../../../lib/po-number"
+import { lineVariantLabel } from "../../../../../../../lib/line-variant-label"
 import { ORGANISATION_MODULE } from "../../../../../../../modules/organisation"
 
 const INVOICE_BRAND = {
@@ -104,8 +105,13 @@ export async function GET(
   const items = (order.items as Array<Record<string, any>>) ?? []
   const itemRows = items
     .map((it) => {
-      const title = escape(String(it.title ?? it.product_title ?? "Item"))
-      const sku = it.variant_sku ? `<div class="sku">SKU ${escape(String(it.variant_sku))}</div>` : ""
+      const rawTitle = String(it.title ?? it.product_title ?? "Item")
+      const title = escape(rawTitle)
+      const details = [
+        lineVariantLabel(rawTitle, it.variant_title),
+        it.variant_sku ? `SKU ${it.variant_sku}` : "",
+      ].filter(Boolean)
+      const sku = details.length ? `<div class="sku">${escape(details.join(" · "))}</div>` : ""
       const qty = Number(it.quantity ?? 0)
       const unit = formatMoney(it.unit_price, currency)
       const total = formatMoney(it.total ?? Number(it.unit_price ?? 0) * qty, currency)
