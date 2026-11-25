@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 export type OrgTabKey =
   | "overview"
@@ -59,6 +59,20 @@ export default function OrgTabs({ tabs, defaultTab, panels }: Props) {
     }
   }, [active, hashRead])
 
+  // A link to #orders or #invoices opens a tab past the visible end of the
+  // scrolling strip: bring it into view. Scrolls the strip only, never the page.
+  const stripRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const strip = stripRef.current
+    const tab = strip?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!strip || !tab) return
+    const s = strip.getBoundingClientRect()
+    const t = tab.getBoundingClientRect()
+    if (t.left < s.left || t.right > s.right) {
+      strip.scrollLeft += t.left - s.left - (s.width - t.width) / 2
+    }
+  }, [active])
+
   // Listen for back/forward hash changes
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -73,6 +87,7 @@ export default function OrgTabs({ tabs, defaultTab, panels }: Props) {
   return (
     <div className="w-full">
       <div
+        ref={stripRef}
         role="tablist"
         aria-label="Organisation sections"
         className="-mx-4 flex overflow-x-auto border-b border-ui-border-base px-4 small:mx-0 small:px-0"

@@ -9,6 +9,7 @@ import {
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ProductionStageTracker from "@modules/order/components/production-stage-tracker"
 import { isCancelledOrder } from "@modules/order/lib/cancelled"
+import { lineVariantLabel } from "@modules/order/lib/line-variant-label"
 
 import CancelOrderButton from "@modules/account/components/organisations/cancel-order-button"
 import OrderAgainButton from "@modules/order/components/order-again-button"
@@ -184,10 +185,19 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-ui-border-base">
-              {items.map((it) => (
+              {items.map((it) => {
+                const title = it.title || it.product_title
+                // Two "Supply Hood" lines read the same without their colour / size.
+                const variant = lineVariantLabel(title, it.variant_title)
+                return (
                 <tr key={it.id}>
                   <td className="px-3 py-3 align-middle text-ui-fg-base">
-                    {it.title || it.product_title}
+                    {title}
+                    {variant ? (
+                      <p className="mt-0.5 text-xs text-ui-fg-muted" data-testid="org-order-line-variant">
+                        {variant}
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-3 py-3 text-right tabular-nums">
                     {it.quantity}
@@ -202,7 +212,8 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
                     )}
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
             <tfoot className="border-t border-ui-border-base bg-ui-bg-subtle text-sm font-semibold">
               <tr>
