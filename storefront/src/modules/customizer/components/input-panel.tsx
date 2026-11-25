@@ -556,8 +556,15 @@ function InputPanel({
             })}
           </div>
 
-          <div className="rounded-md border border-dashed border-ui-border-base bg-ui-bg-base px-3 py-2">
-            <p className="text-[11px] uppercase tracking-wide text-ui-fg-muted">Preview</p>
+          {/* Dark behind the text on a dark garment, so the preview looks like the shirt. */}
+          <div
+            className={`rounded-md border border-dashed border-ui-border-base px-3 py-2 ${
+              darkGarment ? "bg-gray-800" : "bg-ui-bg-base"
+            }`}
+          >
+            <p className={`text-[11px] uppercase tracking-wide ${darkGarment ? "text-gray-300" : "text-ui-fg-muted"}`}>
+              Preview
+            </p>
             <p
               className="mt-0.5 truncate text-lg leading-tight"
               style={{ fontFamily: `"${fontFamily}", sans-serif`, color }}

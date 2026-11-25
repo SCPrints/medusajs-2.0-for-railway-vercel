@@ -62,12 +62,15 @@ const Payment = ({
   const cartMeta = (cart?.metadata ?? {}) as Record<string, unknown>
   const [orgSel, setOrgSel] = useState<OrgOrderSelection>(() => {
     const id = typeof cartMeta.organisation_id === "string" ? cartMeta.organisation_id : ""
-    const known = orgOptions.some((o) => o.organisation.id === id)
+    const known = orgOptions.find((o) => o.organisation.id === id)
+    // Only values that belong to this organisation: a cart can carry another
+    // organisation's cost centre or PO from an earlier draft.
+    const centre = typeof cartMeta.cost_centre === "string" ? cartMeta.cost_centre : ""
+    const poId = typeof cartMeta.organisation_po_id === "string" ? cartMeta.organisation_po_id : ""
     return {
       organisation_id: known ? id : null,
-      cost_centre: known && typeof cartMeta.cost_centre === "string" ? cartMeta.cost_centre || null : null,
-      organisation_po_id:
-        known && typeof cartMeta.organisation_po_id === "string" ? cartMeta.organisation_po_id || null : null,
+      cost_centre: known && activeCostCentres(known).some((c) => c.code === centre) ? centre : null,
+      organisation_po_id: known && (known.purchase_orders ?? []).some((p) => p.id === poId) ? poId : null,
     }
   })
   const org = orgOptions.find((o) => o.organisation.id === orgSel.organisation_id) ?? null

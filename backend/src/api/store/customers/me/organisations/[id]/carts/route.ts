@@ -99,6 +99,15 @@ export async function POST(req: AuthenticatedMedusaRequest, res: MedusaResponse)
   if (!cart.item_count) return res.status(400).json({ error: "Your cart is empty.", message: "Your cart is empty." })
 
   const service = req.scope.resolve(ORGANISATION_MODULE) as any
+  // Keep a cost centre only if it's one of this organisation's: a cart can
+  // still carry another organisation's from an earlier draft.
+  if (body.cost_centre) {
+    const [centre] = (await service.listOrganisationCostCentres(
+      { organisation_id: membership.organisation_id, code: body.cost_centre, is_active: true },
+      { take: 1 }
+    )) as any[]
+    if (!centre) body.cost_centre = null
+  }
   const status = body.send_for_approval ? "awaiting_approval" : "draft"
   const fields = {
     name: body.name,

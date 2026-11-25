@@ -85,7 +85,10 @@ export default function ApprovalsTab({ orgId }: { orgId: string }) {
       text:
         res.status === "ordered"
           ? `Approved and ordered${res.display_id ? ` — order #${res.display_id}` : ""}. We'll invoice the organisation.`
-          : res.message ?? "Approved. Open it to pay and place the order.",
+          : res.message
+            ? // The approval stands; only placing it on account failed (PO balance, account limit…).
+              `Approved, but it couldn't be ordered on account: ${res.message} Open it to change that, or to pay by card.`
+            : "Approved. Open it to pay and place the order.",
     })
     await load()
   }
