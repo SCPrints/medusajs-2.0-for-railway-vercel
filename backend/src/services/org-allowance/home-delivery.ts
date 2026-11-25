@@ -54,7 +54,9 @@ export async function addHomeDeliveryPostage(
       const c = choices.get(pick.design_id)
       const v = variantForSize(c, pick.size)
       for (let i = 0; i < pick.quantity; i++) units.push(v ? gramsOf.get(v) ?? SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS : SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS)
-      items.push({ title: c?.product_title ? `${c.name} (${c.product_title})` : c?.name ?? "Item", size: pick.size, quantity: pick.quantity })
+      const title =
+        c?.product_title && !c.name.toLowerCase().includes(c.product_title.toLowerCase()) ? `${c.name} (${c.product_title})` : c?.name ?? "Item"
+      items.push({ title, size: pick.size, quantity: pick.quantity })
     }
     if (!items.length) continue
     const rate = await resolveShippingRate(parcelGrams(units, SHIPPING_PACKAGING_OVERHEAD_GRAMS), {

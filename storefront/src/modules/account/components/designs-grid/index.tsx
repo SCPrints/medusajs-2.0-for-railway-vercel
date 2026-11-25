@@ -14,6 +14,7 @@ import {
 } from "@lib/data/designs"
 import type { PastOrderDesign } from "@modules/order/lib/design-groups"
 import { phCapture } from "@lib/posthog"
+import { confirmDialog } from "@modules/common/lib/confirm-dialog"
 
 export type ShareableOrg = { id: string; name: string }
 
@@ -105,7 +106,7 @@ const SavedDesigns = ({
   const refresh = () => startTransition(() => router.refresh())
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this saved design? This can’t be undone.")) return
+    if (!(await confirmDialog("Delete this saved design? This can’t be undone.", "Delete"))) return
     setError(null)
     setBusyId(id)
     const res = await deleteMyDesign(id)

@@ -15,6 +15,7 @@ import {
 import { normaliseSize } from "@lib/util/size-list"
 
 import SizeListImport from "./size-list-import"
+import { confirmDialog } from "@modules/common/lib/confirm-dialog"
 
 type Props = {
   orgId: string
@@ -133,7 +134,7 @@ export default function PeopleTab({ orgId, roster, knownSizes, onChange }: Props
   }
 
   async function remove(m: RosterMember) {
-    if (!confirm(`Remove ${m.name} from your people?`)) return
+    if (!(await confirmDialog(`Remove ${m.name} from your people?`, "Remove"))) return
     const res = await deleteRosterMember(orgId, m.id)
     if (res.ok) setMembers(members.filter((x) => x.id !== m.id))
     else setNote({ kind: "err", text: res.error })
@@ -210,7 +211,7 @@ export default function PeopleTab({ orgId, roster, knownSizes, onChange }: Props
                     primary: false,
                     everyone: true,
                     run: async (people: Parameters<typeof replaceRoster>[1]) => {
-                      if (!confirm(`Replace all ${members.length} people with the ${people.length} pasted?`)) {
+                      if (!(await confirmDialog(`Replace all ${members.length} people with the ${people.length} pasted?`, "Replace"))) {
                         return "Nothing changed."
                       }
                       const res = await replaceRoster(orgId, people)

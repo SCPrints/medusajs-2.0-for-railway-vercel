@@ -17,6 +17,7 @@ import {
 } from "@lib/data/organisations"
 
 import MemberLimits from "./member-limits"
+import { confirmDialog } from "@modules/common/lib/confirm-dialog"
 
 type Props = {
   orgId: string
@@ -83,7 +84,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
   }
 
   async function handleRemove(memberId: string, label: string) {
-    if (!confirm(`Remove ${label} from this organisation?`)) return
+    if (!(await confirmDialog(`Remove ${label} from this organisation?`, "Remove"))) return
     setFeedback(null)
     const res = await removeOrganisationMember(orgId, memberId)
     if (res.ok) {

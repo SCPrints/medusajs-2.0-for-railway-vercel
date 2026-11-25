@@ -26,7 +26,13 @@ export default async function AllowancePage({ params }: { params: Promise<{ coun
   }
 
   if (data.closed) {
-    const nameOf = new Map(data.items.map((i) => [i.design_id, i.product_title ? `${i.name} (${i.product_title})` : i.name]))
+    // "Staple Tee · 25 Nov 2026" already names the garment: don't repeat it.
+    const nameOf = new Map(
+      data.items.map((i) => [
+        i.design_id,
+        i.product_title && !i.name.toLowerCase().includes(i.product_title.toLowerCase()) ? `${i.name} (${i.product_title})` : i.name,
+      ])
+    )
     const chosen = data.submitted ? data.picks.filter((p) => p.quantity > 0) : []
     return (
       <div className="content-container py-10 small:py-16">

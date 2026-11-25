@@ -198,6 +198,7 @@ import { phCapture } from "@lib/posthog"
 import { svgHasLiveText } from "../lib/svg-live-text"
 import CustomizerGuide from "@modules/customizer/components/customizer-guide"
 import * as fabric from "fabric"
+import { confirmDialog } from "@modules/common/lib/confirm-dialog"
 import { FabricImage } from "fabric"
 
 const DESIGN_SIDES: GarmentSide[] = ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
@@ -7390,15 +7391,15 @@ export default function CustomizerTemplate({
                                 {sideLabelMap[s]}
                                 <button
                                   type="button"
-                                  onClick={() => {
+                                  onClick={async () => {
                                     // Removing a location deletes its artwork
                                     // with no undo — confirm so a phone mis-tap
                                     // doesn't silently wipe a finished side.
                                     if (
-                                      typeof window !== "undefined" &&
-                                      !window.confirm(
-                                        `Remove the ${sideLabelMap[s]} print? Its artwork will be deleted.`
-                                      )
+                                      !(await confirmDialog(
+                                        `Remove the ${sideLabelMap[s]} print? Its artwork will be deleted.`,
+                                        "Remove"
+                                      ))
                                     ) {
                                       return
                                     }

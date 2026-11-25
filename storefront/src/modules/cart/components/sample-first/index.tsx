@@ -4,6 +4,7 @@ import { useState } from "react"
 
 import { makeSampleLine } from "@lib/data/sample-line"
 import { isSampleLine, sampleBlockReason } from "@modules/cart/lib/sample"
+import { confirmDialog } from "@modules/common/lib/confirm-dialog"
 
 type Props = {
   item: { id: string; quantity: number; title?: string | null; product_title?: string | null; metadata?: any }
@@ -20,7 +21,7 @@ const SampleFirst = ({ item }: Props) => {
   if (sampleBlockReason(item.metadata, item.product_title || item.title)) return null
 
   const go = async () => {
-    if (item.quantity > 1 && !window.confirm("This changes the line to one garment. Continue?")) return
+    if (item.quantity > 1 && !(await confirmDialog("This changes the line to one garment. Continue?", "Continue"))) return
     setBusy(true)
     setError(null)
     setError(await makeSampleLine(item.id))

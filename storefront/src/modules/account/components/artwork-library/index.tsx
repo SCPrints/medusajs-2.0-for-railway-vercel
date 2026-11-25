@@ -13,6 +13,7 @@ import { phCapture } from "@lib/posthog"
 import GarmentPicker from "@modules/account/components/garment-picker"
 import ArtworkCheckBadge from "@modules/customizer/components/artwork-check-badge"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
+import { confirmDialog } from "@modules/common/lib/confirm-dialog"
 
 type ShareableOrg = { id: string; name: string }
 
@@ -119,7 +120,7 @@ const ArtworkLibrary = ({ artwork, organisations }: Props) => {
   }
 
   const handleDelete = async (item: ArtworkItem) => {
-    if (!confirm(`Remove “${item.name}” from your artwork?`)) return
+    if (!(await confirmDialog(`Remove “${item.name}” from your artwork?`, "Remove"))) return
     setBusyId(item.id)
     const res = await deleteArtwork(item.id)
     setBusyId(null)

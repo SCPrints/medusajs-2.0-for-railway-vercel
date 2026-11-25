@@ -9,6 +9,7 @@ import {
   type ConvertResult,
   type GroupOrder,
 } from "@lib/data/group-order"
+import { confirmDialog } from "@modules/common/lib/confirm-dialog"
 
 type Props = {
   orders: GroupOrder[]
@@ -80,11 +81,12 @@ const OwnerRoster = ({ orders }: Props) => {
     }
   }
 
-  const handleConvert = (id: string) => {
+  const handleConvert = async (id: string) => {
     if (
-      !confirm(
-        "Convert this group order to a cart? This builds line items from each participant's size + quantity and takes you to checkout. Participants whose size doesn't match the garment will be skipped (you'll see the list)."
-      )
+      !(await confirmDialog(
+        "Convert this group order to a cart? This builds line items from each participant's size + quantity and takes you to checkout. Participants whose size doesn't match the garment will be skipped (you'll see the list).",
+        "Convert"
+      ))
     ) {
       return
     }

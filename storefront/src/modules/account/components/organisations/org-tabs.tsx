@@ -38,23 +38,26 @@ type Props = {
  */
 export default function OrgTabs({ tabs, defaultTab, panels }: Props) {
   const enabledTabs = useMemo(() => tabs.filter((t) => !t.gated), [tabs])
-  const [active, setActive] = useState<OrgTabKey>(() => {
-    if (typeof window === "undefined") {
-      return defaultTab ?? enabledTabs[0]?.key ?? "overview"
-    }
-    const hash = window.location.hash?.replace("#", "") as OrgTabKey | ""
-    if (hash && enabledTabs.some((t) => t.key === hash)) return hash
-    return defaultTab ?? enabledTabs[0]?.key ?? "overview"
-  })
-
-  // Sync URL hash on change
+  // Start on the server's tab and read the #hash after mounting: reading it in
+  // the first render made the browser disagree with the server's HTML, so a
+  // link or reload to #approvals showed Overview (and a hydration error).
+  const [active, setActive] = useState<OrgTabKey>(defaultTab ?? enabledTabs[0]?.key ?? "overview")
+  const [hashRead, setHashRead] = useState(false)
   useEffect(() => {
-    if (typeof window === "undefined") return
+    const hash = window.location.hash?.replace("#", "") as OrgTabKey | ""
+    if (hash && enabledTabs.some((t) => t.key === hash)) setActive(hash)
+    setHashRead(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Sync URL hash on change (not before the hash was read, or it would be overwritten)
+  useEffect(() => {
+    if (typeof window === "undefined" || !hashRead) return
     const desired = `#${active}`
     if (window.location.hash !== desired) {
       window.history.replaceState(null, "", desired)
     }
-  }, [active])
+  }, [active, hashRead])
 
   // Listen for back/forward hash changes
   useEffect(() => {
