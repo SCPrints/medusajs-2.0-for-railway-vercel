@@ -97,7 +97,11 @@ const Item = ({ item, type = "full" }: ItemProps) => {
   const quantityControls = (suffix: string) => (
     <>
       <div className="flex gap-2 items-center w-28">
-        <DeleteButton id={item.id} data-testid={`product-delete-button${suffix}`} />
+        <DeleteButton
+          id={item.id}
+          label={`Remove ${displayTitle}${item.variant_title ? ` (${item.variant_title})` : ""} from cart`}
+          data-testid={`product-delete-button${suffix}`}
+        />
         {fixedQuantity ? (
           <span className="w-14 text-center txt-medium" data-testid={`product-fixed-quantity${suffix}`}>
             {item.quantity}

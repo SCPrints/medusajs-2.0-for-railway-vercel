@@ -4,7 +4,6 @@ import {
   ARTWORK_STAGES,
   ARTWORK_STAGE_LABEL,
   BLANKS_STAGES,
-  BLANKS_STAGE_LABEL,
   CUSTOMER_MILESTONES,
   CUSTOMER_MILESTONE_LABEL,
   PRODUCTION_STAGE_LABEL,
@@ -20,6 +19,13 @@ import AccountProof from "@modules/artwork-approval/components/account-proof"
 
 type Props = {
   order: HttpTypes.StoreOrder
+}
+
+// "Blanks" is our trade word (the admin keeps it); customers read "garments".
+const GARMENT_STAGE_LABEL: Record<BlanksStage, string> = {
+  not_started: "Garments not ordered yet",
+  ordered: "Garments ordered",
+  arrived: "Garments arrived",
 }
 
 const formatDate = (iso: string | null | undefined): string => {
@@ -200,7 +206,7 @@ const ProductionStageTracker = ({ order }: Props) => {
           <MiniTrack<BlanksStage>
             title="Garment stock"
             stages={BLANKS_STAGES.filter((s) => s !== "not_started")}
-            labels={BLANKS_STAGE_LABEL}
+            labels={GARMENT_STAGE_LABEL}
             current={blanksStage}
           />
         </div>
@@ -212,7 +218,7 @@ const ProductionStageTracker = ({ order }: Props) => {
             Action needed: approve your artwork proof below, or reply to our proof email.
           </p>
           <p className="text-xs text-amber-800 mt-1">
-            We&apos;ll start production as soon as you sign off — your blanks may
+            We&apos;ll start production as soon as you sign off — your garments may
             already be on the way.
           </p>
         </div>

@@ -7,10 +7,15 @@ const DeleteButton = ({
   id,
   children,
   className,
+  label,
+  "data-testid": testId,
 }: {
   id: string
   children?: React.ReactNode
   className?: string
+  /** What a screen reader says when the button is only the bin icon. */
+  label?: string
+  "data-testid"?: string
 }) => {
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -32,6 +37,8 @@ const DeleteButton = ({
         type="button"
         className="flex gap-x-1 text-ui-fg-subtle hover:text-ui-fg-base cursor-pointer"
         onClick={() => handleDelete(id)}
+        aria-label={children ? undefined : label ?? "Remove from cart"}
+        data-testid={testId}
         data-no-squish
       >
         {isDeleting ? <Spinner className="animate-spin" /> : <Trash />}
