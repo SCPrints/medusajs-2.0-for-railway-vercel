@@ -22,17 +22,13 @@ const INVOICE_BRAND = {
 }
 
 /**
- * GET /store/customers/me/orders/:id/invoice
- *   → { html, meta }
- *
- * Returns a self-contained HTML invoice (printable from the browser
- * via window.print()) plus a small `meta` block the storefront can
- * use to set the file name on a downloaded PDF.
+ * GET /store/customers/me/orders/:id/invoice → a self-contained HTML tax invoice.
  *
  * Why not server-side PDF? Sharp + headless Chrome adds a lot of weight
- * for what's essentially print-stylesheet HTML. The storefront opens
- * the HTML in a new window, hits print, and the browser produces a
- * crisp PDF — handles fonts, page breaks, paper sizes, etc. for free.
+ * for what's essentially print-stylesheet HTML. The page's "Print / save
+ * as PDF" button lets the browser produce a crisp PDF (fonts, page breaks,
+ * paper sizes). It never opens the print dialog by itself: a customer
+ * clicking "Tax invoice" wants to read it first.
  */
 const formatMoney = (
   amount: number | string | null | undefined,
@@ -236,7 +232,6 @@ export async function GET(
 
   <button type="button" class="print-cta" onclick="window.print()">Print / save as PDF</button>
 </div>
-<script>setTimeout(function(){ try { window.focus(); window.print(); } catch(e) {} }, 350);</script>
 </body>
 </html>`
 
