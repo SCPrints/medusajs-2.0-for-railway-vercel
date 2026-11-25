@@ -42,9 +42,13 @@ export function jobMethods(lines: Array<{ customizerDesign?: any; metadata?: any
     // A Studio mockup on a priced group leaves sides unset (Studio defaults to
     // print); don't read that as DTF on a screen job — the pricer covers it.
     const groupId = l.group_id ?? l.metadata?.group_id
-    const fallback = groupId && priced.has(String(groupId)) ? null : "print"
     const drawn = (Array.isArray(design.artifacts) ? design.artifacts : []).map((a: any) => a?.side).filter((s: unknown) => typeof s === "string")
-    for (const side of drawn.length ? drawn : Object.keys(methods)) {
+    const sides: string[] = drawn.length ? drawn : Object.keys(methods)
+    // A side left unset takes the design's one set technique (we never mix
+    // print and embroidery in one design), else Studio's default, print.
+    const set = new Set(sides.map((s) => methods[s]).filter(Boolean))
+    const fallback = groupId && priced.has(String(groupId)) ? null : set.size === 1 ? [...set][0] : "print"
+    for (const side of sides) {
       const m = label(methods[side] ?? fallback)
       if (m) found.add(m)
     }
