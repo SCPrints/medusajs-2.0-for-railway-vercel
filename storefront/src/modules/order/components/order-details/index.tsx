@@ -32,7 +32,7 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
     <div className="bg-ui-bg-subtle rounded-xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
       <Row label="Order date">
         <span data-testid="order-date">
-          {new Date(order.created_at).toDateString()}
+          {new Date(order.created_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "long", year: "numeric" })}
         </span>
       </Row>
       <Row label="Order number">

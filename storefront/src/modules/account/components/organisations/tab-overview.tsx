@@ -89,17 +89,12 @@ export default function OverviewTab({
             Recent orders
           </h2>
           {recentOrders.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (typeof window !== "undefined") {
-                  window.location.hash = "orders"
-                }
-              }}
-              className="text-xs font-semibold text-brand hover:underline"
-            >
+            // A plain link: this is a server component, and a button with an
+            // onClick here crashed the whole page as soon as the organisation
+            // had an order. OrgTabs follows the #hash change.
+            <a href="#orders" className="text-xs font-semibold text-brand hover:underline">
               View all →
-            </button>
+            </a>
           ) : null}
         </div>
 

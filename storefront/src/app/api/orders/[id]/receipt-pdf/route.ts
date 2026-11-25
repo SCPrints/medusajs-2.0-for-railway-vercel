@@ -18,7 +18,12 @@ export async function GET(
     return new Response("missing order id", { status: 400 })
   }
 
-  const headers = (await getAuthHeaders()) as Record<string, string>
+  // Store routes refuse a request without the publishable key (400).
+  const key = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+  const headers = {
+    ...(key ? { "x-publishable-api-key": key } : {}),
+    ...((await getAuthHeaders()) as Record<string, string>),
+  }
   const upstream = await fetch(
     `${MEDUSA_BACKEND_URL}/store/customers/me/orders/${encodeURIComponent(
       id

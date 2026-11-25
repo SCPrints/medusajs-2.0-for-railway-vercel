@@ -406,7 +406,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
                           className="text-ui-fg-base"
                           data-testid="order-created-date"
                         >
-                          {new Date(order.created_at).toDateString()}
+                          {new Date(order.created_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "long", year: "numeric" })}
                         </span>
                         <span
                           className="font-semibold text-ui-fg-base"

@@ -41,10 +41,14 @@ export default defineMiddlewares({
       middlewares: [allowFields("brand", "variants.metadata"), stripVariantCostMetadataMiddleware],
     },
     {
-      // Account order pages read fulfilment tracking (2.21 allowlist, see above).
+      // Account order pages read fulfilment tracking (2.21 allowlist, see above),
+      // and the order's metadata: production tracker, proof approval, PO number,
+      // cost centre, payment due. A single-order fetch doesn't include metadata
+      // by default (the order list does), so without this the order page lost all
+      // of them and an on-account order read "paid".
       matcher: "/store/orders*",
       methods: ["GET"],
-      middlewares: [allowFields("fulfillments.metadata", "fulfillments.labels", "shipping_methods.detail")],
+      middlewares: [allowFields("metadata", "fulfillments.metadata", "fulfillments.labels", "shipping_methods.detail")],
     },
     {
       matcher: "/store/brands/:handle/products",

@@ -50,7 +50,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
       </div>
       <div className="flex items-center divide-x divide-gray-200 text-small-regular text-ui-fg-base">
         <span className="pr-2" data-testid="order-created-at">
-          {new Date(order.created_at).toDateString()}
+          {new Date(order.created_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "long", year: "numeric" })}
         </span>
         <span className="px-2" data-testid="order-amount">
           {convertMinorToLocale({

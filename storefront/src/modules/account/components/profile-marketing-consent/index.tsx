@@ -132,7 +132,7 @@ const ProfileMarketingConsent: React.FC<Props> = ({ initial }) => {
       )}
       {savedAt && (
         <Text className="text-ui-fg-muted mt-3 text-xs">
-          Last updated {new Date(savedAt).toLocaleString()}
+          Last updated {new Date(savedAt).toLocaleString("en-AU", { timeZone: "Australia/Sydney" })}
         </Text>
       )}
     </div>
