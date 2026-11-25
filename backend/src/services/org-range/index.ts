@@ -26,6 +26,7 @@ import {
   resolveTierForCartCustomer,
   type RemoteJoinerGraphLike,
 } from "../../lib/scp-resolve-garment-unit-price"
+import { colourFrontImage } from "../../lib/sizing-kit"
 import { DESIGNS_MODULE } from "../../modules/designs"
 import type DesignsModuleService from "../../modules/designs/service"
 import { ORGANISATION_MODULE } from "../../modules/organisation"
@@ -155,6 +156,14 @@ export async function buildRangeOrderLines(
     Array.from(new Set(designs.map((d) => d.base_product_id).filter((id: unknown): id is string => !!id)))
   )
 
+  // Each line's picture is its colour's front photo (the cart showed the
+  // product's main photo otherwise: a blue tee for a White order).
+  const query = scope.resolve(ContainerRegistrationKeys.QUERY)
+  const { data: imageRows } = products.size
+    ? await query.graph({ entity: "product", filters: { id: [...products.keys()] }, fields: ["id", "images.url"] })
+    : { data: [] }
+  const imagesOf = new Map(((imageRows ?? []) as any[]).map((p) => [p.id as string, ((p.images ?? []) as any[]).map((i) => i?.url).filter(Boolean) as string[]]))
+
   const lines: RangeLine[] = []
   for (const designId of designIds) {
     const design = designById.get(designId)
@@ -170,15 +179,17 @@ export async function buildRangeOrderLines(
     if (wanted.some((i) => !variantIds.has(i.variant_id))) {
       throw new MedusaError(MedusaError.Types.INVALID_DATA, `"${design.name}": that size isn't available on this garment.`)
     }
-    lines.push(
-      ...buildRangeLines({
-        design,
-        product: { handle: product.handle, title: product.title, variants: product.variants ?? [] },
-        items: wanted,
-        groupId: randomUUID(),
-        organisationId,
-      })
-    )
+    for (const line of buildRangeLines({
+      design,
+      product: { handle: product.handle, title: product.title, variants: product.variants ?? [] },
+      items: wanted,
+      groupId: randomUUID(),
+      organisationId,
+    })) {
+      const colour = variantColourSize(product.variants?.find((v) => v.id === line.variant_id)?.title).colour
+      const thumbnail = colourFrontImage(imagesOf.get(product.id) ?? [], colour)
+      lines.push(thumbnail ? { ...line, thumbnail, metadata: { ...line.metadata, colour_thumbnail: true } } : line)
+    }
   }
   return lines
 }

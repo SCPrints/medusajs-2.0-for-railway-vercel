@@ -6,6 +6,7 @@ import { type AllowanceItem } from "../../lib/allowance"
 import { ORGANISATION_MODULE } from "../../modules/organisation"
 import type OrganisationModuleService from "../../modules/organisation/service"
 import { listRangeItems, type RangeItem } from "../org-range"
+import { sizeRank } from "../../lib/roster"
 
 export const orgService = (scope: MedusaContainer) => scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
 
@@ -35,7 +36,9 @@ export async function designChoices(
   for (const r of range) {
     if (!designIds.includes(r.design_id)) continue
     const atBase = r.variants.filter((v) => v.colour === r.base_colour)
-    const sizes = Array.from(new Set((atBase.length ? atBase : r.variants).map((v) => v.size).filter(Boolean)))
+    const sizes = Array.from(new Set((atBase.length ? atBase : r.variants).map((v) => v.size).filter(Boolean))).sort(
+      (x, y) => sizeRank(x) - sizeRank(y)
+    )
     out.set(r.design_id, {
       design_id: r.design_id,
       name: r.name,

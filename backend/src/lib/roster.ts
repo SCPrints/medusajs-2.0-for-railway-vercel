@@ -156,7 +156,7 @@ export function teamOrderFromMetadata(meta: unknown): TeamOrderMeta {
 // ── Packing labels ──────────────────────────────────────────────────────────
 
 const SIZE_ORDER = ["4xs", "3xs", "xxs", "2xs", "xs", "s", "m", "l", "xl", "xxl", "2xl", "3xl", "4xl", "5xl", "6xl", "7xl"]
-const sizeRank = (s: string | undefined): number => {
+export const sizeRank = (s: string | undefined): number => {
   const k = String(s ?? "").trim().toLowerCase()
   const i = SIZE_ORDER.indexOf(k)
   if (i >= 0) return i

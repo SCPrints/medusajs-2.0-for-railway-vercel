@@ -4576,13 +4576,26 @@ export default function CustomizerTemplate({
       try {
         const canvas = fabricCanvasRef.current
         if (canvas && typeof canvas.toDataURL === "function") {
-          const url = canvas.toDataURL({
-            format: "jpeg",
-            quality: 0.6,
-            multiplier: 0.4,
-          }) as string
-          if (typeof url === "string" && url.length < 120_000) {
-            thumbnailDataUrl = url
+          // The design layer is transparent: as a JPEG it went black, so dark
+          // artwork vanished. Flatten it onto mid-grey, where dark and light
+          // designs both show.
+          const png = canvas.toDataURL({ format: "png", multiplier: 0.4 }) as string
+          const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const el = new Image()
+            el.onload = () => resolve(el)
+            el.onerror = reject
+            el.src = png
+          })
+          const flat = document.createElement("canvas")
+          flat.width = img.naturalWidth
+          flat.height = img.naturalHeight
+          const ctx = flat.getContext("2d")
+          if (ctx) {
+            ctx.fillStyle = "#c9ccd3"
+            ctx.fillRect(0, 0, flat.width, flat.height)
+            ctx.drawImage(img, 0, 0)
+            const url = flat.toDataURL("image/jpeg", 0.7)
+            if (url.length < 120_000) thumbnailDataUrl = url
           }
         }
       } catch {

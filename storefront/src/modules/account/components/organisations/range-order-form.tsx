@@ -26,9 +26,9 @@ import {
 
 // Names / numbers: priced like a print of that size (backend lib/names-numbers.ts).
 const NAME_SIZES = [
-  { id: "up_to_a6", label: "Up to A6 (10×15 cm)" },
-  { id: "up_to_a4", label: "Up to A4 (21×30 cm)" },
-  { id: "up_to_a3", label: "Up to A3 (29×42 cm)" },
+  { id: "up_to_a6", label: "A6 · 10×15 cm" },
+  { id: "up_to_a4", label: "A4 · 21×30 cm" },
+  { id: "up_to_a3", label: "A3 · 29×42 cm" },
 ] as const
 type NameSize = (typeof NAME_SIZES)[number]["id"]
 

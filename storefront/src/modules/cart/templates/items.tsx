@@ -61,7 +61,8 @@ const groupTitle = (
   groupKey: string
 ): string => {
   if (groupKey.startsWith("design:")) {
-    return `${item.product_title ?? "Custom design"} · custom`
+    // The heading adds a "custom design" badge.
+    return item.product_title ?? "Custom design"
   }
   return item.product_title ?? "Items"
 }

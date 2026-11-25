@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 
 import {
   addRosterMembers,
@@ -77,9 +78,12 @@ export default function PeopleTab({ orgId, roster, knownSizes, onChange }: Props
     }
   }, [orgId])
 
+  const router = useRouter()
   const setMembers = (next: RosterMember[]) => {
     setMembersState(next)
     onChange?.(next)
+    // The tab badges and the range form's "Everyone on our list (N)" come from the server.
+    router.refresh()
   }
 
   const units = useMemo(

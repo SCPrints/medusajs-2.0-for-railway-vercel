@@ -84,8 +84,13 @@ const Review = ({ cart }: { cart: any }) => {
               </Text>
             </div>
           </div>
-          <TeamOrderSummary metadata={cart?.metadata as Record<string, unknown> | null} />
-          {Array.isArray(cart?.metadata?.home_delivery) && cart.metadata.home_delivery.length ? (
+          {/* These notes outlive removed lines on the cart; show them only while their lines are there. */}
+          {cart?.items?.some((i: any) => typeof i?.metadata?.organisation_id === "string") ? (
+            <TeamOrderSummary metadata={cart?.metadata as Record<string, unknown> | null} />
+          ) : null}
+          {Array.isArray(cart?.metadata?.home_delivery) &&
+          cart.metadata.home_delivery.length &&
+          cart?.items?.some((i: any) => i?.metadata?.home_delivery_postage === true) ? (
             <p className="mb-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-sm text-ui-fg-base" data-testid="home-delivery-summary">
               We&apos;ll post each pack to the {cart.metadata.home_delivery.length === 1 ? "address" : `${cart.metadata.home_delivery.length} addresses`} your people gave us. That postage is a line in your cart.
             </p>

@@ -65,11 +65,13 @@ const ShippingAddress = ({
   useEffect(() => {
     // Ensure cart is not null and has a shipping_address before setting form data
     if (cart && cart.shipping_address) {
-      setFormAddress(cart?.shipping_address, cart?.email)
+      setFormAddress(cart?.shipping_address)
     }
 
-    if (cart && !cart.email && customer?.email) {
-      setFormAddress(undefined, customer.email)
+    // A signed-in cart has its email before it has an address: fill it either way.
+    const email = cart?.email || customer?.email
+    if (cart && email) {
+      setFormAddress(undefined, email)
     }
   }, [cart]) // Add cart as a dependency
 

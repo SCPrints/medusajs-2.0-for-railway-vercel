@@ -130,6 +130,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   for (const item of items) {
     const variantMeta = item.variant_id ? variantMetaById.get(item.variant_id) ?? null : null
     const qty = Math.max(0, Math.floor(item.quantity ?? 0))
+    // Names/numbers and postage are charges, not garments: not "items priced individually".
+    if (item.metadata?.names_numbers || item.metadata?.home_delivery_postage === true) continue
     if (variantMeta?.exclude_from_bulk_aggregation === true) {
       excludedQty += qty
       continue

@@ -27,6 +27,8 @@ export type ScpAddLineInput = {
   variant_id: string
   quantity: number
   metadata?: Record<string, unknown>
+  /** The line's picture (e.g. its colour's front photo); default = the product's. */
+  thumbnail?: string
   /** null = plain garment line (no decoration pricing). */
   print_size_id: string | null
 }
@@ -147,9 +149,15 @@ export async function addScpLinesToCart(
                 variant_id: d.variantId,
                 quantity: d.quantity,
                 unit_price: d.unitPriceMajor,
-                metadata: { ...d.metadata, ...opts.extraMetadata },
+                metadata: { ...d.metadata, ...opts.extraMetadata, ...(item.metadata?.colour_thumbnail ? { colour_thumbnail: true } : {}) },
+                ...(item.thumbnail ? { thumbnail: item.thumbnail } : {}),
               }
-            : { variant_id: item.variant_id, quantity: item.quantity, metadata: { ...item.metadata, ...opts.extraMetadata } }
+            : {
+                variant_id: item.variant_id,
+                quantity: item.quantity,
+                metadata: { ...item.metadata, ...opts.extraMetadata },
+                ...(item.thumbnail ? { thumbnail: item.thumbnail } : {}),
+              }
         }),
       },
     })

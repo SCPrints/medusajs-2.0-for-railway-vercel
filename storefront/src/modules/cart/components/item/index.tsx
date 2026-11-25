@@ -3,6 +3,7 @@
 import { Table, Text, clx } from "@medusajs/ui"
 
 import { updateLineItem } from "@lib/data/cart"
+import { isChargeLine } from "@lib/util/cart-garment-count"
 import { HttpTypes } from "@medusajs/types"
 import CartItemSelect from "@modules/cart/components/cart-item-select"
 import SampleFirst from "@modules/cart/components/sample-first"
@@ -88,11 +89,15 @@ const Item = ({ item, type = "full" }: ItemProps) => {
     : Math.min((variant as any)?.inventory_quantity ?? 0, SELECT_MAX_OPTIONS)
   // Never render fewer options than the line is currently set to.
   const maxQuantity = Math.max(inventoryCap, item.quantity, 1)
+  // Postage, names/numbers, gift and sizing-kit lines are sized by the server (per parcel / garment / size).
+  const fixedQuantity =
+    isChargeLine(item) || item.metadata?.home_delivery === true || item.metadata?.sizing_kit === true
 
   return (
     <Table.Row className="w-full" data-testid="product-row">
       <Table.Cell className="pl-0! p-4 w-24">
-        {handle ? (
+        {/* Charge lines use a hidden service product: its page is a 404. */}
+        {handle && !isChargeLine(item) ? (
           <LocalizedClientLink
             href={`/products/${handle}?${[
               item.variant?.id ? `variant=${item.variant.id}` : null,
@@ -114,8 +119,9 @@ const Item = ({ item, type = "full" }: ItemProps) => {
                 // the colour the customer actually picked — important when
                 // the design only landed on a sleeve/printed_tag (those
                 // mockups always render against a white placeholder).
-                // Sizing-kit lines carry their colour's front photo, set server-side.
-                (item.metadata?.sizing_kit === true && item.thumbnail) || resolveCartLineImageUrl(item)
+                // Sizing-kit and range lines carry their colour's front photo, set server-side.
+                ((item.metadata?.sizing_kit === true || item.metadata?.colour_thumbnail === true) && item.thumbnail) ||
+                resolveCartLineImageUrl(item)
               }
               productImages={item.variant?.product?.images}
               size="square"
@@ -151,7 +157,7 @@ const Item = ({ item, type = "full" }: ItemProps) => {
             Sizing kit: send it back within 14 days and we refund the garments.
           </p>
         ) : null}
-        {type === "full" ? <SampleFirst item={item} /> : null}
+        {type === "full" && !fixedQuantity ? <SampleFirst item={item} /> : null}
         {customizerMetadata && (
           <>
             <Text className="txt-small text-ui-fg-subtle mt-1">Custom design attached</Text>
@@ -174,18 +180,24 @@ const Item = ({ item, type = "full" }: ItemProps) => {
         <Table.Cell>
           <div className="flex gap-2 items-center w-28">
             <DeleteButton id={item.id} data-testid="product-delete-button" />
-            <CartItemSelect
-              value={item.quantity}
-              onChange={(value) => changeQuantity(parseInt(value.target.value))}
-              className="w-14 h-10 p-4"
-              data-testid="product-select-button"
-            >
-              {Array.from({ length: maxQuantity }, (_, i) => (
-                <option value={i + 1} key={i}>
-                  {i + 1}
-                </option>
-              ))}
-            </CartItemSelect>
+            {fixedQuantity ? (
+              <span className="w-14 text-center txt-medium" data-testid="product-fixed-quantity">
+                {item.quantity}
+              </span>
+            ) : (
+              <CartItemSelect
+                value={item.quantity}
+                onChange={(value) => changeQuantity(parseInt(value.target.value))}
+                className="w-14 h-10 p-4"
+                data-testid="product-select-button"
+              >
+                {Array.from({ length: maxQuantity }, (_, i) => (
+                  <option value={i + 1} key={i}>
+                    {i + 1}
+                  </option>
+                ))}
+              </CartItemSelect>
+            )}
             {updating && <Spinner />}
           </div>
           <ErrorMessage error={error} data-testid="product-error-message" />

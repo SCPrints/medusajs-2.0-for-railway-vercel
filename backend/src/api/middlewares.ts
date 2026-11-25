@@ -10,6 +10,7 @@ import { forceTeamStoreBulkAddress, refuseAddsToTeamStoreCart } from "./middlewa
 import { cleanCartRushRequestMiddleware } from "./middlewares/clean-cart-rush-request"
 import { cleanCartSplitDeliveryMiddleware } from "./middlewares/clean-cart-split-delivery"
 import { orgCheckoutCompleteGuard, orgPaymentSessionGuard } from "./middlewares/org-checkout-guard"
+import { dropStaleTeamCartMetadataMiddleware } from "./middlewares/drop-stale-team-cart-metadata"
 import { stampSignupVerificationMiddleware, stripCustomerMetadataMiddleware } from "./middlewares/customer-metadata-guard"
 
 /**
@@ -126,7 +127,7 @@ export default defineMiddlewares({
       methods: ["POST"],
       // Org guard first: it refuses the no-card payment path for anyone but an
       // approved organisation's buyer (./middlewares/org-checkout-guard.ts).
-      middlewares: [orgCheckoutCompleteGuard, checkoutPriceInvariantMiddleware],
+      middlewares: [orgCheckoutCompleteGuard, dropStaleTeamCartMetadataMiddleware, checkoutPriceInvariantMiddleware],
     },
     {
       // Same guard where the payment provider is chosen.

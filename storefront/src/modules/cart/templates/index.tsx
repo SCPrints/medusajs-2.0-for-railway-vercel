@@ -1,4 +1,5 @@
 import ItemsTemplate from "./items"
+import { cartGarmentCount } from "@lib/util/cart-garment-count"
 import Summary from "./summary"
 import AggregatedTierBanner from "../components/aggregated-tier-banner"
 import EmptyCartMessage from "../components/empty-cart-message"
@@ -23,7 +24,7 @@ const CartTemplate = ({
   customer: HttpTypes.StoreCustomer | null
   supacolourShortfalls?: SupacolourShortfall[]
 }) => {
-  const itemCount = cart?.items?.reduce((acc, i) => acc + (i.quantity ?? 0), 0) ?? 0
+  const itemCount = cartGarmentCount(cart?.items)
   return (
     <div className="py-10 small:py-12">
       <div className="content-container" data-testid="cart-container">

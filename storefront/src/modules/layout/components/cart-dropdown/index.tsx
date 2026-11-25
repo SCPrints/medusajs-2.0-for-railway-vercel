@@ -1,6 +1,7 @@
 "use client"
 
 import { Popover, Transition } from "@headlessui/react"
+import { cartGarmentCount, isChargeLine } from "@lib/util/cart-garment-count"
 import { Button } from "@medusajs/ui"
 import { usePathname } from "next/navigation"
 import { Fragment, useEffect, useRef, useState } from "react"
@@ -32,10 +33,7 @@ const CartDropdown = ({
   const open = () => setCartDropdownOpen(true)
   const close = () => setCartDropdownOpen(false)
 
-  const totalItems =
-    cartState?.items?.reduce((acc, item) => {
-      return acc + item.quantity
-    }, 0) || 0
+  const totalItems = cartGarmentCount(cartState?.items)
 
   // INC-GST display (HOLD cutover): show the items figure incl. GST so the
   // mini-cart matches the inc-GST line prices below it. Derived (total minus
@@ -168,7 +166,7 @@ const CartDropdown = ({
                         data-testid="cart-item"
                       >
                         <LocalizedClientLink
-                          href={`/products/${item.variant?.product?.handle}`}
+                          href={isChargeLine(item) ? "/cart" : `/products/${item.variant?.product?.handle}`}
                           prefetch={false}
                           className="w-24"
                         >
@@ -180,6 +178,7 @@ const CartDropdown = ({
                               // so the dropdown shows the colour the
                               // customer picked (sleeve / tag mockups
                               // always render against a white placeholder).
+                              ((item.metadata?.sizing_kit === true || item.metadata?.colour_thumbnail === true) && item.thumbnail) ||
                               resolveCartLineImageUrl(item)
                             }
                             productImages={item.variant?.product?.images}
@@ -192,7 +191,7 @@ const CartDropdown = ({
                               <div className="flex flex-col text-ellipsis whitespace-nowrap mr-4 w-[180px]">
                                 <h3 className="text-base-regular overflow-hidden text-ellipsis">
                                   <LocalizedClientLink
-                                    href={`/products/${item.variant?.product?.handle}`}
+                                    href={isChargeLine(item) ? "/cart" : `/products/${item.variant?.product?.handle}`}
                                     prefetch={false}
                                     data-testid="product-link"
                                   >
