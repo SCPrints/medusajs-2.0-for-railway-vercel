@@ -5,6 +5,8 @@ import { HttpTypes } from "@medusajs/types"
 import { TIER_GROUP_NAME_PREFIX, type Tier } from "@lib/customer-tiers"
 import type { SavedDesign } from "@lib/data/designs"
 import OrderAgainButton from "@modules/order/components/order-again-button"
+import CancelledBadge from "@modules/order/components/cancelled-badge"
+import { isCancelledOrder } from "@modules/order/lib/cancelled"
 import { collectParcels } from "@modules/order/lib/parcels"
 import { isStudioLine } from "@modules/order/lib/design-groups"
 import {
@@ -66,7 +68,7 @@ const OrdersInProgress = ({ orders }: { orders: HttpTypes.StoreOrder[] }) => {
         (order.metadata ?? null) as Record<string, unknown> | null
       )
       const stage = tracks.stage
-      if (!stage || (order as { status?: string }).status === "canceled") return null
+      if (!stage || isCancelledOrder(order)) return null
       const milestone = currentCustomerMilestone({ ...tracks, stage })
       return milestone === "delivered" ? null : { order, milestone }
     })
@@ -134,7 +136,10 @@ const PickUpWhereYouLeftOff = ({
   orders: HttpTypes.StoreOrder[]
   designs: SavedDesign[]
 }) => {
-  const lastStudioOrder = orders.find((o) => (o.items ?? []).some(isStudioLine))
+  // "Same again?" means an order that went ahead, not one that was cancelled.
+  const lastStudioOrder = orders.find(
+    (o) => !isCancelledOrder(o) && (o.items ?? []).some(isStudioLine)
+  )
 
   if (!designs.length && !lastStudioOrder) return null
 
@@ -234,6 +239,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
               <div className="min-w-0">
                 <p className="truncate text-base font-semibold text-ui-fg-base">
                   #{latestOrder.display_id}
+                  {isCancelledOrder(latestOrder) ? <CancelledBadge className="ml-2 align-middle" /> : null}
                 </p>
                 <p className="mt-0.5 text-xs text-ui-fg-subtle">
                   {new Date(latestOrder.created_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney",
@@ -415,6 +421,7 @@ const Overview = ({ customer, orders, tier = null, designs = [] }: OverviewProps
                           data-value={order.display_id}
                         >
                           #{order.display_id}
+                          {isCancelledOrder(order) ? <CancelledBadge className="ml-2" /> : null}
                         </span>
                         <span
                           className="font-semibold text-ui-fg-base"

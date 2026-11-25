@@ -140,6 +140,32 @@ describe("computeReceiptTotals", () => {
     expect(out.balance_due).toBeCloseTo(98.08, 2)
   })
 
+  it("owes nothing on a cancelled on-account order (test order #142)", () => {
+    const base = {
+      id: "oCancelled",
+      metadata: { balance_due_at: "2026-12-25T00:00:00.000Z" },
+      items: [{ id: "a", unit_price: 75.9, quantity: 2 }],
+      shipping_methods: [{ amount: 19 }],
+      summary: { raw_current_order_total: { value: 170.8 } },
+    }
+    const live = computeReceiptTotals({ ...base, status: "pending" }, 0)
+    expect(live.cancelled).toBe(false)
+    expect(live.balance_due).toBeCloseTo(170.8, 2)
+    expect(live.due_at).toBe("2026-12-25T00:00:00.000Z")
+
+    const out = computeReceiptTotals(
+      { ...base, status: "canceled", canceled_at: "2026-11-25T19:10:00.000Z" },
+      0
+    )
+    expect(out.cancelled).toBe(true)
+    expect(out.balance_due).toBe(0)
+    expect(out.due_at).toBeNull()
+    // the sale itself is still documented
+    expect(out.total).toBeCloseTo(170.8, 2)
+    // unknown payment state stays unknown
+    expect(computeReceiptTotals({ ...base, status: "canceled" }).balance_due).toBeNull()
+  })
+
   it("keeps a tax-exempt order at $0 GST", () => {
     const out = computeReceiptTotals({
       id: "oExempt",

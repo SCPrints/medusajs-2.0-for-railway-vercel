@@ -27,6 +27,7 @@ const BRAND_PRIMARY = "#0f172a"
 const BRAND_SECONDARY = "#ff2e63"
 const TEXT_MUTED = "#666666"
 const RULE_COLOR = "#e5e7eb"
+const CANCELLED_TEXT = "#9f1239"
 
 type Address = {
   first_name?: string | null
@@ -93,6 +94,9 @@ export type ReceiptOrder = {
   balance_due?: number | null
   /** ISO due date from `metadata.balance_due_at` (deposit widget sets it). */
   due_at?: string | null
+  /** Staff cancelled the order: nothing is owed, the invoice says so. */
+  cancelled?: boolean
+  canceled_at?: Date | string | null
   metadata?: Record<string, unknown> | null
   shipping_address?: Address | null
   billing_address?: Address | null
@@ -182,9 +186,12 @@ export function computeReceiptTotals(
   // current flow auto-captures. Refunds ignored — the invoice documents the
   // sale as placed.
   const paid = typeof paidTotal === "number" ? round2(paidTotal) : null
-  const balanceDue = paid === null ? null : round2(Math.max(0, grandTotal - paid))
+  // A cancelled order owes nothing: its invoice must not ask an accounts team to pay it.
+  const cancelled = raw?.status === "canceled" || !!raw?.canceled_at
+  const balanceDue =
+    paid === null ? null : cancelled ? 0 : round2(Math.max(0, grandTotal - paid))
   const meta = (raw?.metadata ?? {}) as Record<string, unknown>
-  const dueAt = typeof meta.balance_due_at === "string" ? meta.balance_due_at : null
+  const dueAt = typeof meta.balance_due_at === "string" && !cancelled ? meta.balance_due_at : null
 
   return {
     ...raw,
@@ -197,6 +204,7 @@ export function computeReceiptTotals(
     paid_total: paid,
     balance_due: balanceDue,
     due_at: dueAt,
+    cancelled,
   }
 }
 
@@ -418,6 +426,18 @@ function buildPdf(params: {
       .fontSize(10)
       .fillColor(TEXT_MUTED)
       .text(`Order #${displayId}  ·  ${dateStr}`, ML + logoW + 14, 82)
+
+    if (order.cancelled) {
+      doc
+        .font("PJS-Bold")
+        .fontSize(10)
+        .fillColor(CANCELLED_TEXT)
+        .text(
+          `Cancelled${order.canceled_at ? ` ${formatDate(order.canceled_at)}` : ""}  ·  no payment due`,
+          ML + logoW + 14,
+          98
+        )
+    }
 
     // Brand block right
     doc
@@ -742,7 +762,19 @@ function buildPdf(params: {
     // date (deposit widget's balance_due_at), and bank-transfer details.
     const paidTotal = order.paid_total
     const balanceDue = order.balance_due
-    if (typeof paidTotal === "number" && typeof balanceDue === "number") {
+    if (order.cancelled) {
+      // Not "PAID" (nothing may have been paid) and no bank details: nothing is owed.
+      doc.roundedRect(PW - MR - 110, totalsY, 110, 20, 10).fill("#ffe4e6")
+      doc
+        .font("PJS-Bold")
+        .fontSize(10)
+        .fillColor(CANCELLED_TEXT)
+        .text("CANCELLED", PW - MR - 110, totalsY + 5, {
+          width: 110,
+          align: "center",
+        })
+      totalsY += 28
+    } else if (typeof paidTotal === "number" && typeof balanceDue === "number") {
       writeTotalRow("Amount paid", formatMoney(paidTotal, currency))
       if (balanceDue <= 0.005) {
         doc.roundedRect(PW - MR - 90, totalsY, 90, 20, 10).fill("#dcfce7")

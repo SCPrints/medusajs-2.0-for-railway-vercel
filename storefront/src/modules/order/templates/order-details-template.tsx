@@ -13,6 +13,7 @@ import ProductionStageTracker from "@modules/order/components/production-stage-t
 import ReorderActions from "@modules/order/components/reorder-actions"
 import ShippingDetails from "@modules/order/components/shipping-details"
 import TrackingList from "@modules/order/components/tracking-list"
+import { cancelledOnLabel, isCancelledOrder } from "@modules/order/lib/cancelled"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { HttpTypes } from "@medusajs/types"
 
@@ -40,6 +41,9 @@ const ArrowLeftIcon = ({ className }: { className?: string }) => (
 const OrderDetailsTemplate: React.FC<OrderDetailsTemplateProps> = ({
   order,
 }) => {
+  // Cancelled: no progress, tracking or update emails to show, and nothing to pay.
+  const cancelled = isCancelledOrder(order)
+  const cancelledOn = cancelledOnLabel((order as { canceled_at?: unknown }).canceled_at)
   return (
     <div className="flex flex-col justify-center gap-y-6">
       <LocalizedClientLink
@@ -67,20 +71,33 @@ const OrderDetailsTemplate: React.FC<OrderDetailsTemplateProps> = ({
         className="flex flex-col gap-4 h-full w-full"
         data-testid="order-details-container"
       >
+        {cancelled ? (
+          <div
+            className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4"
+            data-testid="order-cancelled-note"
+          >
+            <p className="text-sm font-semibold text-rose-900">
+              This order was cancelled{cancelledOn ? ` on ${cancelledOn}` : ""}.
+            </p>
+            <p className="mt-1 text-sm text-rose-800">
+              Nothing more will be made or sent, and there&apos;s nothing more to pay.
+            </p>
+          </div>
+        ) : null}
         <OrderDetails order={order} showStatus />
-        <ProductionStageTracker order={order} />
+        {cancelled ? null : <ProductionStageTracker order={order} />}
         <ProductionPhotos order={order} />
-        {typeof order.metadata?.team_store_closes_at === "string" ? (
+        {!cancelled && typeof order.metadata?.team_store_closes_at === "string" ? (
           <p className="rounded-md bg-ui-bg-subtle p-3 text-sm" data-testid="team-store-note">
             Team store order{typeof order.metadata?.team_store_title === "string" ? ` (${order.metadata.team_store_title})` : ""}: it prints when the store closes on{" "}
             {new Date(order.metadata.team_store_closes_at).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "Australia/Sydney" })}.
           </p>
         ) : null}
         <ReorderActions order={order} />
-        <OrderWatchers orderId={order.id} />
+        {cancelled ? null : <OrderWatchers orderId={order.id} />}
         <Items items={order.items} />
         <ShippingDetails order={order} />
-        <TrackingList order={order} />
+        {cancelled ? null : <TrackingList order={order} />}
         <OrderSummary order={order} />
         <Help />
       </div>

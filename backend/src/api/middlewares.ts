@@ -45,10 +45,10 @@ export default defineMiddlewares({
       // and the order's metadata: production tracker, proof approval, PO number,
       // cost centre, payment due. A single-order fetch doesn't include metadata
       // by default (the order list does), so without this the order page lost all
-      // of them and an on-account order read "paid".
+      // of them and an on-account order read "paid". canceled_at: "Cancelled on <date>".
       matcher: "/store/orders*",
       methods: ["GET"],
-      middlewares: [allowFields("metadata", "fulfillments.metadata", "fulfillments.labels", "shipping_methods.detail")],
+      middlewares: [allowFields("metadata", "canceled_at", "fulfillments.metadata", "fulfillments.labels", "shipping_methods.detail")],
     },
     {
       matcher: "/store/brands/:handle/products",

@@ -16,9 +16,9 @@ import { mergeApprovedProofs } from "@modules/customizer/lib/approved-proof-desi
 // thumbnail and historical orders look like uncustomized products.
 // `+metadata`: a single-order fetch leaves the order's own metadata out by default,
 // and the tracker, proof approval, PO number and payment terms all read it
-// (allowed in backend/src/api/middlewares.ts).
+// (allowed in backend/src/api/middlewares.ts, as is `+canceled_at` for "Cancelled on <date>").
 const ORDER_FIELDS =
-  "+metadata,*payment_collections.payments,*fulfillments,+fulfillments.metadata,+fulfillments.labels,*shipping_methods,+shipping_methods.detail,+items.metadata"
+  "+metadata,+canceled_at,*payment_collections.payments,*fulfillments,+fulfillments.metadata,+fulfillments.labels,*shipping_methods,+shipping_methods.detail,+items.metadata"
 
 // No-op: Medusa now returns shipping/payment amounts in major units (decimals), same scale as
 // `price.amount`. The previous ÷100 normaliser was double-dividing and turning $16.50 shipping into

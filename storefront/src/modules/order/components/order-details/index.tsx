@@ -1,5 +1,7 @@
 import { HttpTypes } from "@medusajs/types"
 
+import { isCancelledOrder } from "@modules/order/lib/cancelled"
+
 type OrderDetailsProps = {
   order: HttpTypes.StoreOrder
   showStatus?: boolean
@@ -26,8 +28,10 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
   const poNumber = meta.po_number
   // Placed on account for an organisation: no card was charged, an invoice is due.
   const terms = meta.account_terms as { due_at?: string } | undefined
-  const unpaid = (order as any).payment_status !== "captured"
+  const paymentStatus = String((order as any).payment_status ?? "not_paid")
+  const unpaid = paymentStatus !== "captured"
   const dueAt = terms?.due_at ? new Date(terms.due_at) : null
+  const cancelled = isCancelledOrder(order)
   return (
     <div className="bg-ui-bg-subtle rounded-xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
       <Row label="Order date">
@@ -57,7 +61,7 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
         </Row>
       ) : null}
 
-      {terms && unpaid && dueAt ? (
+      {terms && unpaid && dueAt && !cancelled ? (
         <Row label="Payment due">
           <span data-testid="order-payment-due">
             {dueAt.toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "long", year: "numeric" })}
@@ -73,8 +77,13 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
           {/* ponytail: fulfilment status is only created when the production
               stage reaches "shipped", so "Not fulfilled" next to an "In
               production" tracker reads as a contradiction. The tracker owns
-              progress; hide this row whenever a stage exists. */}
-          {!order.metadata?.production_stage && (
+              progress; hide this row whenever a stage exists. A cancelled order
+              has no tracker, so it always says so here. */}
+          {cancelled ? (
+            <Row label="Order status">
+              <span data-testid="order-status">Cancelled</span>
+            </Row>
+          ) : !order.metadata?.production_stage && (
             <Row label="Order status">
               <span data-testid="order-status">
                 {formatStatus((order as any).fulfillment_status ?? "not_fulfilled")}
@@ -83,9 +92,12 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
           )}
           <Row label="Payment status">
             <span data-testid="order-payment-status">
-              {terms && unpaid
-                ? "On account"
-                : formatStatus((order as any).payment_status ?? "not_paid")}
+              {/* Cancelling refunds anything captured ("Refunded"); otherwise nothing is owed. */}
+              {cancelled && !paymentStatus.includes("refunded")
+                ? "Nothing to pay"
+                : terms && unpaid
+                  ? "On account"
+                  : formatStatus(paymentStatus)}
             </span>
           </Row>
         </>

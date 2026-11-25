@@ -8,6 +8,7 @@ import {
 } from "@lib/data/organisations"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ProductionStageTracker from "@modules/order/components/production-stage-tracker"
+import { isCancelledOrder } from "@modules/order/lib/cancelled"
 
 import CancelOrderButton from "@modules/account/components/organisations/cancel-order-button"
 import OrderAgainButton from "@modules/order/components/order-again-button"
@@ -62,7 +63,8 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
 
   const items = (order.items ?? []) as any[]
   const stage = (order.metadata?.production_stage ?? "received") as string
-  const isCancelled = Boolean(order.canceled_at)
+  // By status: the organisation order route doesn't send canceled_at, so this was never true.
+  const isCancelled = isCancelledOrder(order)
   const placedByName = placedBy
     ? [placedBy.first_name, placedBy.last_name]
         .filter(Boolean)

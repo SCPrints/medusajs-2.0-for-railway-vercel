@@ -1,4 +1,6 @@
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import CancelledBadge from "@modules/order/components/cancelled-badge"
+import { isCancelledOrder } from "@modules/order/lib/cancelled"
 import type {
   InventoryRow,
   OrganisationDesign,
@@ -21,8 +23,8 @@ const STAGE_LABELS: Record<string, string> = {
   art_review: "In artwork",
   awaiting_approval: "Awaiting approval",
   approved: "Approved",
-  blanks_ordered: "Blanks ordered",
-  blanks_arrived: "Blanks arrived",
+  blanks_ordered: "Garments ordered",
+  blanks_arrived: "Garments arrived",
   in_production: "In production",
   quality_check: "Quality check",
   shipped: "Shipped",
@@ -126,11 +128,15 @@ export default function OverviewTab({
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="rounded-full bg-ui-bg-subtle px-3 py-1 text-xs font-semibold text-ui-fg-base">
-                      {o.production_stage
-                        ? STAGE_LABELS[o.production_stage] ?? o.production_stage
-                        : "Received"}
-                    </span>
+                    {isCancelledOrder(o) ? (
+                      <CancelledBadge className="px-3 py-1" />
+                    ) : (
+                      <span className="rounded-full bg-ui-bg-subtle px-3 py-1 text-xs font-semibold text-ui-fg-base">
+                        {o.production_stage
+                          ? STAGE_LABELS[o.production_stage] ?? o.production_stage
+                          : "Received"}
+                      </span>
+                    )}
                     <span className="hidden text-xs text-ui-fg-muted phone:inline">
                       {formatCurrency(o.total, o.currency_code)}
                     </span>

@@ -98,6 +98,14 @@ export async function GET(
     month: "long",
     day: "numeric",
   })
+  // loadReceiptOrder already zeroes the balance (so no "Payment due" row); say why.
+  const cancelledNote = order.cancelled
+    ? `Cancelled${
+        order.canceled_at
+          ? ` ${new Date(order.canceled_at).toLocaleDateString("en-AU", { timeZone: "Australia/Sydney", year: "numeric", month: "long", day: "numeric" })}`
+          : ""
+      } · no payment due`
+    : ""
 
   const shipping = (order.shipping_address ?? {}) as Record<string, any>
   const billing = (order.billing_address ?? shipping) as Record<string, any>
@@ -170,6 +178,7 @@ export async function GET(
   .totals td.amount { text-align: right; font-variant-numeric: tabular-nums; }
   .totals tr.grand td { border-top: 2px solid #111; padding-top: 8px; font-weight: 700; font-size: 14px; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 600; }
+  .badge.cancelled { background: #ffe4e6; color: #9f1239; font-size: 12px; }
   .footer { margin-top: 32px; font-size: 10px; color: #777; }
   .print-cta { display: block; margin: 16px auto 0; padding: 10px 18px; background: #111; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
   @media print { .print-cta { display: none; } }
@@ -181,6 +190,7 @@ export async function GET(
     <div>
       <h1>Tax Invoice</h1>
       <div class="muted">Order ${escape(String(order.display_id ?? orderId))} · ${escape(dateStr)}</div>
+      ${cancelledNote ? `<div style="margin-top:6px;"><span class="badge cancelled">${escape(cancelledNote)}</span></div>` : ""}
     </div>
     <div style="text-align:right;">
       <div style="font-size:14px;font-weight:700;">${escape(INVOICE_BRAND.siteName)}</div>

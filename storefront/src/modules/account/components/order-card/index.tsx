@@ -10,6 +10,8 @@ import {
 } from "@modules/customizer/lib/metadata"
 import { convertMinorToLocale } from "@lib/util/money"
 import OrderAgainButton from "@modules/order/components/order-again-button"
+import CancelledBadge from "@modules/order/components/cancelled-badge"
+import { isCancelledOrder } from "@modules/order/lib/cancelled"
 import { isStudioLine } from "@modules/order/lib/design-groups"
 import { HttpTypes } from "@medusajs/types"
 
@@ -45,8 +47,11 @@ const OrderCard = ({ order }: OrderCardProps) => {
 
   return (
     <div className="bg-white flex flex-col" data-testid="order-card">
-      <div className="uppercase text-large-semi mb-1">
-        #<span data-testid="order-display-id">{order.display_id}</span>
+      <div className="uppercase text-large-semi mb-1 flex flex-wrap items-center gap-x-2">
+        <span>
+          #<span data-testid="order-display-id">{order.display_id}</span>
+        </span>
+        {isCancelledOrder(order) ? <CancelledBadge /> : null}
       </div>
       <div className="flex items-center divide-x divide-gray-200 text-small-regular text-ui-fg-base">
         <span className="pr-2" data-testid="order-created-at">
