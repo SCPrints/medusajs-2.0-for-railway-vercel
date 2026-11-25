@@ -3,7 +3,7 @@
 import { sdk } from "@lib/config"
 import medusaError from "@lib/util/medusa-error"
 import { HttpTypes } from "@medusajs/types"
-import { revalidateTag } from "next/cache"
+import { revalidateTag, updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 import { cache } from "react"
 import { transferGuestCartToCustomer } from "./cart"
@@ -35,7 +35,7 @@ export const updateCustomer = cache(async function (
     .then(({ customer }) => customer)
     .catch(medusaError)
 
-  revalidateTag("customer", "max")
+  updateTag("customer")
   return updateRes
 })
 
@@ -75,7 +75,7 @@ export async function signup(_currentState: unknown, formData: FormData) {
     // ship with `customer_id = null` and never reach /account/orders.
     await transferGuestCartToCustomer({ authorization: `Bearer ${finalToken}` })
 
-    revalidateTag("customer", "max")
+    updateTag("customer")
     return createdCustomer
   } catch (error: any) {
     return error.toString()
@@ -94,7 +94,7 @@ export async function login(_currentState: unknown, formData: FormData) {
     }
     const finalToken = loginTokenOrThrow(token)
     await setAuthToken(finalToken)
-    revalidateTag("customer", "max")
+    updateTag("customer")
     // Claim any guest cart the customer was building before login. Idempotent
     // when no guest cart exists; silently logged when transfer fails.
     await transferGuestCartToCustomer({ authorization: `Bearer ${finalToken}` })
@@ -107,7 +107,7 @@ export async function signout(countryCode: string) {
   await sdk.auth.logout()
   removeAuthToken()
   revalidateTag("auth", "max")
-  revalidateTag("customer", "max")
+  updateTag("customer")
   redirect(`/${countryCode}/account`)
 }
 
@@ -132,7 +132,7 @@ export const addCustomerAddress = async (
   return sdk.store.customer
     .createAddress(address, {}, headers)
     .then(({ customer }) => {
-      revalidateTag("customer", "max")
+      updateTag("customer")
       return { success: true, error: null }
     })
     .catch((err) => {
@@ -147,7 +147,7 @@ export const deleteCustomerAddress = async (
   await sdk.store.customer
     .deleteAddress(addressId, headers)
     .then(() => {
-      revalidateTag("customer", "max")
+      updateTag("customer")
       return { success: true, error: null }
     })
     .catch((err) => {
@@ -178,7 +178,7 @@ export const updateCustomerAddress = async (
   return sdk.store.customer
     .updateAddress(addressId, address, {}, headers)
     .then(() => {
-      revalidateTag("customer", "max")
+      updateTag("customer")
       return { success: true, error: null }
     })
     .catch((err) => {

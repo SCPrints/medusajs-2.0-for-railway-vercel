@@ -1,7 +1,7 @@
 "use server"
 
 import { sdk } from "@lib/config"
-import { revalidateTag } from "next/cache"
+import { updateTag } from "next/cache"
 
 import { getOrSetCart, retrieveCart, updateCart } from "./cart"
 import { getAuthHeaders, setCartId } from "./cookies"
@@ -158,7 +158,7 @@ export async function addAllowanceToCart(
       body: { cart_id: cart.id, ...(rosterMemberId ? { roster_member_id: rosterMemberId } : {}) },
     })) as { cart_id: string; already_added: boolean; left_out: string[]; unmatched: string[]; fees_for_staff: string[]; postage?: number }
     if (res.cart_id && res.cart_id !== cart.id) await setCartId(res.cart_id)
-    revalidateTag("cart", "max")
+    updateTag("cart")
     return {
       ok: true,
       already_added: res.already_added,

@@ -221,7 +221,7 @@ export async function orderAgain(
   lineIds?: string[],
   countryCode: string = process.env.NEXT_PUBLIC_DEFAULT_REGION || "au"
 ): Promise<OrderAgainResult> {
-  const [{ getAuthHeaders }, { getOrSetCart }, { revalidateTag }] =
+  const [{ getAuthHeaders }, { getOrSetCart }, { updateTag }] =
     await Promise.all([
       import("./cookies"),
       import("./cart"),
@@ -261,7 +261,7 @@ export async function orderAgain(
         approval_reason: res.approval_reason ?? "needs_setup",
       }
     }
-    revalidateTag("cart", "max")
+    updateTag("cart")
     return {
       ok: true,
       added_lines: res.added_lines ?? 0,

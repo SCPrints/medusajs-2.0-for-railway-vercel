@@ -1,7 +1,7 @@
 "use server"
 
 import { sdk } from "@lib/config"
-import { revalidateTag } from "next/cache"
+import { updateTag } from "next/cache"
 import { leadRelayHeaders } from "@lib/util/lead-relay"
 import { getAuthHeaders, getCartId } from "./cookies"
 
@@ -24,7 +24,7 @@ export async function requestCartQuote(input: {
 
   try {
     await sdk.store.cart.update(cartId, { email }, {}, await getAuthHeaders())
-    revalidateTag("cart", "max")
+    updateTag("cart")
     const res = (await sdk.client.fetch("/store/cart-quote-requests", {
       method: "POST",
       headers: await leadRelayHeaders({ botCheck: false }), // server action: not BotID-protected; needs a real cart anyway

@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidateTag } from "next/cache"
+import { updateTag } from "next/cache"
 import { sdk } from "@lib/config"
 
 /** Add a sizing kit (one blank per size) to the cart. Returns an error message, or null on success. */
@@ -14,7 +14,7 @@ export async function addSizingKit(variantIds: string[], countryCode: string): P
       headers: await getAuthHeaders(),
       body: { variant_ids: variantIds },
     })
-    revalidateTag("cart", "max")
+    updateTag("cart")
     return null
   } catch (e: any) {
     return typeof e?.message === "string" && e.message ? e.message : "We couldn't add the kit. Try again."

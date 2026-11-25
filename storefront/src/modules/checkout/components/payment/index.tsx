@@ -144,7 +144,7 @@ const Payment = ({
       // `router.push()` — the two reconcilers can leave React's transition
       // state pending indefinitely, which keeps the button stuck on its
       // spinner with no "Continue to review" text. `initiatePaymentSession`
-      // already calls `revalidateTag("cart", "max")`, so `router.push` will pick
+      // already calls `updateTag("cart")`, so `router.push` will pick
       // up the new payment session on its own.
       if (needsPaymentInit) {
         await orThrow(

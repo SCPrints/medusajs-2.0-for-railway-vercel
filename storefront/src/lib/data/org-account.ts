@@ -8,7 +8,7 @@
  * Nothing here is cached: these are live money figures.
  */
 import { sdk } from "@lib/config"
-import { revalidateTag } from "next/cache"
+import { updateTag } from "next/cache"
 
 import { retrieveCart, updateCart } from "./cart"
 import { getAuthHeaders, getCartId, removeCartId, setCartId } from "./cookies"
@@ -269,7 +269,7 @@ export async function parkCartWithOrg(input: {
   const res = await send(`${base(organisation_id)}/carts`, "POST", { cart_id: cartId, ...body })
   if (!res.ok) return res
   await removeCartId()
-  revalidateTag("cart", "max")
+  updateTag("cart")
   return { ok: true }
 }
 
@@ -289,7 +289,7 @@ export async function openOrgCart(orgId: string, rowId: string): Promise<Ok> {
   if (!res.ok) return res
   if (!res.data.cart_id) return { ok: false, error: "That cart is no longer available." }
   await setCartId(res.data.cart_id)
-  revalidateTag("cart", "max")
+  updateTag("cart")
   return { ok: true }
 }
 

@@ -1,7 +1,7 @@
 "use server"
 
 import { sdk } from "@lib/config"
-import { revalidateTag } from "next/cache"
+import { updateTag } from "next/cache"
 
 import { transferGuestCartToCustomer } from "./cart"
 import { getAuthHeaders, setAuthToken } from "./cookies"
@@ -40,7 +40,7 @@ export async function resendEmailConfirmation(): Promise<Result> {
 export async function confirmEmail(p: { email: string; exp: string; sig: string }): Promise<"confirmed" | "expired" | "invalid"> {
   try {
     await sdk.client.fetch("/store/customers/verify-email", { method: "POST", body: p })
-    revalidateTag("customer", "max")
+    updateTag("customer")
     return "confirmed"
   } catch (e: any) {
     return String(e?.message ?? "").includes("expired") ? "expired" : e?.status === 400 ? "invalid" : "invalid"
@@ -96,7 +96,7 @@ export async function completeTwoStepLogin(p: { challengeId: string; token: stri
   try {
     const token = await sdk.auth.mfa.verifyChallenge(p.challengeId, { method: p.method, code: p.code.trim() }, { authorization: `Bearer ${p.token}` })
     await setAuthToken(token)
-    revalidateTag("customer", "max")
+    updateTag("customer")
     await transferGuestCartToCustomer({ authorization: `Bearer ${token}` })
     return { ok: true }
   } catch (e) {
@@ -161,7 +161,7 @@ export async function getInvitePreview(token: string): Promise<InvitePreview | n
 export async function acceptOrgInvite(token: string): Promise<Result> {
   try {
     await sdk.client.fetch(`/store/customers/me/organisation-invites/${encodeURIComponent(token)}/accept`, { method: "POST", headers: await getAuthHeaders() })
-    revalidateTag("customer", "max")
+    updateTag("customer")
     return { ok: true }
   } catch (e) {
     return fail(e, "We couldn't accept that invitation.")

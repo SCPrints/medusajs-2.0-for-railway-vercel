@@ -1,7 +1,7 @@
 "use server"
 
 import { sdk } from "@lib/config"
-import { revalidateTag } from "next/cache"
+import { updateTag } from "next/cache"
 
 import { getOrSetCart } from "./cart"
 import { getAuthHeaders } from "./cookies"
@@ -183,7 +183,7 @@ export async function addOrganisationRangeToCart(
         ...(input.namesNumbers !== undefined ? { names_numbers: input.namesNumbers } : {}),
       },
     })) as { added_lines: number; fee_lines_added: number; fees_for_staff?: string[] }
-    revalidateTag("cart", "max")
+    updateTag("cart")
     return { ok: true, added_lines: res.added_lines + res.fee_lines_added, fees_for_staff: res.fees_for_staff ?? [] }
   } catch (err) {
     return { ok: false, error: message(err, "Couldn't add these to your cart just now.") }

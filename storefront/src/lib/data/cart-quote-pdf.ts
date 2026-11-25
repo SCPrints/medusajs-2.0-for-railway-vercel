@@ -1,7 +1,7 @@
 "use server"
 
 import { sdk } from "@lib/config"
-import { revalidateTag } from "next/cache"
+import { updateTag } from "next/cache"
 
 import { getAuthHeaders, getCartId } from "./cookies"
 
@@ -17,7 +17,7 @@ export async function setCartEmailForQuote(rawEmail: string): Promise<{ ok: true
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Please enter a valid email address." }
   try {
     await sdk.store.cart.update(cartId, { email }, {}, await getAuthHeaders())
-    revalidateTag("cart", "max")
+    updateTag("cart")
     return { ok: true }
   } catch {
     return { ok: false, error: "We couldn't save your email. Please try again." }
