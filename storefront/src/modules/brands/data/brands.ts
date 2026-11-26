@@ -307,7 +307,8 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
   // recoloured to the shared grey; photos are the brands' own campaign
   // shots, hosted locally. Tirano has no logo or lifestyle photography
   // anywhere and no page copy. Sean sells garments, headwear and totes only,
-  // so no photo or copy here may feature bags, backpacks or pants.
+  // so no photo or copy here may feature bags, backpacks, pants or
+  // accessories (umbrellas, towels, scarves). Umbra has no live products.
   stormtech: {
     initials: "ST",
     bgClass: "bg-neutral-950",
@@ -324,7 +325,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     ],
     seoTitle: "Stormtech Australia — Custom Branded Jackets, Softshells & Polos",
     intro:
-      "Stormtech is Canadian outerwear built for proper weather: waterproof shells, softshells, puffers, 3-in-1 jackets, performance polos and fleece. It's the range we point people to when a uniform has to work outdoors all year. We embroider or print your logo on it in-house at our Sydney studio, from a single jacket, and ship Australia-wide.",
+      "Stormtech is Canadian outerwear built for proper weather: waterproof shells, softshells, puffers, 3-in-1 jackets, vests and performance polos. It's the range we point people to when a uniform has to work outdoors all year. We embroider or print your logo on it in-house at our Sydney studio, from a single jacket, and ship Australia-wide.",
   },
   legend: {
     initials: "LG",
@@ -340,7 +341,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     ],
     seoTitle: "Legend Australia — Custom Branded Caps, Hats & Beanies",
     intro:
-      "Legend is the Australian everyday range: caps, truckers, bucket and straw hats, beanies, towels and canvas or jute totes, built to carry a logo. Good-value gear for staff, events and giveaways. We print or embroider it in-house at our Sydney studio and ship Australia-wide. Printed pieces start at one; embroidered caps start at 10.",
+      "Legend is the Australian everyday range: caps, truckers, bucket and straw hats, beanies and canvas or jute totes, built to carry a logo. Good-value gear for staff, events and giveaways. We print or embroider it in-house at our Sydney studio and ship Australia-wide. Printed pieces start at one; embroidered caps start at 10.",
   },
   "legend-black": {
     initials: "LB",
@@ -459,22 +460,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     ],
     seoTitle: "Great Southern Clothing Australia — Custom Branded Puffers & Softshells",
     intro:
-      "Great Southern Clothing Co. is an Australian-owned outerwear label: The Puffer, The Softshell and their vests, in men's, women's and youth cuts, plus scarves and a fleece blanket. Simple, warm uniform layers. We embroider or print your logo in-house at our Sydney studio, from one piece, and ship Australia-wide.",
-  },
-  umbra: {
-    initials: "UM",
-    bgClass: "bg-[#0b2545]",
-    logoSrc: `${LOGO_BASE}/umbra.png`,
-    logoClass: "max-h-full max-w-[50%] object-contain object-left",
-    bannerSrc: `${BRAND_BASE}/umbra/hero.jpg`,
-    gallery: [
-      { src: `${BRAND_BASE}/umbra/gallery-1.jpg`, alt: "Umbra golf umbrella in the rain" },
-      { src: `${BRAND_BASE}/umbra/gallery-2.jpg`, alt: "Umbra vented umbrella in the city" },
-      { src: `${BRAND_BASE}/umbra/gallery-3.jpg`, alt: "Umbra umbrella on a wet street" },
-    ],
-    seoTitle: "Umbra Umbrellas Australia — Custom Branded Umbrellas",
-    intro:
-      "Umbra makes wind-resistant umbrellas: fibreglass frames, vented double canopies and auto open, from the Ultimate golf size down to compacts that fold small. The umbrella you hand a client and see again next winter. We add your logo in-house at our Sydney studio and ship Australia-wide.",
+      "Great Southern Clothing Co. is an Australian-owned outerwear label: The Puffer, The Softshell and their vests, in men's, women's and youth cuts. Simple, warm uniform layers. We embroider or print your logo in-house at our Sydney studio, from one piece, and ship Australia-wide.",
   },
   "harvest-and-frost": {
     initials: "HF",
