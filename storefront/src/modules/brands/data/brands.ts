@@ -305,8 +305,9 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
   // ---- Legend Life / Epicentre labels (imported Nov 2026). Logos are each
   // brand's official reversed artwork (from Epicentre's brand pages)
   // recoloured to the shared grey; photos are the brands' own campaign
-  // shots, hosted locally. Tirano + EXTON have no lifestyle photography
-  // anywhere, so they use the light hero with one of their product shots.
+  // shots, hosted locally. Tirano has no logo or lifestyle photography
+  // anywhere and no page copy. Sean sells garments, headwear and totes only,
+  // so no photo or copy here may feature bags, backpacks or pants.
   stormtech: {
     initials: "ST",
     bgClass: "bg-neutral-950",
@@ -317,13 +318,13 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
       { src: `${BRAND_BASE}/stormtech/gallery-1.jpg`, alt: "Stormtech insulated jacket" },
       { src: `${BRAND_BASE}/stormtech/gallery-2.jpg`, alt: "Stormtech quilted puffer jacket" },
       { src: `${BRAND_BASE}/stormtech/gallery-3.jpg`, alt: "Stormtech performance polos in a stack" },
-      { src: `${BRAND_BASE}/stormtech/gallery-4.jpg`, alt: "Stormtech waterproof backpack" },
-      { src: `${BRAND_BASE}/stormtech/gallery-5.jpg`, alt: "Stormtech duffle backpack" },
-      { src: `${BRAND_BASE}/stormtech/gallery-6.jpg`, alt: "Stormtech cooler bag" },
+      { src: `${BRAND_BASE}/stormtech/gallery-4.jpg`, alt: "Stormtech performance polo" },
+      { src: `${BRAND_BASE}/stormtech/gallery-5.jpg`, alt: "Stormtech quilted vest" },
+      { src: `${BRAND_BASE}/stormtech/gallery-6.jpg`, alt: "Stormtech softshell jacket" },
     ],
     seoTitle: "Stormtech Australia — Custom Branded Jackets, Softshells & Polos",
     intro:
-      "Stormtech is Canadian outerwear built for proper weather: waterproof shells, softshells, puffers, 3-in-1 jackets, performance polos and bags. It's the range we point people to when a uniform has to work outdoors all year. We embroider or print your logo on it in-house at our Sydney studio, from a single jacket, and ship Australia-wide.",
+      "Stormtech is Canadian outerwear built for proper weather: waterproof shells, softshells, puffers, 3-in-1 jackets, performance polos and fleece. It's the range we point people to when a uniform has to work outdoors all year. We embroider or print your logo on it in-house at our Sydney studio, from a single jacket, and ship Australia-wide.",
   },
   legend: {
     initials: "LG",
@@ -334,12 +335,12 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     bannerPositionClass: "object-[center_20%]",
     gallery: [
       { src: `${BRAND_BASE}/legend/gallery-1.jpg`, alt: "Legend cap worn with a crew sweat" },
-      { src: `${BRAND_BASE}/legend/gallery-2.jpg`, alt: "Legend caps in navy and maroon" },
+      { src: `${BRAND_BASE}/legend/gallery-2.jpg`, alt: "Legend beanie" },
       { src: `${BRAND_BASE}/legend/gallery-3.jpg`, alt: "Legend sand cap" },
     ],
-    seoTitle: "Legend Australia — Custom Branded Caps, Bags & Coolers",
+    seoTitle: "Legend Australia — Custom Branded Caps, Hats & Beanies",
     intro:
-      "Legend is the Australian everyday range: caps, bucket hats, beanies, backpacks, duffles, coolers and umbrellas, built to carry a logo. Good-value gear for staff, events and giveaways. We print or embroider it in-house at our Sydney studio and ship Australia-wide. Printed pieces start at one; embroidered caps start at 10.",
+      "Legend is the Australian everyday range: caps, truckers, bucket and straw hats, beanies, towels and canvas or jute totes, built to carry a logo. Good-value gear for staff, events and giveaways. We print or embroider it in-house at our Sydney studio and ship Australia-wide. Printed pieces start at one; embroidered caps start at 10.",
   },
   "legend-black": {
     initials: "LB",
@@ -351,14 +352,11 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     gallery: [
       { src: `${BRAND_BASE}/legend-black/gallery-1.jpg`, alt: "Legend Black trucker cap" },
       { src: `${BRAND_BASE}/legend-black/gallery-2.jpg`, alt: "Legend Black caps stacked" },
-      { src: `${BRAND_BASE}/legend-black/gallery-3.jpg`, alt: "Legend Black backpack cooler" },
-      { src: `${BRAND_BASE}/legend-black/gallery-4.jpg`, alt: "Legend Black cooler bag" },
-      { src: `${BRAND_BASE}/legend-black/gallery-5.jpg`, alt: "Legend Black cap worn street-side" },
-      { src: `${BRAND_BASE}/legend-black/gallery-6.jpg`, alt: "Legend Black bags and coolers" },
+      { src: `${BRAND_BASE}/legend-black/gallery-3.jpg`, alt: "Legend Black cap worn street-side" },
     ],
-    seoTitle: "Legend Black Australia — Custom Embroidered Caps & Bags",
+    seoTitle: "Legend Black Australia — Custom Embroidered Caps & Beanies",
     intro:
-      "Legend Black is Legend's premium line: structured caps, A-frames, truckers, visors and a matching range of bags and coolers, finished to retail standard. The caps for a team, a brewery or a brand that wants merch people actually wear. We embroider or print them in-house at our Sydney studio. Embroidered caps start at 10; printed pieces start at one.",
+      "Legend Black is Legend's premium headwear line: structured caps, A-frames, truckers, dad hats, visors and beanies, finished to retail standard. The caps for a team, a brewery or a brand that wants merch people actually wear. We embroider or print them in-house at our Sydney studio. Embroidered caps start at 10; printed pieces start at one.",
   },
   atlantis: {
     initials: "AT",
@@ -391,7 +389,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
       { src: `${BRAND_BASE}/james-harvest/gallery-1.jpg`, alt: "James Harvest caps and hoodie" },
       { src: `${BRAND_BASE}/james-harvest/gallery-2.jpg`, alt: "James Harvest crew sweat" },
       { src: `${BRAND_BASE}/james-harvest/gallery-3.jpg`, alt: "James Harvest hybrid vest" },
-      { src: `${BRAND_BASE}/james-harvest/gallery-4.jpg`, alt: "James Harvest jacket" },
+      { src: `${BRAND_BASE}/james-harvest/gallery-4.jpg`, alt: "James Harvest zip jacket" },
       { src: `${BRAND_BASE}/james-harvest/gallery-5.jpg`, alt: "James Harvest softshell jacket" },
       { src: `${BRAND_BASE}/james-harvest/gallery-6.jpg`, alt: "James Harvest women's softshell" },
     ],
@@ -419,23 +417,11 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
       "Stedman makes blanks for printers: the Classic-T, heavyweight Comfort-T, Active sports tees, raglans and cotton polos, in a deep colour range. Plain, reliable garments that take a print well. We screen print, DTF print or embroider them in-house at our Sydney studio, from one piece, and ship Australia-wide.",
   },
   swissdigital: {
+    // Logo only: one live product (a tote), and its photos are all backpacks.
     initials: "SD",
     bgClass: "bg-zinc-800",
     logoSrc: `${LOGO_BASE}/swissdigital.png`,
     logoClass: "max-h-full max-w-[45%] object-contain object-left",
-    bannerSrc: `${BRAND_BASE}/swissdigital/hero.jpg`,
-    bannerPositionClass: "object-[center_20%]",
-    gallery: [
-      { src: `${BRAND_BASE}/swissdigital/gallery-1.jpg`, alt: "Swissdigital laptop backpack" },
-      { src: `${BRAND_BASE}/swissdigital/gallery-2.jpg`, alt: "Swissdigital tote bag" },
-      { src: `${BRAND_BASE}/swissdigital/gallery-3.jpg`, alt: "Swissdigital Neptune backpack" },
-      { src: `${BRAND_BASE}/swissdigital/gallery-4.jpg`, alt: "Swissdigital Java backpack" },
-      { src: `${BRAND_BASE}/swissdigital/gallery-5.jpg`, alt: "Swissdigital bags in the snow" },
-      { src: `${BRAND_BASE}/swissdigital/gallery-6.jpg`, alt: "Swissdigital backpack on a ride" },
-    ],
-    seoTitle: "Swissdigital Australia — Custom Branded Laptop Backpacks",
-    intro:
-      "Swissdigital makes tech-ready travel bags: padded laptop backpacks, anti-theft packs, shoulder bags, wash bags and duffles, many with a built-in tracker pocket and recycled fabric. A gift that gets used every day. We add your logo in-house at our Sydney studio and ship Australia-wide.",
   },
   "printer-activewear": {
     initials: "PR",
@@ -475,15 +461,6 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     intro:
       "Great Southern Clothing Co. is an Australian-owned outerwear label: The Puffer, The Softshell and their vests, in men's, women's and youth cuts, plus scarves and a fleece blanket. Simple, warm uniform layers. We embroider or print your logo in-house at our Sydney studio, from one piece, and ship Australia-wide.",
   },
-  tirano: {
-    initials: "TI",
-    bgClass: "bg-stone-300",
-    heroVariant: "light",
-    heroProductSrc: `${BRAND_BASE}/tirano/hero-product.png`,
-    seoTitle: "Tirano Australia — Custom Branded Bags & Coolers",
-    intro:
-      "Tirano is a charcoal-marle range of everyday bags: backpacks, laptop satchels, totes, a travel bag, a toiletry bag and a set of coolers from lunch size up. It matches across the range, so a whole kit looks like a set. We add your logo in-house at our Sydney studio and ship Australia-wide.",
-  },
   umbra: {
     initials: "UM",
     bgClass: "bg-[#0b2545]",
@@ -497,7 +474,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     ],
     seoTitle: "Umbra Umbrellas Australia — Custom Branded Umbrellas",
     intro:
-      "Umbra makes wind-resistant umbrellas: fibreglass frames, vented double canopies and auto open, from the Ultimate golf size down to compacts that fit in a bag. The umbrella you hand a client and see again next winter. We add your logo in-house at our Sydney studio and ship Australia-wide.",
+      "Umbra makes wind-resistant umbrellas: fibreglass frames, vented double canopies and auto open, from the Ultimate golf size down to compacts that fold small. The umbrella you hand a client and see again next winter. We add your logo in-house at our Sydney studio and ship Australia-wide.",
   },
   "harvest-and-frost": {
     initials: "HF",
@@ -553,15 +530,6 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     seoTitle: "Next Level Apparel Australia — Custom Printed Soft Tees",
     intro:
       "Next Level is the soft-hand tee from Los Angeles: the CVC crew, tri-blend crew, cotton crew and the women's boyfriend tee. Lightweight, fitted and smooth to print on, the tee for band merch and events. We screen print, DTF print or embroider them in-house at our Sydney studio, from one piece, and ship Australia-wide.",
-  },
-  exton: {
-    initials: "EX",
-    bgClass: "bg-neutral-300",
-    heroVariant: "light",
-    heroProductSrc: `${BRAND_BASE}/exton/hero-product.png`,
-    seoTitle: "EXTON Australia — Custom Branded Business Bags",
-    intro:
-      "EXTON is a black business range: a padded laptop backpack, a business satchel and a cooler. Sharp, plain bags that suit a corporate gift. We add your logo in-house at our Sydney studio and ship Australia-wide.",
   },
 }
 
