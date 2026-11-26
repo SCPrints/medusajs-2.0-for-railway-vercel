@@ -26,6 +26,44 @@ const SLEEVE_PLACEHOLDER_RIGHT_SHORT = "/placeholders/customizer/left-sleeve-pla
 const SLEEVE_PLACEHOLDER_LEFT_LONG = "/placeholders/customizer/left-sleeve-long-placeholder.svg"
 const SLEEVE_PLACEHOLDER_RIGHT_LONG = "/placeholders/customizer/left-sleeve-long-placeholder.svg"
 
+/** Generic BACK drawings (4:5) for tops whose supplier has no back photo. */
+const BACK_PLACEHOLDER = (kind: string) => `/placeholders/customizer/back-${kind}-placeholder.svg`
+
+/** True for the Studio's generic line drawings (sleeves, generic backs) — tinted to the garment colour. */
+export const isGarmentPlaceholderUrl = (url: string | null | undefined): boolean =>
+  typeof url === "string" && url.includes("/placeholders/customizer/")
+
+// "(^|\s)t(\s|$)": Stedman titles tees "Men's Classic T".
+const TOP_PATTERN =
+  /(?:^|\s)t(?:\s|$)|\b(tees?|t-?shirts?|polos?|shirts?|hoods?|hoodies?|hoody|sweat\s*shirts?|sweats?|jumpers?|sweaters?|pullovers?|crew\s*necks?|crews?|fleeces?|jackets?|soft\s*shells?|shells?|vests?|gilets?|singlets?|tanks?|tops?|jerseys?|cardigans?|anoraks?|parkas?|windbreakers?|puffers?|long\s*sleeves?|tunics?|blouses?)\b/
+const COLLAR_PATTERN = /\b(polos?|shirts?|jackets?|soft\s*shells?|shells?|parkas?|anoraks?|windbreakers?|puffers?|blazers?|zip)\b/
+
+/**
+ * Upper-body garments that get the generic back drawing when no back photo
+ * exists. Headwear, bags, bottles, towels etc. keep reusing their front.
+ * "T-shirt" / "polo shirt" etc. only count when the title isn't for pants/shorts.
+ */
+function isTopGarmentProduct(product: HttpTypes.StoreProduct | undefined): boolean {
+  if (!product || isHatGarmentProduct(product) || isBeanieGarmentProduct(product)) return false
+  const type = ((product as { type?: { value?: string | null } | null }).type?.value ?? "").toLowerCase()
+  const blob = [product.title, product.handle, product.subtitle, type].filter(Boolean).join(" ").toLowerCase()
+  if (/\b(pants?|shorts|trousers|skirts?|aprons?|bags?|totes?|socks?)\b/.test(blob) && !TOP_PATTERN.test(product.title?.toLowerCase() ?? "")) {
+    return false
+  }
+  return TOP_PATTERN.test(blob)
+}
+
+function getBackPlaceholderUrl(product: HttpTypes.StoreProduct): string {
+  const title = [product.title, product.handle].filter(Boolean).join(" ").toLowerCase()
+  if (/\b(hoods?|hoodies?|hoody|hooded)\b/.test(title)) return BACK_PLACEHOLDER("hoodie")
+  if (isSleevelessGarmentProduct(product)) return BACK_PLACEHOLDER("sleeveless")
+  const collar = COLLAR_PATTERN.test(title) && !/\bt-?shirts?\b/.test(title)
+  const sleeve = isLongSleeveGarmentProduct(product) || /\b(jackets?|soft\s*shells?|shells?|parkas?|anoraks?|windbreakers?|puffers?)\b/.test(title)
+    ? "long-sleeve"
+    : "short-sleeve"
+  return BACK_PLACEHOLDER(collar ? `${sleeve}-collar` : sleeve)
+}
+
 /**
  * Whether sleeve print areas should use long-sleeve placeholder art.
  * Uses product metadata when set; otherwise title/handle/description heuristics
@@ -1250,6 +1288,19 @@ export function getGarmentImageUrlForPrintSide(
   const backFromGallery = fromProductImages.find(garmentUrlLooksLikeBack)
   if (backFromGallery) {
     return backFromGallery
+  }
+
+  // No back photo for this colour. A top gets the generic back drawing (tinted
+  // to the colour on the canvas) rather than its front photo — collar, buttons
+  // and logos on the "back" misled customers — or another colour / a model shot
+  // from the positional fallback below (Legend Life, 2026-11-26).
+  if (isTopGarmentProduct(product)) {
+    return getBackPlaceholderUrl(product)
+  }
+  // Non-tops (bags, towels, caps): the colour's own front from the variant
+  // metadata beats any positional guess.
+  if (parsed.front && !fromProductImages.length) {
+    return resolveToStoreUrl(parsed.front) ?? primaryFallback
   }
 
   // No colour-matched BACK photo exists (e.g. AS Colour totes ship ONE photo

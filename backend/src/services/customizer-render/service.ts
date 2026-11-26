@@ -825,7 +825,10 @@ export const renderMockupAsset = async (payload: RenderRequestPayload) => {
   // No-op for non-sleeve sides or when the storefront couldn't sample a tint.
   if (
     payload.tintColor &&
-    (payload.side === "left_sleeve" || payload.side === "right_sleeve")
+    (payload.side === "left_sleeve" ||
+      payload.side === "right_sleeve" ||
+      // Generic back drawing, used when the supplier has no back photo.
+      (payload.side === "back" && /\/placeholders\/customizer\//.test(payload.garmentImageUrl ?? "")))
   ) {
     try {
       garmentBase = await tintSleevePlaceholder(garmentBase, payload.tintColor)

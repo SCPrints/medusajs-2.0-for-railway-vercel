@@ -1222,6 +1222,25 @@ JB's sends a per-SKU spreadsheet ("SKU - WEBCC Trade", ~12.7k rows / 515 styles)
 - **Weight**: carton gross weight ÷ carton qty → `variant.weight` (real data, beats the 300g shipping default).
 - **Taxonomy**: Sub Category drives type (`Hi Vis ` prefix stripped); Category drives audience tags (Hi Vis Tradewear → `Hi-Vis`, Traditional Workwear → `Industrial`, Scrubs → `Healthcare`). A colour name with two colour codes in one style (4P White = WS + WX) becomes `White (WS)` / `White (WX)`.
 
+### Legend Life (REST API importer + daily stock sync) — added 2026-11-26
+
+One API for 15 labels distributed by Legend Life / Epicentre Trading (Stormtech, Legend, Legend Black, Atlantis, Stedman, James Harvest, Harvest & Frost, Printer, Beacon, Next Level, Great Southern, Swissdigital, Tirano, Umbra, Exton): 838 styles / 13,191 SKUs in Nov 2026. `LEGENDLIFE_API_TOKEN` (Bearer, generated in the Legend Life account → API Data Feed; Fly secret + local `backend/.env`). Docs: Swagger at `https://api.legendlife.com.au`. The old SOAP API (`epicentre_order.create`, `epicentre_shipping.getrates`) is deprecated; it is the only one that can place orders, so there is no dropship send yet.
+
+| Component | Path |
+| --- | --- |
+| Client + pure mapping (stock, cost, weight, handles, gallery) + tests | [backend/src/lib/legendlife-catalog.ts](backend/src/lib/legendlife-catalog.ts) · [spec](backend/src/lib/__tests__/legendlife-catalog.spec.ts) |
+| Classifier | `classifyLegendLifeProduct` in [product-taxonomy.ts](backend/src/lib/product-taxonomy.ts) |
+| Import script (creates DRAFTS) | [backend/src/scripts/import-legendlife.ts](backend/src/scripts/import-legendlife.ts) |
+| Daily stock sync (`30 5 * * *`, no-op without the token) | [backend/src/jobs/sync-legendlife-inventory.ts](backend/src/jobs/sync-legendlife-inventory.ts) |
+
+Run: `cd /app/.medusa/server && npx medusa exec src/scripts/import-legendlife.js` (`IMPORT_DRY_RUN=1`, `IMPORT_LIMIT`, `IMPORT_STYLES=ST2000,JH100`). Create-only, keyed by handle `{brand}-{name}-{style}`; every product lands as a **draft** for staff to review.
+- **Price**: `price1` of `/customer/stylePricingAndStock` (the smallest-quantity band) × `LEGENDLIFE_COST_ADJUSTMENT` (default 1) → shared ladder. `qtyN` is the TOP of each band (19 = 1–19). Assumed ex-GST (RRP ≈ 2× trade) — unconfirmed until an invoice.
+- **Stock**: per-SKU `Total` location (BNE + MEL + brand-direct, excluding On Order) at "Legend Life Warehouse". Levels are strings capped at "500+" / "1000+". No bulk call: the job asks once per imported style, 4 at a time (~2½ min).
+- **Images**: one flat FRONT per colour (filenames carry the colour code, not the name), hotlinked from `www.legendlife.com.au`; base/alt images are model shots. **No back photos** → the Studio's generic back drawing (below). Their Cloudflare 403s Python's default user agent; Node fetch / Next are fine.
+- **Brands**: one Brand row per label, no parent (Legend Life is the distributor, recorded in brand metadata, like Shaka Wear). No discontinued flag in the API; not yet in the nightly supplier catalogue sync.
+
+**Generic back drawing (all suppliers)**: when a TOP has no back photo for the chosen colour, `getGarmentImageUrlForPrintSide` returns `/placeholders/customizer/back-{short-sleeve|long-sleeve|…-collar|hoodie|sleeveless}-placeholder.svg` (picked from the title) instead of the front photo or a positional guess. The canvas tints it to the garment colour like the sleeve drawings (`isGarmentPlaceholderUrl`), and the renderer tints it for back mockups. Non-tops (bags, caps, towels) still reuse their own colour's front. Drawings are 4:5, white body on transparent, so they fill the same area as a flat photo.
+
 ### Shaka Wear (PDF price list → baked-data seed)
 
 The leanest importer — no API and no CSV. The only source is the AU distributor **Prime Example**'s PDF wholesale price list (`Price_List_PrinterPartner_Jan2026.pdf`) + their 2026 catalogue. The 6 styles SC Prints stocks (sizes, ex-GST costs, AU colour names) are baked into a committed data module; images + marketing copy are hotlinked from the Shaka Wear US site (Shopify CDN), matched to the AU colour names. No stock data → variants are "always available" (`manage_inventory: false`), no stock location, no sync cron — same policy as Gildan.
@@ -1399,6 +1418,7 @@ All schedules in UTC. Hours shown also as AEST (+10) since the studio is in NSW.
 | `0 4 * * *` | 14:00 | [sync-fashionbiz-inventory.ts](backend/src/jobs/sync-fashionbiz-inventory.ts) | Full sweep of FashionBiz stock |
 | `0 5 * * *` | 15:00 | [sync-aussie-pacific-inventory.ts](backend/src/jobs/sync-aussie-pacific-inventory.ts) | Full sweep of AP stock |
 | `0 5 * * *` | 15:00 | [refresh-seo-analytics.ts](backend/src/jobs/refresh-seo-analytics.ts) | Pull 28-day GSC + GA4 metrics into cache |
+| `30 5 * * *` | 15:30 | [sync-legendlife-inventory.ts](backend/src/jobs/sync-legendlife-inventory.ts) | Legend Life stock per imported style (no-op without `LEGENDLIFE_API_TOKEN`) |
 | `0 6 * * *` | 16:00 | [regenerate-tier-prices.ts](backend/src/jobs/regenerate-tier-prices.ts) | Rebuild B2B tier price-list overrides |
 | `30 6 * * *` | 16:30 | [backfill-ascolour-variants.ts](backend/src/jobs/backfill-ascolour-variants.ts) | Reconcile new AS Colour colours/sizes added since last import (no-ops without API token) |
 | `0 7 * * *` | 17:00 | [sync-supplier-catalogs.ts](backend/src/jobs/sync-supplier-catalogs.ts) | Add new AS Colour / FashionBiz / AP styles, hide discontinued ones, email the report (gated by `SUPPLIER_CATALOG_SYNC`) |

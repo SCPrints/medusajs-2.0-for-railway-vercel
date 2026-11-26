@@ -45,6 +45,7 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   // Relax Hood" etc. Without the alias these fall through title-inference.
   "hoodie": "Hoodies",
   "hoodies": "Hoodies",
+  "hoody": "Hoodies", // Legend Life / Stormtech / James Harvest titles
   "hood": "Hoodies",
   "hoods": "Hoodies",
   "hooded": "Hoodies",
@@ -1492,4 +1493,85 @@ export function classifyJbsWearProduct(
   if (category === "traditional workwear") tags.push("Industrial")
   if (sub === "scrubs") tags.push("Healthcare")
   return { productType, tags }
+}
+
+/** One Legend Life style (Stormtech, Legend, Atlantis, Stedman, James Harvest, …). */
+export type LegendLifeStyleSource = {
+  /** e.g. ["Jackets", "Stormtech", "Softshells", "Corporate"] */
+  categorisation: string[]
+  /** e.g. ["Men's"] — empty on headwear/bags. */
+  genders: string[]
+  /** Style name; a hood in the name beats the category (Stormtech files hoodies under Jackets). */
+  name?: string | null
+}
+
+// Legend Life categories → our raw type aliases, most specific first. Brand /
+// range / marketing categories ("Stormtech", "New", "Eco", "Corporate") are
+// ignored. "Hoodies and Sweaters" is left to the title (hoodie vs knit), as
+// are styles marked "NOT ALLOCATED".
+const LEGENDLIFE_CATEGORY_TYPES: Array<[string, string]> = [
+  ["vests", "vests"],
+  ["stormtech vests", "vests"],
+  ["puffers", "jackets"],
+  ["softshells", "jackets"],
+  ["rain jackets", "jackets"],
+  ["3-in-1/system jacket", "jackets"],
+  ["stormtech jackets", "jackets"],
+  ["jackets", "jackets"],
+  ["polo shirts", "polos"],
+  ["polos", "polos"],
+  ["stormtech polos", "polos"],
+  ["performance tees", "tees"],
+  ["stormtech tees", "tees"],
+  ["tees", "tees"],
+  ["singlets", "singlets"],
+  ["stormtech shirts", "shirts"],
+  ["shirts", "shirts"],
+  // Scarves and gloves are also filed under "Headwear", so they come first.
+  ["scarves", "accessories"],
+  ["gloves", "gloves"],
+  ["beanies", "beanies"],
+  ["caps", "caps"],
+  ["truckers", "caps"],
+  ["flat peaks", "caps"],
+  ["fitted caps", "caps"],
+  ["visors", "headwear"],
+  ["buckets", "headwear"],
+  ["wide brims", "headwear"],
+  ["straw", "headwear"],
+  ["headwear", "headwear"],
+  ["backpacks", "backpacks"],
+  ["totes", "bags"],
+  ["satchels", "bags"],
+  ["sports and duffles", "bags"],
+  ["coolers", "bags"],
+  ["stormtech bags", "bags"],
+  ["bags", "bags"],
+  ["blankets", "blankets"],
+  ["towels", "towel"],
+  ["umbrellas", "umbrella"],
+  ["compendiums", "accessories"],
+  ["stormtech accessories", "accessories"],
+  ["accessories", "accessories"],
+]
+
+/**
+ * Derive product_type + tags for a Legend Life style.
+ *   type ← the most specific garment category in `categorisation`
+ *          (LEGENDLIFE_CATEGORY_TYPES order); null defers to the title.
+ *   tags ← genders ("Men's" / "Women's" / "Unisex" / "Youth" → Kids).
+ */
+export function classifyLegendLifeProduct(
+  src: LegendLifeStyleSource,
+  unknownLog?: string[]
+): { productType: string | null; tags: string[] } {
+  const cats = new Set((src.categorisation ?? []).map((c) => c.trim().toLowerCase()))
+  const hit = /\bhood(?:s|y|ie|ies|ed)?\b/i.test(src.name ?? "")
+    ? (["", "hoodies"] as const)
+    : LEGENDLIFE_CATEGORY_TYPES.find(([cat]) => cats.has(cat))
+  const productType = hit ? normalizeProductType(hit[1], unknownLog) : null
+  // normalizeTags drops "Youth" ("kids" is also a garment-type key), so add Kids directly.
+  const youth = (src.genders ?? []).some((g) => /^youth$/i.test(g.trim()))
+  const tags = normalizeTags((src.genders ?? []).filter((g) => !/^youth$/i.test(g.trim())), unknownLog)
+  return { productType, tags: youth ? [...tags, "Kids"] : tags }
 }

@@ -214,6 +214,12 @@ const nextConfig = {
         protocol: "https",
         hostname: "cdn.shopify.com",
       },
+      {
+        // Legend Life (Stormtech, Stedman, Atlantis, …) — hotlinked. See import-legendlife.ts.
+        protocol: "https",
+        hostname: "www.legendlife.com.au",
+        pathname: "/media/catalog/product/**",
+      },
     ],
   },
   // ──────────────────────────────────────────────────────────────────

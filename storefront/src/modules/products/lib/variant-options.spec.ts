@@ -4,6 +4,7 @@ import {
   garmentUrlViewRank,
   getColourGarmentImageUrls,
   getGarmentImageUrlForPrintSide,
+  isGarmentPlaceholderUrl,
   getPrimaryGarmentImageUrl,
   getProductColorLabels,
   urlMatchesColorAmongSiblings,
@@ -458,5 +459,59 @@ describe("same-colour fallbacks for the customizer canvas (5086 Faded Brown, 202
     expect(fileOf(getColourGarmentImageUrls(product, buildVariant("FADED BROWN"), "back")[0])).toBe(
       "5086_HEAVY_FADED_MINUS_TEE_FADED_BROWN_BACK__43268.JPG"
     )
+  })
+})
+
+describe("generic back drawing when a top has no back photo (Legend Life, 2026-11-26)", () => {
+  const ll = (n: string) => `https://www.legendlife.com.au/media/catalog/product/${n}.jpg`
+  // Legend Life: one flat front per colour (filename = colour CODE, not name), model shots, no backs.
+  const buildLegend = (title: string, colours: Array<[string, string]>): HttpTypes.StoreProduct =>
+    ({
+      id: "prod_ll",
+      title,
+      handle: "legend",
+      options: [
+        { id: "opt_colour", title: "Colour", values: colours.map(([c], i) => ({ id: `v${i}`, value: c })) },
+        { id: "opt_size", title: "Size" },
+      ],
+      images: [...colours.map(([, code]) => ({ url: ll(code) })), { url: ll("model_-_Image_1") }],
+    } as unknown as HttpTypes.StoreProduct)
+  const variantWithFront = (colour: string, code: string) =>
+    ({ ...buildVariant(colour), metadata: { garment_images: { front: ll(code), all: [ll(code)] } } } as HttpTypes.StoreProductVariant)
+
+  const colours: Array<[string, string]> = [["Black Opal", "ST2000-BLO-S"], ["Bottle Green", "ST2000-BG-S"]]
+
+  it("front is the colour's own flat photo", () => {
+    const p = buildLegend("Men's Classic T", colours)
+    expect(getGarmentImageUrlForPrintSide(p, variantWithFront("Bottle Green", "ST2000-BG-S"), "front", null)).toBe(ll("ST2000-BG-S"))
+  })
+
+  it.each([
+    ["Men's Classic T", "back-short-sleeve-placeholder.svg"],
+    ["Women Piranha Performance Polo", "back-short-sleeve-collar-placeholder.svg"],
+    ["Men's Dockyard Performance Hoody", "back-hoodie-placeholder.svg"],
+    ["Snyder Men's Softshell Jacket", "back-long-sleeve-collar-placeholder.svg"],
+    ["Men's Long Sleeve Tee", "back-long-sleeve-placeholder.svg"],
+    ["Montana Men's Softshell Vest", "back-sleeveless-placeholder.svg"],
+  ])("%s → %s, never another colour or a model shot", (title, file) => {
+    const url = getGarmentImageUrlForPrintSide(buildLegend(title, colours), variantWithFront("Bottle Green", "ST2000-BG-S"), "back", null)
+    expect(url).toBe(`/placeholders/customizer/${file}`)
+    expect(isGarmentPlaceholderUrl(url)).toBe(true)
+  })
+
+  it("a bag keeps its own colour's front on the back, not the next gallery image", () => {
+    const p = buildLegend("Motion Backpack", [["Black/Black", "1040-BL.BL"], ["Black/Royal", "1040-BL.RO"]])
+    expect(getGarmentImageUrlForPrintSide(p, variantWithFront("Black/Royal", "1040-BL.RO"), "back", null)).toBe(ll("1040-BL.RO"))
+  })
+
+  it("a cap keeps its front too", () => {
+    const p = buildLegend("Poly Viscose Cap", [["Navy", "4009-NA"], ["Maroon", "4009-MA"]])
+    expect(getGarmentImageUrlForPrintSide(p, variantWithFront("Maroon", "4009-MA"), "back", null)).toBe(ll("4009-MA"))
+  })
+
+  it("a real back photo still wins", () => {
+    const p = buildLegend("Men's Classic T", colours)
+    const v = { ...buildVariant("Black Opal"), metadata: { garment_images: { front: ll("ST2000-BLO-S"), back: ll("ST2000-BLO_back"), all: [ll("ST2000-BLO-S"), ll("ST2000-BLO_back")] } } } as HttpTypes.StoreProductVariant
+    expect(getGarmentImageUrlForPrintSide(p, v, "back", null)).toBe(ll("ST2000-BLO_back"))
   })
 })

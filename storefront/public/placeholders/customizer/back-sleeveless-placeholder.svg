@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generic garment BACK for the Studio when a supplier has no back photo. 4:5, transparent background. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1250" width="1000" height="1250">
+  <path d="M 395,118 L 300 130 Q 250 330 214 470 L 214 1185 Q 500 1199 786 1185 L 786 470 Q 750 330 700 130 L 605,118 Q 500 148 395,118 Z" fill="#ffffff" stroke="#1d1d1f" stroke-width="4" stroke-linejoin="round"/>
+  
+  <path d="M 310 150 Q 262 335 232 462" fill="none" stroke="#6b6b70" stroke-width="2" stroke-dasharray="9 7" stroke-linecap="round"/>
+  <path d="M 690 150 Q 738 335 768 462" fill="none" stroke="#6b6b70" stroke-width="2" stroke-dasharray="9 7" stroke-linecap="round"/>
+  <path d="M 220 1155 Q 500 1168 780 1155" fill="none" stroke="#6b6b70" stroke-width="2" stroke-dasharray="9 7" stroke-linecap="round"/>
+  <path d="M 380 112 Q 500 168 620 112" fill="none" stroke="#6b6b70" stroke-width="2" stroke-dasharray="9 7" stroke-linecap="round"/>
+</svg>

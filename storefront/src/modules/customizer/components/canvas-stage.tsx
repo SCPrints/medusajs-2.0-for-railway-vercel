@@ -1,6 +1,7 @@
 "use client"
 
 import { tagZoomStyle as TAG_ZOOM_CSS } from "@modules/customizer/lib/print-geometry"
+import { isGarmentPlaceholderUrl } from "@modules/products/lib/variant-options"
 import { RenderPlacement } from "@modules/customizer/lib/types"
 import { memo, RefObject, useEffect, useMemo, useState } from "react"
 
@@ -73,7 +74,9 @@ function CanvasStage({
   // variant colour, paint the body by laying the colour behind the image and
   // multiplying — dark line work stays dark, white body picks up the colour.
   const isSleeveView = printSideKey === "left_sleeve" || printSideKey === "right_sleeve"
-  const applySleeveTint = isSleeveView && Boolean(tintColor)
+  // Generic back drawing (supplier has no back photo) — tinted like the sleeves.
+  const isGenericBack = printSideKey === "back" && isGarmentPlaceholderUrl(effectiveSrc)
+  const applySleeveTint = (isSleeveView || isGenericBack) && Boolean(tintColor)
 
   // Pre-compute whether the tint is dark; on dark colours the multiply blend
   // hides the (already-dark) line work, so we invert the SVG and use a
@@ -168,7 +171,7 @@ function CanvasStage({
         the placeholder is intentional — your artwork still prints on the
         actual garment sleeve.
       */}
-      {previewSize && !isSleeveView && showPhoto ? (
+      {previewSize && !isSleeveView && !isGenericBack && showPhoto ? (
         <div
           className="pointer-events-none absolute bottom-1 right-1 rounded-md border border-ui-border-base px-1 py-0.5 text-[9px] font-medium text-ui-fg-subtle shadow-xs small:bottom-auto small:right-3 small:top-3 small:px-2 small:py-1 small:text-[11px] [@media(max-height:520px)]:max-small:hidden"
           aria-hidden
@@ -183,6 +186,15 @@ function CanvasStage({
           aria-hidden
         >
           Generic sleeve preview · artwork prints on the real garment
+        </div>
+      ) : null}
+
+      {isGenericBack && showPhoto ? (
+        <div
+          className="pointer-events-none absolute left-3 top-3 rounded-md border border-ui-border-base px-2 py-1 text-[11px] font-medium text-ui-fg-subtle shadow-xs"
+          aria-hidden
+        >
+          Generic back preview · artwork prints on the real garment
         </div>
       ) : null}
 
