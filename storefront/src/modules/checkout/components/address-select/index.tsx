@@ -93,13 +93,11 @@ const AddressSelect = ({
                             <span>, {address.address_2}</span>
                           )}
                         </span>
+                        {/* Australian order: "Sydney NSW 2000", not "2000, Sydney". */}
                         <span>
-                          {address.postal_code}, {address.city}
+                          {[address.city, address.province, address.postal_code].filter(Boolean).join(" ")}
                         </span>
-                        <span>
-                          {address.province && `${address.province}, `}
-                          {address.country_code?.toUpperCase()}
-                        </span>
+                        <span>{address.country_code?.toUpperCase()}</span>
                       </div>
                     </div>
                   </div>

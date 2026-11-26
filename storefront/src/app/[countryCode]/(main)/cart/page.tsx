@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { unstable_rethrow } from "next/navigation"
 import CartTemplate from "@modules/cart/templates"
 
 import { enrichLineItems, retrieveCart } from "@lib/data/cart"
@@ -37,6 +38,9 @@ const fetchCart = async (): Promise<{ cart: HttpTypes.StoreCart | null; supacolo
 
     return { cart, supacolourShortfalls }
   } catch (err) {
+    // Shell prerenders have no cookies, so cookies() rejects when they finish.
+    // That is Next's signal, not a cart failure: hand it back so it isn't logged.
+    unstable_rethrow(err)
     console.error("[cart/page] fetchCart threw:", err)
     return { cart: null, supacolourShortfalls: [] }
   }

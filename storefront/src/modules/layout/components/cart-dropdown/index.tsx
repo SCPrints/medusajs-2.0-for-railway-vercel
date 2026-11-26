@@ -90,10 +90,9 @@ const CartDropdown = ({
       onMouseLeave={close}
     >
       <Popover className="relative h-full">
-        <Popover.Button
-          className="flex h-full items-center"
-          data-no-squish
-        >
+        {/* Not a Popover.Button: the panel opens on hover, and a button around the
+            link made two controls (two tab stops) for one cart link. */}
+        <div className="flex h-full items-center">
           <LocalizedClientLink
             className="relative flex h-full min-h-10 min-w-10 items-center justify-center whitespace-nowrap text-base font-medium hover:text-ui-fg-base"
             href="/cart"
@@ -127,7 +126,7 @@ const CartDropdown = ({
             ) : null}
             <span className="hidden tablet:inline">{`Cart (${totalItems})`}</span>
           </LocalizedClientLink>
-        </Popover.Button>
+        </div>
         <Transition
           show={cartDropdownOpen}
           as={Fragment}
