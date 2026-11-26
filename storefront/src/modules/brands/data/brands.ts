@@ -505,7 +505,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/harvest-and-frost.png`,
     logoClass: "max-h-full max-w-[60%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/harvest-and-frost/hero.jpg`,
-    bannerPositionClass: "object-[35%_10%]",
+    bannerPositionClass: "object-[center_45%]",
     gallery: [
       { src: `${BRAND_BASE}/harvest-and-frost/gallery-1.jpg`, alt: "J.Harvest & Frost Green Bow shirt in light blue" },
       { src: `${BRAND_BASE}/harvest-and-frost/gallery-2.jpg`, alt: "J.Harvest & Frost women's black shirt" },
