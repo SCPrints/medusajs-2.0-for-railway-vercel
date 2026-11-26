@@ -1,5 +1,5 @@
 /**
- * Nightly supplier catalog sync (AS Colour, FashionBiz, Aussie Pacific).
+ * Nightly supplier catalog sync (AS Colour, FashionBiz, Aussie Pacific, Legend Life).
  *
  *   - New styles the supplier lists (not discontinued) are imported with the
  *     same code as the admin "Import" buttons, as DRAFTS — nothing new goes
@@ -38,6 +38,12 @@ import { EmailTemplates } from "../../modules/email-notifications/templates"
 import { importAsColourStyles } from "./ascolour-import"
 import { importFashionBizStyles } from "./fashionbiz-import"
 import { importAussiePacificStyles } from "./aussiepacific-import"
+import { importLegendLifeStyles } from "./legendlife-import"
+import {
+  fetchAllLegendLifeProducts,
+  handleFor as legendLifeHandle,
+  legendLifeToken,
+} from "../../lib/legendlife-catalog"
 import { planCatalogSync, type FeedItem, type HideReason, type OurProduct } from "./plan"
 
 export type CatalogSyncMode = "off" | "report" | "apply"
@@ -72,9 +78,12 @@ export type SupplierSyncReport = {
 }
 
 type Supplier = {
-  key: "ascolour" | "fashionbiz" | "aussiepacific"
+  key: "ascolour" | "fashionbiz" | "aussiepacific" | "legendlife"
   label: string
-  module: string
+  /** Medusa module holding the supplier client… */
+  module?: string
+  /** …or, for API-token suppliers with no module, the client itself (null = not configured). */
+  service?: () => unknown
   fetchFeed: (svc: any) => Promise<FeedItem[]>
   ourCode: (row: { handle: string; metadata: any }) => string | null
   /**
@@ -166,6 +175,27 @@ const SUPPLIERS: Supplier[] = [
     importCodes: async (container, svc, items) => {
       const r = await importAussiePacificStyles(container, svc, items.map((f) => f.code), ProductStatus.DRAFT)
       return { imported: r.imported, errors: r.errors.map((e) => ({ code: e.style_code, error: e.error })) }
+    },
+  },
+  {
+    // The API has no discontinued flag: a dropped style just leaves the list,
+    // so hides are all "not_listed" and the safety stop guards a bad feed.
+    key: "legendlife",
+    label: "Legend Life",
+    service: legendLifeToken,
+    fetchFeed: async (token: string) =>
+      (await fetchAllLegendLifeProducts(token)).map((p) => ({
+        code: p.styleCode,
+        handle: legendLifeHandle(p),
+        name: p.name,
+        discontinued: false,
+      })),
+    ourCode: (row) => row.metadata?.legendlife?.style_code ?? null,
+    importCodes: async (container, token: string, items) => {
+      const want = new Set(items.map((f) => f.code))
+      const products = (await fetchAllLegendLifeProducts(token)).filter((p) => want.has(p.styleCode))
+      const r = await importLegendLifeStyles(container, products, { token })
+      return { imported: r.imported, errors: r.errors }
     },
   },
 ]
@@ -309,9 +339,12 @@ export async function runSupplierCatalogSync(
     if (opts.only?.length && !opts.only.includes(s.key)) continue
     let svc: unknown
     try {
-      svc = container.resolve(s.module)
+      svc = s.service ? s.service() : container.resolve(s.module!)
     } catch {
-      logger.info(`[catalog-sync] ${s.label} module not registered — skipping.`)
+      svc = null
+    }
+    if (!svc) {
+      logger.info(`[catalog-sync] ${s.label} not configured — skipping.`)
       continue
     }
     try {
