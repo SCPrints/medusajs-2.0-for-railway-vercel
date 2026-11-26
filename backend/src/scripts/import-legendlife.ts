@@ -5,7 +5,7 @@
  *
  *   - Price: SC Prints' trade price for the smallest quantity band (price1 of
  *     /customer/stylePricingAndStock) × LEGENDLIFE_COST_ADJUSTMENT → the
- *     shared ladder. Treated as ex-GST (RRP ≈ 2× trade; confirm on an invoice).
+ *     shared ladder. Ex-GST (confirmed 2026-11-26).
  *   - Stock: per-SKU "Total" at the "Legend Life Warehouse" location; the
  *     nightly sync-legendlife-inventory job keeps it current.
  *   - Images: one flat front per colour (hotlinked from legendlife.com.au,
