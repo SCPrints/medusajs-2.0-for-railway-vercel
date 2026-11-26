@@ -1,7 +1,7 @@
 "use client"
 
 import { tagZoomStyle as TAG_ZOOM_CSS } from "@modules/customizer/lib/print-geometry"
-import { isGarmentPlaceholderUrl } from "@modules/products/lib/variant-options"
+import { isGenericGarmentBackUrl } from "@modules/products/lib/variant-options"
 import { RenderPlacement } from "@modules/customizer/lib/types"
 import { memo, RefObject, useEffect, useMemo, useState } from "react"
 
@@ -74,9 +74,9 @@ function CanvasStage({
   // variant colour, paint the body by laying the colour behind the image and
   // multiplying — dark line work stays dark, white body picks up the colour.
   const isSleeveView = printSideKey === "left_sleeve" || printSideKey === "right_sleeve"
-  // Generic back drawing (supplier has no back photo) — tinted like the sleeves.
-  const isGenericBack = printSideKey === "back" && isGarmentPlaceholderUrl(effectiveSrc)
-  const applySleeveTint = (isSleeveView || isGenericBack) && Boolean(tintColor)
+  // Generic back photo (supplier has no back photo) — arrives already in the garment colour.
+  const isGenericBack = printSideKey === "back" && isGenericGarmentBackUrl(effectiveSrc)
+  const applySleeveTint = isSleeveView && Boolean(tintColor)
 
   // Pre-compute whether the tint is dark; on dark colours the multiply blend
   // hides the (already-dark) line work, so we invert the SVG and use a

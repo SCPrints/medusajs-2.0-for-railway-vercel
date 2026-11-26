@@ -4,7 +4,7 @@ import {
   garmentUrlViewRank,
   getColourGarmentImageUrls,
   getGarmentImageUrlForPrintSide,
-  isGarmentPlaceholderUrl,
+  isGenericGarmentBackUrl,
   getPrimaryGarmentImageUrl,
   getProductColorLabels,
   urlMatchesColorAmongSiblings,
@@ -487,16 +487,27 @@ describe("generic back drawing when a top has no back photo (Legend Life, 2026-1
   })
 
   it.each([
-    ["Men's Classic T", "back-short-sleeve-placeholder.svg"],
-    ["Women Piranha Performance Polo", "back-short-sleeve-collar-placeholder.svg"],
-    ["Men's Dockyard Performance Hoody", "back-hoodie-placeholder.svg"],
-    ["Snyder Men's Softshell Jacket", "back-long-sleeve-collar-placeholder.svg"],
-    ["Men's Long Sleeve Tee", "back-long-sleeve-placeholder.svg"],
-    ["Montana Men's Softshell Vest", "back-sleeveless-placeholder.svg"],
-  ])("%s → %s, never another colour or a model shot", (title, file) => {
+    ["Men's Classic T", "tee"],
+    ["Women Piranha Performance Polo", "polo"],
+    ["Men's Dockyard Performance Hoody", "hood"],
+    ["Snyder Men's Softshell Jacket", "jacket"],
+    ["Men's Long Sleeve Tee", "crew"],
+    ["Green Bow 01 Men's Long Sleeve Shirt", "shirt"],
+    ["Men's Barnard Singlet", "singlet"],
+  ])("%s → generic %s back in the colour, never another colour or a model shot", (title, kind) => {
     const url = getGarmentImageUrlForPrintSide(buildLegend(title, colours), variantWithFront("Bottle Green", "ST2000-BG-S"), "back", null)
-    expect(url).toBe(`/placeholders/customizer/${file}`)
-    expect(isGarmentPlaceholderUrl(url)).toBe(true)
+    expect(url).toMatch(new RegExp(`/garment-back/${kind}\\?c=[0-9a-f]{6}$`))
+    expect(isGenericGarmentBackUrl(url)).toBe(true)
+  })
+
+  it("black gets the black swatch colour", () => {
+    const p = buildLegend("Men's Classic T", [["Black", "ST2000-BL-S"]])
+    expect(getGarmentImageUrlForPrintSide(p, variantWithFront("Black", "ST2000-BL-S"), "back", null)).toMatch(/\/garment-back\/tee\?c=111827$/)
+  })
+
+  it("a vest keeps its own front (no sleeveless outerwear back to show)", () => {
+    const p = buildLegend("Montana Men's Softshell Vest", colours)
+    expect(getGarmentImageUrlForPrintSide(p, variantWithFront("Bottle Green", "ST2000-BG-S"), "back", null)).toBe(ll("ST2000-BG-S"))
   })
 
   it("a bag keeps its own colour's front on the back, not the next gallery image", () => {

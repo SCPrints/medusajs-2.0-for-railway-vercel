@@ -2,6 +2,8 @@ import type { HttpTypes } from "@medusajs/types"
 import { isEqual } from "lodash"
 
 import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-images"
+// Circular with garment-swatch-colors (it imports toTitleSlug); safe — both are only used inside functions.
+import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
 
 /**
  * Same values as customizer `GarmentSide`; kept local to avoid importing
@@ -26,12 +28,36 @@ const SLEEVE_PLACEHOLDER_RIGHT_SHORT = "/placeholders/customizer/left-sleeve-pla
 const SLEEVE_PLACEHOLDER_LEFT_LONG = "/placeholders/customizer/left-sleeve-long-placeholder.svg"
 const SLEEVE_PLACEHOLDER_RIGHT_LONG = "/placeholders/customizer/left-sleeve-long-placeholder.svg"
 
-/** Generic BACK drawings (4:5) for tops whose supplier has no back photo. */
-const BACK_PLACEHOLDER = (kind: string) => `/placeholders/customizer/back-${kind}-placeholder.svg`
+/**
+ * Generic BACK photo (4:5, transparent) for tops whose supplier has no back
+ * photo: a white blank's back, recoloured by the backend
+ * (`GET /garment-back/:kind?c=`, backend/src/lib/garment-back.ts).
+ */
+const genericBackUrl = (kind: string, colourHex: string | null) =>
+  `${(process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL ?? "").replace(/\/$/, "")}/garment-back/${kind}${
+    colourHex ? `?c=${colourHex.replace("#", "").toLowerCase()}` : ""
+  }`
 
-/** True for the Studio's generic line drawings (sleeves, generic backs) — tinted to the garment colour. */
-export const isGarmentPlaceholderUrl = (url: string | null | undefined): boolean =>
-  typeof url === "string" && url.includes("/placeholders/customizer/")
+/** True for the generic back photo — the Studio labels it so customers know it's not the exact garment. */
+export const isGenericGarmentBackUrl = (url: string | null | undefined): boolean =>
+  typeof url === "string" && url.includes("/garment-back/")
+
+/** "#1f2a44" as is; "hsl(210 40% 62%)" (unknown colour names) → hex; otherwise null. */
+function swatchToHex(css: string | null | undefined): string | null {
+  if (!css) return null
+  if (/^#[0-9a-f]{6}$/i.test(css)) return css
+  const m = /^hsl\(\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*\)$/i.exec(css)
+  if (!m) return null
+  const [h, s, l] = [Number(m[1]), Number(m[2]) / 100, Number(m[3]) / 100]
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12
+    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))))
+      .toString(16)
+      .padStart(2, "0")
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
 
 // "(^|\s)t(\s|$)": Stedman titles tees "Men's Classic T".
 const TOP_PATTERN =
@@ -53,15 +79,21 @@ function isTopGarmentProduct(product: HttpTypes.StoreProduct | undefined): boole
   return TOP_PATTERN.test(blob)
 }
 
-function getBackPlaceholderUrl(product: HttpTypes.StoreProduct): string {
+/**
+ * Which generic back suits this top, or null when none fits well enough
+ * (vests / gilets: no sleeveless outerwear photo, so they keep their front).
+ */
+function genericBackKind(product: HttpTypes.StoreProduct): string | null {
   const title = [product.title, product.handle].filter(Boolean).join(" ").toLowerCase()
-  if (/\b(hoods?|hoodies?|hoody|hooded)\b/.test(title)) return BACK_PLACEHOLDER("hoodie")
-  if (isSleevelessGarmentProduct(product)) return BACK_PLACEHOLDER("sleeveless")
+  if (/\b(hoods?|hoodies?|hoody|hooded)\b/.test(title)) return "hood"
+  if (isSleevelessGarmentProduct(product)) {
+    return /\b(singlets?|tanks?|camisoles?)\b/.test(title) ? "singlet" : null
+  }
+  if (/\b(jackets?|soft\s*shells?|shells?|parkas?|anoraks?|windbreakers?|puffers?|coats?|blazers?)\b/.test(title)) return "jacket"
   const collar = COLLAR_PATTERN.test(title) && !/\bt-?shirts?\b/.test(title)
-  const sleeve = isLongSleeveGarmentProduct(product) || /\b(jackets?|soft\s*shells?|shells?|parkas?|anoraks?|windbreakers?|puffers?)\b/.test(title)
-    ? "long-sleeve"
-    : "short-sleeve"
-  return BACK_PLACEHOLDER(collar ? `${sleeve}-collar` : sleeve)
+  const long = isLongSleeveGarmentProduct(product)
+  if (collar) return long ? "shirt" : "polo"
+  return long ? "crew" : "tee"
 }
 
 /**
@@ -1290,12 +1322,13 @@ export function getGarmentImageUrlForPrintSide(
     return backFromGallery
   }
 
-  // No back photo for this colour. A top gets the generic back drawing (tinted
-  // to the colour on the canvas) rather than its front photo — collar, buttons
-  // and logos on the "back" misled customers — or another colour / a model shot
-  // from the positional fallback below (Legend Life, 2026-11-26).
-  if (isTopGarmentProduct(product)) {
-    return getBackPlaceholderUrl(product)
+  // No back photo for this colour. A top gets a generic back photo in the
+  // garment's colour rather than its front photo — collar, buttons and logos on
+  // the "back" misled customers — or another colour / a model shot from the
+  // positional fallback below (Legend Life, 2026-11-26).
+  const backKind = isTopGarmentProduct(product) ? genericBackKind(product) : null
+  if (backKind) {
+    return genericBackUrl(backKind, selectedColor ? swatchToHex(resolveGarmentSwatchColor(selectedColor)) : null)
   }
   // Non-tops (bags, towels, caps): the colour's own front from the variant
   // metadata beats any positional guess.
