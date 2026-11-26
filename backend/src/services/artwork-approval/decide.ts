@@ -20,6 +20,8 @@ import { artworkProofRound } from "./sign"
 
 const NOT_WAITING_MESSAGE =
   "This proof isn't waiting on your approval any more. If you need to change your answer, reply to the proof email and we'll sort it."
+export const ORDER_CANCELLED_MESSAGE =
+  "This order was cancelled, so there's nothing to approve. If that's not right, reply to the proof email and we'll sort it."
 
 export type ProofDecision = {
   approved: boolean
@@ -45,6 +47,11 @@ export async function decideProof(
   source: "customer_link" | "customer_account" = "customer_link"
 ): Promise<ProofDecisionResult> {
   const orderId = order.id as string
+  // An old proof email can still be clicked after staff cancel the order:
+  // answering it would stamp an approval and a due date on a dead order.
+  if (order.status === "canceled" || order.canceled_at) {
+    return { ok: false, httpStatus: 409, error: "order_cancelled", message: ORDER_CANCELLED_MESSAGE }
+  }
   const meta = (order.metadata ?? {}) as Record<string, unknown>
   const round = artworkProofRound(meta)
   const previousStage =

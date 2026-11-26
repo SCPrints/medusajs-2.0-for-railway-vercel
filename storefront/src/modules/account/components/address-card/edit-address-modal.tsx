@@ -93,11 +93,11 @@ const EditAddress: React.FC<EditAddressProps> = ({
               {address.address_1}
               {address.address_2 && <span>, {address.address_2}</span>}
             </span>
+            {/* Australian order: "Sydney NSW 2000", not "2000, Sydney". */}
             <span data-testid="address-postal-city">
-              {address.postal_code}, {address.city}
+              {[address.city, address.province, address.postal_code].filter(Boolean).join(" ")}
             </span>
             <span data-testid="address-province-country">
-              {address.province && `${address.province}, `}
               {address.country_code?.toUpperCase()}
             </span>
           </Text>

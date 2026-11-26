@@ -33,8 +33,10 @@ const ShippingDetails = ({ order }: ShippingDetailsProps) => {
             {order.shipping_address?.address_2}
           </Text>
           <Text className="text-sm text-ui-fg-subtle">
-            {order.shipping_address?.postal_code},{" "}
-            {order.shipping_address?.city}
+            {/* Australian order: "Sydney NSW 2000". */}
+            {[order.shipping_address?.city, order.shipping_address?.province, order.shipping_address?.postal_code]
+              .filter(Boolean)
+              .join(" ")}
           </Text>
           <Text className="text-sm text-ui-fg-subtle">
             {order.shipping_address?.country_code?.toUpperCase()}

@@ -7,6 +7,8 @@ export type ArtworkApprovalState = {
   order_id: string
   order_display_id: number | null
   artwork_stage: string | null
+  /** Staff cancelled the order: the page shows that instead of Approve. */
+  order_cancelled?: boolean
   artwork_approved_at: string | null
   artwork_approver_name: string | null
   /** Spots the customer marked when they last asked for changes. */

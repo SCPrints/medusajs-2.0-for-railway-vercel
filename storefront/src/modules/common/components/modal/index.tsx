@@ -86,7 +86,7 @@ const Title: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     <Dialog.Title className="flex items-center justify-between">
       <div className="text-large-semi">{children}</div>
       <div>
-        <button onClick={close} data-testid="close-modal-button">
+        <button type="button" onClick={close} aria-label="Close" data-testid="close-modal-button">
           <X size={20} />
         </button>
       </div>

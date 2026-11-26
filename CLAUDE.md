@@ -283,6 +283,8 @@ Email customers a 1-5 rating prompt N days after `delivered`. Score + comment la
 ### Wishlist
 Customers bookmark products from PDP and revisit them at `/account/wishlist`. Supports optional variant selection + notes.
 
+**Hidden since 26 Nov 2026:** nothing on the site can add to it. The PDP's `wishlist-button` was deleted as dead code on 7 Jul 2026 (the Studio PDP had stopped using it on 9 Jun), and no item was ever saved. The account menu no longer links the page; the page, routes and `addToWishlist` still exist. Bring back a save button before re-adding the menu link.
+
 | Component | Path |
 | --- | --- |
 | Module + service | [backend/src/modules/wishlist/](backend/src/modules/wishlist/) |

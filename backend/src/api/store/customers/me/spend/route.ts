@@ -1,6 +1,7 @@
 import { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
 
+import { studioDate } from "../../../../../lib/business-days"
 import { toCsv } from "../../../../../lib/csv"
 import { SHARE_ROLES, listCustomerOrgs } from "../../../../../lib/customer-org-sharing"
 import { requireCustomer } from "../../../../../lib/require-customer"
@@ -34,7 +35,7 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
 
   const report = await loadSpendReport(req.scope, organisationId ? { organisationId } : { customerId })
   const format = String(req.query?.format ?? "")
-  const date = report.generated_at.slice(0, 10)
+  const date = studioDate(new Date(report.generated_at)) // Sydney date, not UTC
 
   if (format === "csv") {
     res.setHeader("Content-Type", "text/csv; charset=utf-8")

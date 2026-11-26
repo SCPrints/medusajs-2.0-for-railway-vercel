@@ -4,6 +4,7 @@
  * price the cart charges, the DTF print matrix and the embroidery rate card.
  * All prices are GST-inclusive.
  */
+import { studioDate } from "./business-days"
 import type { Tier } from "./customer-tiers"
 import {
   DIGITIZING_FEE_MAJOR,
@@ -117,7 +118,7 @@ const cell = (r: PriceRange): string =>
 
 /** Rows for the CSV download. */
 export function priceListCsvRows(list: PriceList): Array<Array<string | number>> {
-  const date = list.generated_at.slice(0, 10)
+  const date = studioDate(new Date(list.generated_at)) // Sydney date: the page and PDF say the same day
   const rows: Array<Array<string | number>> = [
     [`SC Prints price list, ${date}. Prices in AUD including GST. Prices can change.`],
     [],

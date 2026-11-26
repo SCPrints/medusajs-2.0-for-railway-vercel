@@ -78,7 +78,9 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
         {initial.order_display_id ? ` #${initial.order_display_id}` : ""}
       </p>
       <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">
-        {alreadyApproved
+        {initial.order_cancelled
+          ? "Order cancelled"
+          : alreadyApproved
           ? "Artwork approved"
           : status === "in_review"
             ? "Changes requested"
@@ -158,7 +160,15 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
         </div>
       ) : null}
 
-      {alreadyApproved ? (
+      {initial.order_cancelled ? (
+        // An old proof email clicked after staff cancelled the order: nothing to answer.
+        <div className="mt-6 rounded-md border border-rose-200 bg-rose-50 p-4" data-testid="proof-order-cancelled">
+          <p className="text-sm text-rose-900">
+            This order was cancelled, so there&apos;s nothing to approve. If that&apos;s
+            not right, reply to the proof email and we&apos;ll sort it.
+          </p>
+        </div>
+      ) : alreadyApproved ? (
         <div className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 p-4">
           <p className="text-sm text-emerald-800">
             Approved

@@ -14,6 +14,8 @@ export type ReorderSourceOrder = {
   currency_code: string | null
   metadata: Record<string, any>
   items: OrderLineLike[]
+  /** Staff cancelled it: problems and size swaps are refused. */
+  canceled?: boolean
 }
 
 const num = (v: unknown): number => {
@@ -75,6 +77,7 @@ export async function loadOrderLines(
     email: raw.email ?? null,
     currency_code: raw.currency_code ?? null,
     metadata: (raw.metadata ?? {}) as Record<string, any>,
+    canceled: raw.status === "canceled" || !!raw.canceled_at,
     items: ((raw.items ?? []) as any[]).map((i) => ({
       id: i.id,
       title: i.title ?? null,

@@ -3,7 +3,7 @@ import React from "react"
 
 import HelpPortal from "./portal"
 
-const Help = () => {
+const Help = ({ cancelled = false }: { cancelled?: boolean }) => {
   return (
     <div className="bg-ui-bg-subtle rounded-xl p-6">
       <h3 className="text-base font-semibold text-ink mb-3">
@@ -20,14 +20,14 @@ const Help = () => {
         </li>
         <li>
           <LocalizedClientLink
-            href="/contact"
+            href="/returns-policy"
             className="text-brand hover:underline"
           >
             Returns &amp; Exchanges
           </LocalizedClientLink>
         </li>
       </ul>
-      <HelpPortal />
+      <HelpPortal cancelled={cancelled} />
     </div>
   )
 }

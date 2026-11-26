@@ -72,4 +72,17 @@ describe("priceListCsvRows", () => {
     expect(rows[3]).toEqual(["Staple Tee", "30.00 - 33.00", "", "", "", "14.00"])
     expect(rows.some((r) => String(r[0]).startsWith("Up to A6"))).toBe(true)
   })
+
+  it("dates the heading in Sydney time, not UTC", () => {
+    // 8pm UTC on the 25th is 7am on the 26th in Sydney (AEDT), the date the page shows.
+    const rows = priceListCsvRows({
+      generated_at: "2026-11-25T20:00:00.000Z",
+      currency_code: "aud",
+      tier: null,
+      breaks: GARMENT_BREAKS,
+      garments: [],
+      decoration: [],
+    })
+    expect(rows[0][0]).toContain("price list, 2026-11-26.")
+  })
 })

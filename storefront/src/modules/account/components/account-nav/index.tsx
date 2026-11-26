@@ -40,7 +40,8 @@ const NAV_GROUPS: Array<{ title: string; links: NavLink[] }> = [
     links: [
       { href: "/account/designs", label: "My designs", testId: "designs-link" },
       { href: "/account/artwork", label: "My artwork", testId: "artwork-link" },
-      { href: "/account/wishlist", label: "Wishlist", testId: "wishlist-link" },
+      // No Wishlist link: nothing can add to it since the product page's save
+      // button went with the old product page (Jul 2026). Put it back with one.
     ],
   },
   {

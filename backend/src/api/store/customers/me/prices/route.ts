@@ -1,6 +1,7 @@
 import { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { studioDate } from "../../../../../lib/business-days"
 import { toCsv } from "../../../../../lib/csv"
 import { priceListCsvRows } from "../../../../../lib/price-list"
 import { requireCustomer } from "../../../../../lib/require-customer"
@@ -19,7 +20,7 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
   const customerId = requireCustomer(req)
   const list = await buildPriceList(req.scope, customerId)
   const format = String(req.query?.format ?? "")
-  const date = list.generated_at.slice(0, 10)
+  const date = studioDate(new Date(list.generated_at)) // Sydney date, not UTC
 
   if (format === "csv") {
     res.setHeader("Content-Type", "text/csv; charset=utf-8")

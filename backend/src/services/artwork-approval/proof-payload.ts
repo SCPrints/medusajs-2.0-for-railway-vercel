@@ -172,6 +172,8 @@ export function buildProofPayload(order: any) {
     order_display_id:
       typeof order.display_id === "number" ? order.display_id : null,
     artwork_stage: typeof meta.artwork_stage === "string" ? meta.artwork_stage : null,
+    // The proof page shows "cancelled" instead of Approve / Request changes.
+    order_cancelled: order.status === "canceled" || !!order.canceled_at,
     artwork_approved_at:
       typeof meta.artwork_approved_at === "string"
         ? meta.artwork_approved_at

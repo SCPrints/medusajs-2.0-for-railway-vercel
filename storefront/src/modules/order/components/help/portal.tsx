@@ -51,7 +51,7 @@ const describe = (r: CustomerRequest) =>
  * Mounted by the server-safe Help card; renders nothing unless this is the
  * signed-in customer's own account order page.
  */
-export default function HelpPortal() {
+export default function HelpPortal({ cancelled = false }: { cancelled?: boolean }) {
   const params = useParams<{ id?: string }>()
   const pathname = usePathname()
   const orderId = pathname?.includes("/account/orders/details/") ? params?.id : undefined
@@ -171,14 +171,17 @@ export default function HelpPortal() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button className={SECONDARY} onClick={() => setForm(form === "problem" ? null : "problem")}>
-          Something wrong?
-        </button>
-        <button className={SECONDARY} onClick={() => setForm(form === "swap" ? null : "swap")}>
-          Swap a size
-        </button>
-      </div>
+      {/* A cancelled order makes and sends nothing: no problem to report or size to swap. */}
+      {cancelled ? null : (
+        <div className="flex flex-wrap gap-2">
+          <button className={SECONDARY} onClick={() => setForm(form === "problem" ? null : "problem")}>
+            Something wrong?
+          </button>
+          <button className={SECONDARY} onClick={() => setForm(form === "swap" ? null : "swap")}>
+            Swap a size
+          </button>
+        </div>
+      )}
 
       {form === "problem" ? (
         <div className="flex flex-col gap-2 rounded-lg border border-ui-border-base bg-white p-4">

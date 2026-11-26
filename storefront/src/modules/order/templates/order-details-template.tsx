@@ -99,7 +99,7 @@ const OrderDetailsTemplate: React.FC<OrderDetailsTemplateProps> = ({
         <ShippingDetails order={order} />
         {cancelled ? null : <TrackingList order={order} />}
         <OrderSummary order={order} />
-        <Help />
+        <Help cancelled={cancelled} />
       </div>
     </div>
   )

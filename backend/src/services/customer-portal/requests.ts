@@ -42,6 +42,10 @@ export async function recordRequest(
   request: Omit<CustomerRequest, "id" | "status" | "staff_note" | "created_at" | "decided_at">,
   diary: { text: string; kind: JobAttentionKind; excerpt: string }
 ): Promise<CustomerRequest> {
+  // Nothing will be made or sent, so there's nothing to fix or swap; messages still work.
+  if (order.canceled) {
+    throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "This order was cancelled. Send us a message about it instead.")
+  }
   const list = readRequests(order.metadata)
   const open = list.filter((r) => r.status === "open").length
   if (open >= MAX_REQUESTS / 2) throw new MedusaError(MedusaError.Types.NOT_ALLOWED, "You have a lot of open requests on this order. Please email us instead.")

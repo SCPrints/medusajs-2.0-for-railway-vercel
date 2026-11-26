@@ -57,7 +57,7 @@ const AccountInfo = ({
         <div>
           <Button
             variant="secondary"
-            className="w-[100px] min-h-[25px] py-1"
+            className="w-[100px] min-h-11 small:min-h-[25px] py-1"
             onClick={handleToggle}
             type={state ? "reset" : "button"}
             data-testid="edit-button"
@@ -68,10 +68,12 @@ const AccountInfo = ({
         </div>
       </div>
 
-      {/* Success state */}
+      {/* Success state. The panels below only collapse to zero height, so
+          `inert` keeps closed ones away from screen readers and the Tab key. */}
       <Disclosure>
         <Disclosure.Panel
           static
+          inert={!isSuccess}
           className={clx(
             "transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden",
             {
@@ -82,7 +84,7 @@ const AccountInfo = ({
           data-testid="success-message"
         >
           <Badge className="p-2 my-4" color="green">
-            <span>{label} updated succesfully</span>
+            <span>{label} updated successfully</span>
           </Badge>
         </Disclosure.Panel>
       </Disclosure>
@@ -91,6 +93,7 @@ const AccountInfo = ({
       <Disclosure>
         <Disclosure.Panel
           static
+          inert={!isError}
           className={clx(
             "transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden",
             {
@@ -109,6 +112,7 @@ const AccountInfo = ({
       <Disclosure>
         <Disclosure.Panel
           static
+          inert={!state}
           className={clx(
             "transition-[max-height,opacity] duration-300 ease-in-out overflow-visible",
             {
@@ -122,7 +126,7 @@ const AccountInfo = ({
             <div className="flex items-center justify-end mt-2">
               <Button
                 isLoading={pending}
-                className="w-full small:max-w-[140px]"
+                className="w-full min-h-11 small:min-h-0 small:max-w-[140px]"
                 type="submit"
                 data-testid="save-button"
               >
