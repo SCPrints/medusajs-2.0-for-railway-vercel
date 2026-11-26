@@ -14,6 +14,8 @@ type Props = {
   description?: string | null
   logoSrc?: string | null
   bannerSrc?: string | null
+  /** object-position class for the banner; defaults to centre. */
+  bannerPositionClass?: string | null
   /**
    * Optional autoplaying background video (muted/looping). Takes precedence
    * over `bannerSrc`. `videoPosterSrc` is the still shown while it loads and
@@ -78,6 +80,7 @@ export default function BrandHero({
   description,
   logoSrc,
   bannerSrc,
+  bannerPositionClass,
   videoSrc,
   videoPosterSrc,
   bgClass,
@@ -152,7 +155,7 @@ export default function BrandHero({
             fill
             priority
             sizes="100vw"
-            className="object-cover object-center"
+            className={`object-cover ${bannerPositionClass ?? "object-center"}`}
           />
         ) : (
           <div className={`h-full w-full ${bgClass}`} aria-hidden />

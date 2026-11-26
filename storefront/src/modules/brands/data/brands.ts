@@ -50,6 +50,12 @@ export type BrandPresentation = {
    */
   bannerSrc?: string
   /**
+   * object-position for the banner (e.g. "object-[center_20%]"). The hero is a
+   * wide letterbox, so a centred crop cuts heads off photos whose subject sits
+   * high in the frame. Defaults to centre.
+   */
+  bannerPositionClass?: string
+  /**
    * Optional autoplaying, muted, looping background video for the hero. Takes
    * precedence over `bannerSrc`. `videoPosterSrc` is the still shown while it
    * loads and to `prefers-reduced-motion` visitors. Local file in /public.
@@ -325,6 +331,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/legend.png`,
     logoClass: "max-h-full max-w-[45%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/legend/hero.jpg`,
+    bannerPositionClass: "object-[center_20%]",
     gallery: [
       { src: `${BRAND_BASE}/legend/gallery-1.jpg`, alt: "Legend cap worn with a crew sweat" },
       { src: `${BRAND_BASE}/legend/gallery-2.jpg`, alt: "Legend caps in navy and maroon" },
@@ -340,6 +347,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/legend-black.png`,
     logoClass: "max-h-full max-w-[42%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/legend-black/hero.jpg`,
+    bannerPositionClass: "object-[center_25%]",
     gallery: [
       { src: `${BRAND_BASE}/legend-black/gallery-1.jpg`, alt: "Legend Black trucker cap" },
       { src: `${BRAND_BASE}/legend-black/gallery-2.jpg`, alt: "Legend Black caps stacked" },
@@ -358,6 +366,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/atlantis.png`,
     logoClass: "max-h-full max-w-[45%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/atlantis/hero.jpg`,
+    bannerPositionClass: "object-[center_20%]",
     gallery: [
       { src: `${BRAND_BASE}/atlantis/gallery-1.jpg`, alt: "Atlantis bucket hats and dad caps" },
       { src: `${BRAND_BASE}/atlantis/gallery-2.jpg`, alt: "Atlantis canvas caps and truckers" },
@@ -377,6 +386,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/james-harvest.png`,
     logoClass: "max-h-full max-w-[60%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/james-harvest/hero.jpg`,
+    bannerPositionClass: "object-[center_15%]",
     gallery: [
       { src: `${BRAND_BASE}/james-harvest/gallery-1.jpg`, alt: "James Harvest caps and hoodie" },
       { src: `${BRAND_BASE}/james-harvest/gallery-2.jpg`, alt: "James Harvest crew sweat" },
@@ -414,6 +424,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/swissdigital.png`,
     logoClass: "max-h-full max-w-[45%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/swissdigital/hero.jpg`,
+    bannerPositionClass: "object-[center_20%]",
     gallery: [
       { src: `${BRAND_BASE}/swissdigital/gallery-1.jpg`, alt: "Swissdigital laptop backpack" },
       { src: `${BRAND_BASE}/swissdigital/gallery-2.jpg`, alt: "Swissdigital tote bag" },
@@ -432,6 +443,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/printer-activewear.png`,
     logoClass: "max-h-full max-w-[38%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/printer-activewear/hero.jpg`,
+    bannerPositionClass: "object-[center_25%]",
     gallery: [
       { src: `${BRAND_BASE}/printer-activewear/gallery-1.jpg`, alt: "Printer polo in royal blue" },
       { src: `${BRAND_BASE}/printer-activewear/gallery-2.jpg`, alt: "Printer two-tone polo" },
@@ -450,6 +462,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/great-southern-clothing.png`,
     logoClass: "max-h-full max-w-[60%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/great-southern-clothing/hero.jpg`,
+    bannerPositionClass: "object-[center_15%]",
     gallery: [
       { src: `${BRAND_BASE}/great-southern-clothing/gallery-1.jpg`, alt: "Great Southern men's softshell" },
       { src: `${BRAND_BASE}/great-southern-clothing/gallery-2.jpg`, alt: "Great Southern women's softshell" },
@@ -466,7 +479,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     initials: "TI",
     bgClass: "bg-stone-300",
     heroVariant: "light",
-    heroProductSrc: `${BRAND_BASE}/tirano/hero-product.jpg`,
+    heroProductSrc: `${BRAND_BASE}/tirano/hero-product.png`,
     seoTitle: "Tirano Australia — Custom Branded Bags & Coolers",
     intro:
       "Tirano is a charcoal-marle range of everyday bags: backpacks, laptop satchels, totes, a travel bag, a toiletry bag and a set of coolers from lunch size up. It matches across the range, so a whole kit looks like a set. We add your logo in-house at our Sydney studio and ship Australia-wide.",
@@ -492,6 +505,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/harvest-and-frost.png`,
     logoClass: "max-h-full max-w-[60%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/harvest-and-frost/hero.jpg`,
+    bannerPositionClass: "object-[35%_10%]",
     gallery: [
       { src: `${BRAND_BASE}/harvest-and-frost/gallery-1.jpg`, alt: "J.Harvest & Frost Green Bow shirt in light blue" },
       { src: `${BRAND_BASE}/harvest-and-frost/gallery-2.jpg`, alt: "J.Harvest & Frost women's black shirt" },
@@ -511,6 +525,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/beacon-sportswear.png`,
     logoClass: "max-h-full max-w-[40%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/beacon-sportswear/hero.jpg`,
+    bannerPositionClass: "object-[center_10%]",
     gallery: [
       { src: `${BRAND_BASE}/beacon-sportswear/gallery-1.jpg`, alt: "Beacon Libby women's softshell jacket" },
       { src: `${BRAND_BASE}/beacon-sportswear/gallery-2.jpg`, alt: "Beacon Montana men's softshell vest" },
@@ -526,6 +541,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/next-level-apparel.png`,
     logoClass: "max-h-full max-w-[60%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/next-level-apparel/hero.jpg`,
+    bannerPositionClass: "object-[center_20%]",
     gallery: [
       { src: `${BRAND_BASE}/next-level-apparel/gallery-1.jpg`, alt: "Next Level CVC crew tee" },
       { src: `${BRAND_BASE}/next-level-apparel/gallery-2.jpg`, alt: "Next Level tri-blend crew tee" },
@@ -542,7 +558,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     initials: "EX",
     bgClass: "bg-neutral-300",
     heroVariant: "light",
-    heroProductSrc: `${BRAND_BASE}/exton/hero-product.jpg`,
+    heroProductSrc: `${BRAND_BASE}/exton/hero-product.png`,
     seoTitle: "EXTON Australia — Custom Branded Business Bags",
     intro:
       "EXTON is a black business range: a padded laptop backpack, a business satchel and a cooler. Sharp, plain bags that suit a corporate gift. We add your logo in-house at our Sydney studio and ship Australia-wide.",

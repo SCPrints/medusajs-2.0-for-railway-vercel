@@ -11,6 +11,8 @@ export type StorefrontBrand = {
   external_code: string | null
   parent_id: string | null
   product_count: number
+  /** Published products; only `/store/brands/:handle` sends it (brand + children). */
+  published_product_count?: number
 }
 
 type BrandsListResponse = {

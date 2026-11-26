@@ -71,17 +71,12 @@ async function BrandsContent() {
   const brands = await listBrands()
   const brandsById = new Map(brands.map((b) => [b.id, b]))
 
-  // Hide parent-only brands (e.g. FashionBiz): they exist for hierarchy + reporting
-  // but products are linked to the child brands, so on the storefront index we want
-  // customers to see the child brands directly. Any brand that appears as another
-  // brand's `parent_id` AND has no products of its own is excluded from the grid.
-  // A parent that sells its own range (JB's Wear → Podium, Colours of Cotton…)
-  // still gets a card.
-  const parentIds = new Set(
-    brands.map((b) => b.parent_id).filter((id): id is string => Boolean(id))
-  )
+  // Only brands with published products get a card. That hides parent-only
+  // brands (e.g. FashionBiz: products link to the child brands) and any brand
+  // whose products have all gone back to draft. product_count counts
+  // published products only.
   const sortedBrands = [...brands]
-    .filter((b) => !parentIds.has(b.id) || b.product_count > 0)
+    .filter((b) => b.product_count > 0)
     .sort((a, b) => a.name.localeCompare(b.name))
 
   return (

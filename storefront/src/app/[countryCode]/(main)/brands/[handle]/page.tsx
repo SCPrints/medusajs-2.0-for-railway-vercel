@@ -88,6 +88,11 @@ export default async function BrandLandingPage({ params, searchParams }: Params)
   const sp = await searchParams
   const { brand, children } = await retrieveBrandByHandle(handle)
   if (!brand) notFound()
+  // Nothing live (e.g. every product back in draft): 404 rather than an empty
+  // page. A parent counts its children. Older backends omit the count.
+  const live = (b: { published_product_count?: number }) =>
+    b.published_product_count === undefined || b.published_product_count > 0
+  if (!live(brand) && !children.some(live)) notFound()
 
   const presentation = getBrandPresentation(brand.handle)
   const logoSrc = brand.logo_url ?? presentation.logoSrc ?? null
@@ -100,6 +105,7 @@ export default async function BrandLandingPage({ params, searchParams }: Params)
         description={brand.description}
         logoSrc={logoSrc}
         bannerSrc={presentation.bannerSrc ?? null}
+        bannerPositionClass={presentation.bannerPositionClass ?? null}
         videoSrc={presentation.videoSrc ?? null}
         videoPosterSrc={presentation.videoPosterSrc ?? null}
         bgClass={presentation.bgClass}

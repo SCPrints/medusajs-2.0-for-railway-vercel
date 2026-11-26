@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { BRAND_MODULE } from "../../../modules/brand"
 import type BrandModuleService from "../../../modules/brand/service"
+import { countPublishedProductsByBrand } from "../../../lib/brand-product-counts"
 
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
@@ -26,22 +27,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
   )
 
-  const brandIds = brands.map((b) => b.id)
-  const counts: Record<string, number> = Object.fromEntries(
-    brandIds.map((id) => [id, 0])
+  const counts = await countPublishedProductsByBrand(
+    pgConnection,
+    brands.map((b) => b.id)
   )
-  if (brandIds.length > 0) {
-    const rows: Array<{ brand_id: string; count: string | number }> =
-      await pgConnection("product_product_brand_brand")
-        .whereIn("brand_id", brandIds)
-        .whereNull("deleted_at")
-        .groupBy("brand_id")
-        .select("brand_id")
-        .count("product_id as count")
-    for (const r of rows) {
-      counts[r.brand_id] = Number(r.count) || 0
-    }
-  }
 
   res.json({
     brands: brands.map((b) => ({ ...b, product_count: counts[b.id] ?? 0 })),

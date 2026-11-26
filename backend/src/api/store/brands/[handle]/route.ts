@@ -1,9 +1,10 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { BRAND_MODULE } from "../../../../modules/brand"
 import type BrandModuleService from "../../../../modules/brand/service"
+import { countPublishedProductsByBrand } from "../../../../lib/brand-product-counts"
 
 const paramsSchema = z.object({ handle: z.string().min(1) })
 
@@ -31,5 +32,13 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     { take: 200, order: { name: "ASC" } }
   )
 
-  res.json({ brand, children })
+  // published_product_count lets the storefront 404 a brand with nothing live.
+  const counts = await countPublishedProductsByBrand(
+    req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION),
+    [brand.id, ...children.map((c) => c.id)]
+  )
+  res.json({
+    brand: { ...brand, published_product_count: counts[brand.id] ?? 0 },
+    children: children.map((c) => ({ ...c, published_product_count: counts[c.id] ?? 0 })),
+  })
 }
