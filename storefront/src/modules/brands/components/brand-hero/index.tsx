@@ -128,7 +128,7 @@ export default function BrandHero({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={heroProductSrc}
-                alt={`${name} hoodies`}
+                alt={`${name} product`}
                 className="max-h-72 w-auto object-contain mix-blend-multiply drop-shadow-lg small:max-h-[380px] medium:max-h-[440px]"
                 loading="eager"
                 decoding="async"
