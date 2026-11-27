@@ -29,6 +29,11 @@ async function emptyCart(page: Page) {
   }
 }
 
+// Leave no cart behind, even when a step fails.
+test.afterEach(async ({ page }) => {
+  if (EMAIL && PASSWORD) await emptyCart(page).catch(() => undefined)
+})
+
 test("organisation buyer: sign in, open the organisation, order from the range, reach Review", async ({ page, context }) => {
   test.skip(!EMAIL || !PASSWORD, "needs PORTAL_TEST_EMAIL and PORTAL_TEST_PASSWORD")
   await prepareContext(context)
@@ -77,11 +82,15 @@ test("organisation buyer: sign in, open the organisation, order from the range, 
     await page.goto("/au/checkout?step=address")
     // The organisation's saved address is offered, and choosing it fills the form.
     await expect(page.getByTestId("org-address-picker")).toBeVisible()
+    // A signed-in buyer's email is already filled in (first run 28 Nov: it was empty at submit).
+    const email = page.getByTestId("shipping-email-input")
+    await expect(email, "checkout should fill in a signed-in buyer's email").not.toHaveValue("", { timeout: 20_000 })
     await page.getByTestId("org-address-picker").getByTestId("shipping-address-select").click()
     await page.getByTestId("shipping-address-option").first().click()
     await expect(page.getByTestId("shipping-company-input")).toHaveValue(ORG)
     const phone = page.locator('input[name="shipping_address.phone"]')
     if (!(await phone.inputValue())) await phone.fill("0400000000")
+    await expect(email, "choosing a saved address must not clear the email").not.toHaveValue("")
     await page.getByTestId("submit-address-button").click()
 
     // The only delivery option is picked for the customer, with a price.
@@ -118,6 +127,5 @@ test("organisation buyer: sign in, open the organisation, order from the range, 
     }
   })
 
-  await emptyCart(page)
   expect(crashes, `page errors:\n${crashes.join("\n")}`).toEqual([])
 })

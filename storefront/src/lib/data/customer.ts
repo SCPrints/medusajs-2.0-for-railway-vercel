@@ -103,6 +103,55 @@ export async function login(_currentState: unknown, formData: FormData) {
   }
 }
 
+/**
+ * "Forgot your password?": asks the backend to email a reset link. The answer
+ * is the same whether or not the email has an account, so it can't be used to
+ * find out who is a customer.
+ */
+export async function requestPasswordReset(_currentState: unknown, formData: FormData) {
+  const identifier = String(formData.get("email") ?? "").trim()
+  if (!identifier) return { error: "Enter your email address." }
+  await sdk.auth.resetPassword("customer", "emailpass", { identifier }).catch(() => undefined)
+  return { sent: true }
+}
+
+/** Sets the new password from an emailed link (one use, 15 minutes). */
+export async function resetPassword(_currentState: unknown, formData: FormData) {
+  const password = String(formData.get("password") ?? "")
+  if (password.length < 8) return { error: "Use at least 8 characters." }
+  if (password !== String(formData.get("confirm_password") ?? "")) return { error: "The two passwords don't match." }
+  try {
+    await sdk.auth.updateProvider(
+      "customer",
+      "emailpass",
+      { email: String(formData.get("email") ?? ""), password },
+      String(formData.get("token") ?? "")
+    )
+    return { done: true }
+  } catch {
+    return { error: "This link has expired or has already been used. Ask for a new one." }
+  }
+}
+
+/** Profile → Password: the current password is checked by the backend first. */
+export async function changePassword(_currentState: unknown, formData: FormData) {
+  const new_password = String(formData.get("new_password") ?? "")
+  if (new_password.length < 8) return { success: false, error: "Use at least 8 characters for the new password." }
+  if (new_password !== String(formData.get("confirm_password") ?? "")) {
+    return { success: false, error: "The two new passwords don't match." }
+  }
+  try {
+    await sdk.client.fetch("/store/customers/me/password", {
+      method: "POST",
+      headers: await awaitedAuthHeaders(),
+      body: { old_password: String(formData.get("old_password") ?? ""), new_password },
+    })
+    return { success: true, error: null }
+  } catch (err: any) {
+    return { success: false, error: err?.message || "We couldn't change your password. Try again." }
+  }
+}
+
 export async function signout(countryCode: string) {
   await sdk.auth.logout()
   removeAuthToken()

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 
 import { LOGIN_VIEW } from "@modules/account/templates/login-template"
 import Input from "@modules/common/components/input"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { SubmitButton } from "@modules/checkout/components/submit-button"
 import { login } from "@lib/data/customer"
@@ -89,7 +90,14 @@ const Login = ({ setCurrentView }: Props) => {
           Sign in
         </SubmitButton>
       </form>
-      <span className="text-center text-ui-fg-base text-small-regular mt-6">
+      <LocalizedClientLink
+        href="/reset-password"
+        className="mt-4 inline-flex min-h-11 items-center text-small-regular text-ui-fg-base underline"
+        data-testid="forgot-password-link"
+      >
+        Forgot your password?
+      </LocalizedClientLink>
+      <span className="text-center text-ui-fg-base text-small-regular mt-2">
         Not a member?{" "}
         <button
           onClick={() => setCurrentView(LOGIN_VIEW.REGISTER)}

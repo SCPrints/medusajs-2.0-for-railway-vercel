@@ -280,6 +280,19 @@ Email customers a 1-5 rating prompt N days after `delivered`. Score + comment la
 
 **Env gate**: `NPS_REQUESTS_ENABLED=true`. **Tuning**: `NPS_REQUEST_DAYS_AFTER_DELIVERED` (default 14), `NPS_MIN_GAP_DAYS_PER_CUSTOMER` (default 90), `NPS_MAX_SENDS_PER_RUN` (default 25). **Idempotency**: stamped on `order.metadata.nps_request_sent_at` and `customer.metadata.last_nps_request_sent_at`.
 
+### Passwords (forgot + change) — added 28 Nov 2026
+Until 28 Nov 2026 nobody could reset a forgotten password (customers or staff: nothing listened for Medusa's `auth.password_reset` event) and the Profile page's password form was the starter stub.
+
+| Component | Path |
+| --- | --- |
+| Reset link + email wording (pure, tested) | [backend/src/lib/password-reset.ts](backend/src/lib/password-reset.ts) |
+| Sends the link (customers → shop page, staff → `/app/reset-password`) | [backend/src/subscribers/auth-password-reset.ts](backend/src/subscribers/auth-password-reset.ts) |
+| Change password while signed in (checks the current one) | [backend/src/api/store/customers/me/password/route.ts](backend/src/api/store/customers/me/password/route.ts) |
+| Shop actions `requestPasswordReset` / `resetPassword` / `changePassword` | [storefront/src/lib/data/customer.ts](storefront/src/lib/data/customer.ts) |
+| "Forgot your password?" page (ask for a link / choose the new password) | [storefront/src/app/[countryCode]/(main)/reset-password/page.tsx](storefront/src/app/[countryCode]/(main)/reset-password/page.tsx) · [component](storefront/src/modules/account/components/reset-password/index.tsx) |
+
+Medusa's own routes do the work: `POST /auth/customer/emailpass/reset-password` makes a token (one use, 15 minutes, stored server-side) and `POST /auth/customer/emailpass/update` accepts ONLY that token, never a sign-in token. The request route answers 201 whether or not the email has an account. The email reuses the `CUSTOMER_MESSAGE` template, like the confirm-your-email one. New passwords need 8 characters (sign-up itself has no minimum). Changing a password does not sign other devices out.
+
 ### Wishlist
 Customers bookmark products from PDP and revisit them at `/account/wishlist`. Supports optional variant selection + notes.
 
@@ -1684,7 +1697,7 @@ These routes exist but aren't linked from the main nav. Some are intentional lan
 - **Storefront**: `cd storefront && pnpm test` — Jest with `@swc/jest`. Test files colocated as `*.spec.ts` next to source.
 - **Sync checks**: `pnpm check-sync` runs all four — `check-production-stage-sync`, `check-customer-tiers-sync`, `check-dtf-pricing-sync`, `check-embroidery-pricing-sync`. Wire into CI to catch hand-mirror drift.
 - **E2E**: `cd storefront && pnpm test-e2e` — Playwright.
-- **Portal checks**: `pnpm test:portal` (repo root) — 357 API checks of the organisation portal (members, tiers, range, on-account checkout, cost centres, POs, approvals, held stock, allowances, group orders, team stores) against a throwaway copy: embedded Postgres + a local backend with every live key blanked ([scripts/portal-e2e/](scripts/portal-e2e/), ~8 min, stops if port 9000 is busy). **Run it before every backend deploy that touches portal code, and add a check with every portal bug fix.** When behaviour changes on purpose, change the check in the same commit: four had gone stale within three days.
+- **Portal checks**: `pnpm test:portal` (repo root) — 374 API checks of the organisation portal (members, tiers, range, on-account checkout, cost centres, POs, approvals, held stock, allowances, group orders, team stores, passwords) against a throwaway copy: embedded Postgres + a local backend with every live key blanked ([scripts/portal-e2e/](scripts/portal-e2e/), ~8 min, stops if port 9000 is busy). **Run it before every backend deploy that touches portal code, and add a check with every portal bug fix.** When behaviour changes on purpose, change the check in the same commit: four had gone stale within three days.
 - **Portal browser journey**: [storefront/e2e-studio/portal.spec.ts](storefront/e2e-studio/portal.spec.ts) runs with the Studio journeys (every deploy + nightly): sign in → organisation → Our range → cart → checkout up to Review. It never places the order. Needs GitHub secrets `PORTAL_TEST_EMAIL` / `PORTAL_TEST_PASSWORD` (skips without them) and the permanent test organisation "SC Prints Portal Test" (on account, one saved address, one range design): never delete it.
 - **Portal errors**: the nightly site check ([scripts/site-check/errors.mjs](scripts/site-check/errors.mjs)) fails, and so emails, when PostHog records an error, rage click or stalled page on `/account`, `/checkout` or `/allowance`.
 
