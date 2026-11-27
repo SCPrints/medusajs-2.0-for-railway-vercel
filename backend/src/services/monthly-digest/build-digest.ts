@@ -93,7 +93,9 @@ export async function buildMonthlyDigest(
   const period = lastFullMonth(now)
   const prior = monthBefore(period)
 
-  const orders = await fetchOrdersForReports(query)
+  const orders = await fetchOrdersForReports(query, {
+    pg: container.resolve(ContainerRegistrationKeys.PG_CONNECTION),
+  })
 
   // ---- Headline KPIs --------------------------------------------------
   let revCurrent = 0

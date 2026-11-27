@@ -1,3 +1,5 @@
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+
 import {
   ARTWORK_STAGES,
   BLANKS_STAGES,
@@ -499,16 +501,22 @@ export const loadOrdersOr500 = async (
   tag: string,
   fields?: readonly string[]
 ): Promise<any[] | null> => {
+  // Express sets `res.req`; the route's container has the SQL connection
+  // for the line metadata.
+  const pg = res?.req?.scope?.resolve?.(ContainerRegistrationKeys.PG_CONNECTION)
   try {
     if (fields) {
+      const trim = !!pg && fields.includes("items.metadata") && fields.includes("items.id")
       const { data } = await query.graph({
         entity: "order",
-        fields: fields as string[],
+        fields: (trim ? fields.filter((f) => f !== "items.metadata") : fields) as string[],
         pagination: { take: 5000, skip: 0 },
       })
-      return (data as any[]) ?? []
+      const orders = (data as any[]) ?? []
+      if (trim) await attachReportLineMetadata(pg, orders)
+      return orders
     }
-    return await fetchOrdersForReports(query)
+    return await fetchOrdersForReports(query, { pg })
   } catch (err: any) {
     logger?.error?.(`[${tag}] order fetch failed: ${err?.message ?? err}`)
     res.status(500).json({
@@ -519,11 +527,82 @@ export const loadOrdersOr500 = async (
   }
 }
 
+/**
+ * Line metadata for report orders, minus the Studio drawings
+ * (`customizerDesign.sideLayouts`). No report reads them, and they were 46 of
+ * the 47 MB of line metadata on 27 Nov 2026. query.graph can't leave one jsonb
+ * key out, so this reads `order_line_item` (where query.graph's
+ * `items.metadata` comes from) in SQL. With the drawings, the ~20 charts that
+ * load orders at once when Reports opens parsed about 1 GB of JSON and slowed
+ * the whole backend for half a minute.
+ */
+export const attachReportLineMetadata = async (pg: any, orders: any[]): Promise<void> => {
+  const lines = orders.flatMap((o) => (Array.isArray(o?.items) ? o.items : [])).filter(Boolean)
+  const ids = lines.map((it: any) => it.id).filter((id: unknown) => typeof id === "string")
+  if (!ids.length) return
+  const { rows } = (await pg.raw(
+    `select id,
+            case when jsonb_typeof(metadata->'customizerDesign') = 'object'
+                 then metadata #- '{customizerDesign,sideLayouts}' else metadata end as metadata
+       from order_line_item where id = any(?::text[])`,
+    [ids]
+  )) as { rows: Array<{ id: string; metadata: unknown }> }
+  const byId = new Map(rows.map((r) => [r.id, r.metadata]))
+  for (const it of lines) it.metadata = byId.get(it.id) ?? null
+}
+
+// When Reports opens, ~20 charts ask for the same orders at once, and each
+// load makes Postgres read every Studio design. With `pg` they share one load,
+// kept 30 s. Keyed by the Query service (one per app), so tests with their own
+// mocks never share.
+const SHARED_LOAD_MS = 30_000
+const sharedLoads = new WeakMap<object, Map<number, { at: number; load: Promise<any[]> }>>()
+
+// Shared orders and lines are frozen, so a route that changes one throws
+// instead of changing it for every other report. Not a deep copy:
+// structuredClone turns Medusa's price and quantity objects into plain
+// objects, which read as NaN.
+const freezeShared = (orders: any[]): any[] => {
+  for (const o of orders) {
+    if (Array.isArray(o?.items)) {
+      for (const it of o.items) if (it) Object.freeze(it)
+      Object.freeze(o.items)
+    }
+    if (o) Object.freeze(o)
+  }
+  return orders
+}
+
+/**
+ * Pass `pg` (the PG_CONNECTION) so line metadata comes without the Studio
+ * drawings (`attachReportLineMetadata`). Without it, query.graph loads it all.
+ */
 export const fetchOrdersForReports = async (
   query: any,
-  options: { take?: number } = {}
+  options: { take?: number; pg?: any } = {}
 ): Promise<any[]> => {
   const take = options.take ?? 5000
+  if (!options.pg) return loadReportOrders(query, take)
+  let byTake = sharedLoads.get(query)
+  if (!byTake) sharedLoads.set(query, (byTake = new Map()))
+  let entry = byTake.get(take)
+  if (!entry || Date.now() - entry.at > SHARED_LOAD_MS) {
+    const fresh = {
+      at: Date.now(),
+      load: loadReportOrders(query, take, options.pg).then(freezeShared),
+    }
+    const loads = byTake
+    loads.set(take, fresh)
+    fresh.load.catch(() => {
+      if (loads.get(take) === fresh) loads.delete(take)
+    })
+    entry = fresh
+  }
+  // Each caller gets its own list, so sorting it can't reorder another's.
+  return [...(await entry.load)]
+}
+
+const loadReportOrders = async (query: any, take: number, pg?: any): Promise<any[]> => {
   const { data } = await query.graph({
     entity: "order",
     fields: [
@@ -556,10 +635,11 @@ export const fetchOrdersForReports = async (
       // `total` re-adds 10% on inc-GST lines, so we override it.
       "items.detail.quantity",
       "summary.*",
-    ],
+    ].filter((f) => !(pg && f === "items.metadata")),
     pagination: { take, skip: 0 },
   })
   const orders = (data as any[]) ?? []
+  if (pg) await attachReportLineMetadata(pg, orders)
   for (const o of orders) {
     const cur = o?.summary?.current_order_total
     if (cur != null && Number.isFinite(Number(cur))) o.total = Number(cur)

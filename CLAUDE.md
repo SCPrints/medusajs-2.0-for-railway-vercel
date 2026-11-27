@@ -1465,7 +1465,14 @@ Cron jobs that depend on optional integrations (AS Colour, FashionBiz, AP, AusPo
 The admin's analytical + ops layer. Hundreds of routes; the cheat sheet below is organised by surface.
 
 ### Reports dashboard
-Single admin page rendering ~50 charts driven by ~60 backend routes under [backend/src/api/admin/reports/](backend/src/api/admin/reports/). Date-range filter (presets: 7d, 30d, this/last month, last quarter), region-aware currency. No caching layer — everything is live.
+Single admin page rendering ~50 charts driven by ~60 backend routes under [backend/src/api/admin/reports/](backend/src/api/admin/reports/). Date-range filter (presets: 7d, 30d, this/last month, last quarter), region-aware currency.
+
+**Order loading** (`fetchOrdersForReports` in [lib/reports/orders.ts](backend/src/lib/reports/orders.ts)):
+- Line metadata comes from SQL without the Studio drawings (`customizerDesign.sideLayouts`), which were 46 of 47 MB.
+- The charts that load at the same moment share one load for 30 s. Those orders are frozen: a report must never change the orders it gets.
+- Pass `pg` (or go through `loadOrdersOr500`), or the slow full load runs.
+
+The storage tile's bucket walk is kept for an hour. Everything else is live.
 
 | Component | Path |
 | --- | --- |

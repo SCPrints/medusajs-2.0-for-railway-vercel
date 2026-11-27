@@ -74,7 +74,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   let orders: OrderRow[] = []
   try {
-    orders = (await fetchOrdersForReports(query)) as OrderRow[]
+    orders = (await fetchOrdersForReports(query, {
+      pg: req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION),
+    })) as OrderRow[]
   } catch (err: any) {
     logger.error?.(
       `[products/top-selling] order fetch failed: ${err?.message ?? err}`

@@ -32,6 +32,7 @@ import {
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
+  const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
   const logger = (req.scope as any).resolve?.("logger") ?? console
 
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
@@ -112,7 +113,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // ---- 2. Orders + product graph for handle resolution ----
   let orders: any[] = []
   try {
-    orders = await fetchOrdersForReports(query)
+    orders = await fetchOrdersForReports(query, { pg })
   } catch (err: any) {
     logger.warn?.(`[pdp-conversion] order fetch failed: ${err?.message ?? err}`)
   }
@@ -124,7 +125,6 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   >()
   try {
     // Plain SQL: query.graph hydrated the whole catalogue, and stopped at 5,000.
-    const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
     const data = await pg("product").whereNull("deleted_at").select("id", "handle", "title")
     for (const p of (data as any[]) ?? []) {
       if (typeof p?.handle === "string") {

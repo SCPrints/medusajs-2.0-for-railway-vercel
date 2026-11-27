@@ -73,6 +73,55 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       ? req.query.prefix
       : ""
 
+  // The walk lists every object (tens of thousands: 17–34 s on 27 Nov 2026)
+  // and the Reports page asks on every visit, so keep each answer for an
+  // hour and share one walk between requests that arrive together. A failed
+  // walk isn't kept.
+  const key = `${config.bucket}|${prefix}`
+  let entry = walks.get(key)
+  if (!entry || Date.now() - entry.at > WALK_TTL_MS) {
+    const fresh = { at: Date.now(), walk: walkBucket(config, prefix) }
+    walks.set(key, fresh)
+    fresh.walk.catch(() => {
+      if (walks.get(key) === fresh) walks.delete(key)
+    })
+    entry = fresh
+  }
+
+  let walk: Walk
+  try {
+    walk = await entry.walk
+  } catch (err: any) {
+    logger.warn?.(`[storage] MinIO list failed: ${err?.message ?? err}`)
+    return res.status(502).json({
+      configured: true,
+      error: "MinIO list failed",
+      detail: String(err?.message ?? err),
+    })
+  }
+
+  return res.json({
+    configured: true,
+    bucket: config.bucket,
+    prefix: prefix || null,
+    ...walk,
+  })
+}
+
+type Walk = {
+  total_bytes: number
+  object_count: number
+  capped: boolean
+  prefixes: Array<{ prefix: string; bytes: number; count: number }>
+}
+
+const WALK_TTL_MS = 60 * 60 * 1000
+const walks = new Map<string, { at: number; walk: Promise<Walk> }>()
+
+async function walkBucket(
+  config: NonNullable<ReturnType<typeof parseMinioConfig>>,
+  prefix: string
+): Promise<Walk> {
   const client = new Client({
     endPoint: config.endPoint,
     useSSL: config.useSSL,
@@ -87,35 +136,26 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   type PrefixStat = { bytes: number; count: number }
   const byPrefix = new Map<string, PrefixStat>()
 
-  try {
-    const stream = client.listObjectsV2(config.bucket, prefix, true)
-    await new Promise<void>((resolve, reject) => {
-      stream.on("data", (item: any) => {
-        if (objectCount >= HARD_OBJECT_CAP) {
-          capped = true
-          return
-        }
-        const size = Number(item?.size ?? 0)
-        if (Number.isFinite(size)) totalBytes += size
-        objectCount += 1
-        const name = String(item?.name ?? "")
-        const topPrefix = name.split("/")[0] || "(root)"
-        const stat = byPrefix.get(topPrefix) ?? { bytes: 0, count: 0 }
-        stat.bytes += size
-        stat.count += 1
-        byPrefix.set(topPrefix, stat)
-      })
-      stream.on("end", () => resolve())
-      stream.on("error", (err: any) => reject(err))
+  const stream = client.listObjectsV2(config.bucket, prefix, true)
+  await new Promise<void>((resolve, reject) => {
+    stream.on("data", (item: any) => {
+      if (objectCount >= HARD_OBJECT_CAP) {
+        capped = true
+        return
+      }
+      const size = Number(item?.size ?? 0)
+      if (Number.isFinite(size)) totalBytes += size
+      objectCount += 1
+      const name = String(item?.name ?? "")
+      const topPrefix = name.split("/")[0] || "(root)"
+      const stat = byPrefix.get(topPrefix) ?? { bytes: 0, count: 0 }
+      stat.bytes += size
+      stat.count += 1
+      byPrefix.set(topPrefix, stat)
     })
-  } catch (err: any) {
-    logger.warn?.(`[storage] MinIO list failed: ${err?.message ?? err}`)
-    return res.status(502).json({
-      configured: true,
-      error: "MinIO list failed",
-      detail: String(err?.message ?? err),
-    })
-  }
+    stream.on("end", () => resolve())
+    stream.on("error", (err: any) => reject(err))
+  })
 
   const prefixes = Array.from(byPrefix.entries())
     .map(([prefix, stat]) => ({
@@ -125,13 +165,5 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }))
     .sort((a, b) => b.bytes - a.bytes)
 
-  return res.json({
-    configured: true,
-    bucket: config.bucket,
-    prefix: prefix || null,
-    total_bytes: totalBytes,
-    object_count: objectCount,
-    capped,
-    prefixes,
-  })
+  return { total_bytes: totalBytes, object_count: objectCount, capped, prefixes }
 }

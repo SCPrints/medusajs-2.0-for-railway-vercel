@@ -56,7 +56,9 @@ export async function evaluateMetrics(
   const window30Start = thirtyDaysAgo(now)
   const nowMs = now.getTime()
 
-  const orders = await fetchOrdersForReports(query)
+  const orders = await fetchOrdersForReports(query, {
+    pg: container.resolve(ContainerRegistrationKeys.PG_CONNECTION),
+  })
 
   // ---- SLA breach %, last 7 days ----
   let slaTransitions = 0
