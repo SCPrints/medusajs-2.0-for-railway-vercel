@@ -28,6 +28,9 @@ const updateSchema = z.object({
   account_terms_days: z.coerce.number().int().min(1).max(120).optional(),
   credit_limit: z.coerce.number().positive().max(10_000_000).nullable().optional(),
   ap_email: z.string().trim().email().max(200).nullable().optional(),
+  // Optional tabs on the customer's organisation page. Hidden unless listed here.
+  // shortcut: kept in metadata, not a column; move it if a third place needs to query it.
+  portal_extras: z.array(z.enum(["allowance", "brand_kit"])).max(2).optional(),
 })
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -77,6 +80,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
   const service = req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
   const before: any = await service.retrieveOrganisation(id)
+  if (body.portal_extras) {
+    delete update.portal_extras
+    update.metadata = { ...(before?.metadata ?? {}), portal_extras: body.portal_extras }
+  }
   await service.updateOrganisations([update])
   // A changed (or cleared) tier: take back the old grant, then apply the new one to everyone.
   const tierChanged =

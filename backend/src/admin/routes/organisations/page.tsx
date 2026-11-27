@@ -56,6 +56,7 @@ type Organisation = {
   tax_exempt: boolean
   tax_exempt_reason: string | null
   primary_contact_customer_id?: string | null
+  metadata?: { portal_extras?: string[] } | null
 }
 
 type Member = {
@@ -381,6 +382,20 @@ const OrganisationsPage = () => {
           />
           <Label htmlFor="tax-exempt">Tax-exempt</Label>
         </div>
+        {/* Optional tabs on the customer's organisation page: off until they ask for them. */}
+        {([["allowance", "Show the Uniform allowance tab"], ["brand_kit", "Show the Brand kit tab"]] as const).map(([key, label]) => {
+          const on = selected.metadata?.portal_extras ?? []
+          return (
+            <div key={key} className="flex items-end gap-x-2">
+              <Switch
+                id={`extra-${key}`}
+                checked={on.includes(key)}
+                onCheckedChange={(v) => patchSelected({ portal_extras: v ? [...on, key] : on.filter((k) => k !== key) })}
+              />
+              <Label htmlFor={`extra-${key}`}>{label}</Label>
+            </div>
+          )
+        })}
         <div className="small:col-span-2">
           <Label size="xsmall">Notes</Label>
           <Textarea

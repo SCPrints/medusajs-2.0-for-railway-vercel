@@ -63,6 +63,8 @@ export function memberSafeOrganisation(org: any) {
     contact_email: org.contact_email ?? null,
     contact_phone: org.contact_phone ?? null,
     tax_exempt: org.tax_exempt === true,
+    // Optional tabs staff switched on ("allowance", "brand_kit"); off by default.
+    portal_extras: Array.isArray(org.metadata?.portal_extras) ? org.metadata.portal_extras : [],
   }
 }
 

@@ -1,0 +1,5 @@
+pgdata/
+*.log
+state.json
+t*.json
+*.pdf

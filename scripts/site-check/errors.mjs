@@ -81,6 +81,15 @@ const posthogQueries = {
     FROM events WHERE event = 'navigation_stalled' AND ${since}
     GROUP BY path ORDER BY n DESC LIMIT 30`,
 }
+// Signed-in customer pages (account, organisation portal, checkout). Anything here
+// fails the job, so GitHub emails the run: we hear about it before the customer tells us.
+// shortcut: nightly, not instant; move to a PostHog alert if a morning email is too late.
+const portalQuery = `SELECT event, properties.$pathname AS path,
+      coalesce(toString(properties.$exception_values), arrayStringConcat(elements_chain_texts, ' / ')) AS detail,
+      count() AS n, uniq(person_id) AS people
+    FROM events WHERE event IN ('$exception', '$rageclick', 'navigation_stalled') AND ${since}
+      AND match(toString(properties.$pathname), '^/[a-z]{2}/(account|checkout|allowance)(/|$)')
+    GROUP BY event, path, detail ORDER BY n DESC LIMIT 30`
 const unjson = (s) => {
   try { return JSON.parse(s).join(", ") } catch { return s }
 }
@@ -106,6 +115,12 @@ if (!process.env.POSTHOG_PERSONAL_API_KEY || !process.env.POSTHOG_PROJECT_ID) {
 } else {
   try {
     const [exceptions, rageclicks, stalled] = await Promise.all(Object.values(posthogQueries).map(hogql))
+    const portal = await hogql(portalQuery)
+    md += "### Customer portal and checkout (PostHog)\n\n" + (portal.length
+      ? `| Times | People | What | Page | Detail |\n| --- | --- | --- | --- | --- |\n` +
+        portal.map(([ev, path, detail, n, p]) => `| ${n} | ${p} | ${ev.replace("$", "")} | ${cell(path)} | ${cell(unjson(detail ?? ""))} |`).join("\n") + "\n\n"
+      : "None.\n\n")
+    if (portal.length) process.exitCode = 1
     md += "### Browser errors (PostHog)\n\n" + (exceptions.length
       ? `| Times | People | Error | Pages |\n| --- | --- | --- | --- |\n` +
         exceptions.map(([t, m, n, p, paths]) => `| ${n} | ${p} | ${cell(`${unjson(t)}: ${unjson(m)}`)} | ${cell(paths.join(", "))} |`).join("\n") + "\n\n"

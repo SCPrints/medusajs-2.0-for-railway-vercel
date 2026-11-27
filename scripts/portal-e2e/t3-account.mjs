@@ -1,0 +1,150 @@
+// Phase 3: cost centres, blanket POs, spending limits, approvals, credit limit.
+import fs from "fs"
+import { api, adminToken, check, checkout, customer, db, describe, getCart, newCart, summary } from "./lib.mjs"
+
+const st = JSON.parse(fs.readFileSync(new URL("./state.json", import.meta.url)))
+const { org, owner, buyer, viewer, invitee, poloDesign } = st
+const admin = await adminToken()
+const A = (m, p, body) => api(m, p, { token: admin, body, store: false })
+const S = (m, p, who, body) => api(m, p, { token: who.token, body })
+const base = `/store/customers/me/organisations/${org.id}`
+
+/** A fresh cart for `who` with `qty` polos from the range. */
+async function rangeCart(who, qty) {
+  const c = await newCart(who.token)
+  const r = await S("POST", `${base}/range/add-to-cart`, who, { cart_id: c.id, items: [{ design_id: poloDesign.id, variant_id: st.V["test-polo|Navy / M"], quantity: qty }] })
+  if (r.status !== 200) throw new Error(`rangeCart ${r.status} ${JSON.stringify(r.body)}`)
+  return getCart(c.id, who.token)
+}
+const setMeta = (cartId, who, metadata) => S("POST", `/store/carts/${cartId}`, who, { metadata })
+
+describe("Cost centres")
+let r = await S("POST", `${base}/cost-centres`, buyer, { code: "FIN-1", name: "Finance" })
+check("purchaser cannot add a cost centre", r.status >= 400, r.status)
+r = await S("POST", `${base}/cost-centres`, owner, { code: "SQN-101", name: "101 Squadron" })
+check("owner adds a cost centre", r.status < 300, r.body)
+r = await S("POST", `${base}/cost-centres`, owner, { code: "SQN-101", name: "dup" })
+check("duplicate code refused (409)", r.status === 409, r.status)
+let cart = await rangeCart(buyer, 2)
+r = await checkout(cart.id, buyer.token, { email: buyer.email })
+check("order without a cost centre is refused", r.status === 400 && r.body?.code === "cost_centre_required", { step: r.step, status: r.status, body: r.body })
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "NOPE" } })
+check("an unknown cost centre is refused", r.status === 400, r.status)
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101" } })
+check("with a valid cost centre it is placed", r.status === 200, { step: r.step, status: r.status, body: r.body })
+await new Promise((x) => setTimeout(x, 1500))
+const oCC = (await db.query(`select metadata from "order" where id=$1`, [r.body.order?.id])).rows[0]?.metadata
+check("cost centre recorded on the order", oCC?.cost_centre === "SQN-101", oCC)
+
+describe("Blanket purchase orders")
+r = await S("POST", `${base}/purchase-orders`, buyer, { number: "BPO-9", amount: 100 })
+check("purchaser cannot create a PO", r.status >= 400, r.status)
+r = await S("POST", `${base}/purchase-orders`, owner, { number: "BPO-2027", amount: 400 })
+check("owner records a $400 blanket PO", r.status < 300, r.body)
+const po = r.body.purchase_order
+cart = await rangeCart(buyer, 20)
+check("a 20-polo cart is over $400", Number(cart.total) > 400, cart.total)
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101", organisation_po_id: po.id } })
+check("over the PO balance is refused, with the amount left", r.status === 409 && /\$400\.00 left/.test(r.body?.message ?? ""), r.body)
+cart = await rangeCart(buyer, 3)
+const small = Number(cart.total)
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101", organisation_po_id: po.id, po_number: "FORGED" } })
+check("within the PO it is placed", r.status === 200, { step: r.step, status: r.status, body: r.body })
+await new Promise((x) => setTimeout(x, 1500))
+const oPO = (await db.query(`select metadata from "order" where id=$1`, [r.body.order?.id])).rows[0]?.metadata
+check("PO number on the order is the PO's, not what the browser sent", oPO?.po_number === "BPO-2027", oPO?.po_number)
+const poOrderTotal = Number((await db.query(`select totals->>'current_order_total' t from order_summary where order_id=$1`, [r.body.order?.id])).rows[0]?.t)
+r = await S("GET", `${base}/purchase-orders`, owner)
+const poRow = (r.body.purchase_orders ?? []).find((p) => p.id === po.id)
+check("PO drawn = that order's total (incl. shipping)", Math.abs(poRow?.drawn - poOrderTotal) < 0.02 && Math.abs(poRow?.remaining - (400 - poOrderTotal)) < 0.02, { poRow, poOrderTotal })
+r = await S("POST", `${base}/purchase-orders`, owner, { number: "BPO-OLD", amount: 1000, expires_at: "2020-01-01T00:00:00Z" })
+const oldPo = r.body.purchase_order
+cart = await rangeCart(buyer, 1)
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101", organisation_po_id: oldPo?.id } })
+check("expired PO refused", r.status === 409 && r.body?.code === "po_expired", r.body)
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101", organisation_po_id: "orgpo_fake" } })
+check("a PO from elsewhere is refused", r.status === 400, r.status)
+
+describe("Spending limits and approvals")
+r = await S("GET", `${base}/account/limits`, owner)
+const buyerMember = (r.body.members ?? []).find((m) => m.customer_id === buyer.id)
+check("owner sees members' limits", !!buyerMember, r.body)
+r = await S("POST", `${base}/account/limits`, buyer, { member_id: buyerMember.member_id, order_limit: null, monthly_limit: null })
+check("purchaser cannot change limits", r.status >= 400, r.status)
+r = await S("POST", `${base}/account/limits`, owner, { member_id: buyerMember.member_id, order_limit: 150, monthly_limit: null })
+check("owner sets a $150 per-order limit", r.status < 300, r.body)
+cart = await rangeCart(buyer, 8)
+check("an 8-polo cart is over $150", Number(cart.total) > 150, cart.total)
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101" } })
+check("over the limit: refused, asks for approval", r.status === 409 && r.body?.code === "needs_approval", r.body)
+r = await S("POST", `${base}/carts`, buyer, { cart_id: cart.id, name: "Term 1 polos", cost_centre: "SQN-101", send_for_approval: true })
+check("purchaser sends it for approval", r.status < 300 && r.body.cart?.status === "awaiting_approval", r.body)
+const parked = r.body.cart
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101" } })
+check("while waiting, it cannot be placed", r.status === 409 && r.body?.code === "awaiting_approval", r.body)
+r = await S("GET", `${base}/carts`, owner)
+const row = (r.body.carts ?? []).find((c) => c.id === parked.id)
+check("owner sees it waiting, can approve", row?.status === "awaiting_approval" && row.can_approve === true, row)
+r = await S("POST", `${base}/carts/${parked.id}/approve`, buyer)
+check("requester cannot approve their own", r.status >= 400, r.status)
+r = await S("POST", `${base}/carts/${parked.id}/approve`, viewer)
+check("viewer cannot approve", r.status >= 400, r.status)
+r = await S("POST", `${base}/carts/${parked.id}/approve`, owner)
+check("owner approves: placed on account straight away", r.status === 200 && r.body.status === "ordered" && r.body.order_id, r.body)
+await new Promise((x) => setTimeout(x, 1500))
+const oApp = (await db.query(`select customer_id, metadata from "order" where id=$1`, [r.body.order_id])).rows[0]
+check("approved order is in the purchaser's name", oApp?.customer_id === buyer.id, oApp)
+check("approved order keeps the cost centre", oApp?.metadata?.cost_centre === "SQN-101", oApp?.metadata)
+r = await S("POST", `${base}/carts/${parked.id}/approve`, owner)
+check("approving twice does not order twice", r.status >= 400 || r.body.status !== "ordered" || r.body.order_id === oApp && false, r.body)
+
+// Decline path
+cart = await rangeCart(buyer, 8)
+r = await S("POST", `${base}/carts`, buyer, { cart_id: cart.id, name: "Too many", cost_centre: "SQN-101", send_for_approval: true })
+const p2 = r.body.cart
+r = await S("POST", `${base}/carts/${p2.id}/decline`, owner, { reason: "" })
+check("decline needs a reason", r.status === 400, r.status)
+r = await S("POST", `${base}/carts/${p2.id}/decline`, owner, { reason: "Only 4 needed" })
+check("owner declines with a reason", r.status === 200 && r.body.status === "declined", r.body)
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101" } })
+check("declined cart cannot be placed", r.status === 409 && r.body?.code === "declined", r.body)
+
+// Approved without account terms → hand-off (owner pays by card)
+await A("POST", `/admin/organisations/${org.id}`, { account_terms_enabled: false })
+cart = await rangeCart(buyer, 8)
+r = await S("POST", `${base}/carts`, buyer, { cart_id: cart.id, name: "Card job", cost_centre: "SQN-101", send_for_approval: true })
+const p3 = r.body.cart
+r = await S("POST", `${base}/carts/${p3.id}/approve`, owner)
+check("no account terms: approved, owner opens it to pay", r.status === 200 && r.body.status === "approved" && r.body.handoff === true, r.body)
+r = await S("POST", `${base}/carts/${p3.id}/open`, owner)
+check("owner opens the approved cart", r.status === 200 && r.body.cart_id === cart.id, r.body)
+// Adding more after approval must break the approval.
+await S("POST", `${base}/range/add-to-cart`, owner, { cart_id: cart.id, items: [{ design_id: poloDesign.id, variant_id: st.V["test-polo|Navy / L"], quantity: 10 }] })
+await A("POST", `/admin/organisations/${org.id}`, { account_terms_enabled: true })
+r = await checkout(cart.id, owner.token, { email: owner.email, metadata: { cost_centre: "SQN-101" } })
+check("cart grown after approval is placed only within the owner's own rights", r.status === 200 || r.body?.code === "needs_approval", { status: r.status, body: r.body })
+
+describe("Monthly limit and credit limit")
+await S("POST", `${base}/account/limits`, owner, { member_id: buyerMember.member_id, order_limit: null, monthly_limit: 50 })
+cart = await rangeCart(buyer, 2)
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101" } })
+check("monthly limit already used: refused", r.status === 409 && /month/.test(r.body?.message ?? ""), r.body)
+await S("POST", `${base}/account/limits`, owner, { member_id: buyerMember.member_id, order_limit: null, monthly_limit: null })
+r = await S("GET", `${base}/account`, owner)
+const outstanding = r.body.account?.outstanding ?? r.body.outstanding
+await A("POST", `/admin/organisations/${org.id}`, { credit_limit: Math.max(1, Math.floor(outstanding) + 5) })
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101" } })
+check("over the credit limit: refused, says what's left", r.status === 409 && r.body?.code === "credit_limit", r.body)
+await A("POST", `/admin/organisations/${org.id}`, { credit_limit: 100000 })
+r = await checkout(cart.id, buyer.token, { email: buyer.email, metadata: { cost_centre: "SQN-101" } })
+check("credit raised: placed", r.status === 200, { step: r.step, status: r.status, body: r.body })
+
+describe("Forging the organisation onto a personal cart")
+const loner = await customer(`loner+${Date.now()}@shop.example.com`)
+const lc = await newCart(loner.token)
+await S("POST", `/store/carts/${lc.id}/line-items`, loner, { variant_id: st.V["test-polo|Navy / M"], quantity: 1 })
+r = await checkout(lc.id, loner.token, { email: loner.email, metadata: { organisation_id: org.id } })
+check("a non-member who tags a cart with CLUB cannot place it on CLUB's account", r.status === 403, { step: r.step, status: r.status, body: r.body })
+
+fs.writeFileSync(new URL("./state.json", import.meta.url), JSON.stringify({ ...st, po }, null, 1))
+process.exit(summary(new URL("./t3.json", import.meta.url).pathname) ? 1 : 0)

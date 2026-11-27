@@ -37,6 +37,8 @@ export type OrganisationDetail = {
     contact_email: string | null
     contact_phone: string | null
     tax_exempt: boolean
+    /** Optional tabs staff have switched on for this organisation ("allowance", "brand_kit"). */
+    portal_extras?: string[]
   }
   role: OrgRole
 }

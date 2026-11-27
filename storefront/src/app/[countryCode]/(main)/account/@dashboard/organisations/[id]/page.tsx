@@ -68,6 +68,9 @@ export default async function OrgDetailPage({ params }: PageProps) {
     ])
 
   const canManageMembers = role === "owner"
+  // Optional tabs are off until staff switch them on for the organisation
+  // (admin → Organisations): a new customer sees only what ordering needs.
+  const extras = organisation.portal_extras ?? []
   const [range, roster] = await teamData
 
   return (
@@ -109,7 +112,7 @@ export default async function OrgDetailPage({ params }: PageProps) {
           { key: "overview", label: "Overview" },
           { key: "range", label: "Our range", badge: range.items.length },
           { key: "people", label: "People", badge: roster.members.length },
-          { key: "allowance", label: "Uniform allowance", gated: role === "viewer" },
+          { key: "allowance", label: "Uniform allowance", gated: role === "viewer" || !extras.includes("allowance") },
           // Staff-added artwork for the stock order form. Most organisations
           // never have any (their designs live in Our range), so hide it empty.
           { key: "designs", label: "Approved artwork", badge: designs.length, gated: designs.length === 0 },
@@ -124,7 +127,7 @@ export default async function OrgDetailPage({ params }: PageProps) {
           // Buying on account. These tabs load their own (live) figures.
           { key: "approvals", label: "Drafts & approvals", gated: role === "viewer" },
           { key: "invoices", label: "Invoices" },
-          { key: "brand_kit", label: "Brand kit" },
+          { key: "brand_kit", label: "Brand kit", gated: !extras.includes("brand_kit") },
           { key: "account", label: "Account" },
           {
             key: "members",

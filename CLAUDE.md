@@ -400,6 +400,10 @@ Top-level grouping of customers. Members have a role (owner / purchaser / viewer
 
 **Handle**: auto-slugified (lowercased, non-alphanumeric → dashes, deduped). One customer can belong to multiple orgs.
 
+**Feature freeze (from 28 Nov 2026):** no new portal features until the first organisation's first order has been delivered. Bug fixes only, each with a check (see Tests). "Ready" means `pnpm test:portal` and the portal browser journey pass after the last deploy, not another open-ended review round.
+
+**Optional tabs:** Uniform allowance and Brand kit are hidden on the customer's organisation page until staff switch them on for that organisation (admin → Organisations; stored in `organisation.metadata.portal_extras`). Drafts & approvals stays visible: checkout's "Save as a draft" / "Send for approval" and member spend limits lead to it.
+
 **Members added before they have a login** are guest records, and sign-up makes a separate account (Medusa never merges). Confirming the email moves the guest record's memberships onto the account (`claimGuestMemberships`, called from `/store/customers/verify-email`), and staff adding a guest record when a confirmed login exists get the login instead (`preferAccountCustomerId`): [organisation-guest-claim.ts](backend/src/services/organisation-guest-claim.ts).
 
 ### Quotes (sales pipeline)
@@ -1680,6 +1684,9 @@ These routes exist but aren't linked from the main nav. Some are intentional lan
 - **Storefront**: `cd storefront && pnpm test` — Jest with `@swc/jest`. Test files colocated as `*.spec.ts` next to source.
 - **Sync checks**: `pnpm check-sync` runs all four — `check-production-stage-sync`, `check-customer-tiers-sync`, `check-dtf-pricing-sync`, `check-embroidery-pricing-sync`. Wire into CI to catch hand-mirror drift.
 - **E2E**: `cd storefront && pnpm test-e2e` — Playwright.
+- **Portal checks**: `pnpm test:portal` (repo root) — 357 API checks of the organisation portal (members, tiers, range, on-account checkout, cost centres, POs, approvals, held stock, allowances, group orders, team stores) against a throwaway copy: embedded Postgres + a local backend with every live key blanked ([scripts/portal-e2e/](scripts/portal-e2e/), ~8 min, stops if port 9000 is busy). **Run it before every backend deploy that touches portal code, and add a check with every portal bug fix.** When behaviour changes on purpose, change the check in the same commit: four had gone stale within three days.
+- **Portal browser journey**: [storefront/e2e-studio/portal.spec.ts](storefront/e2e-studio/portal.spec.ts) runs with the Studio journeys (every deploy + nightly): sign in → organisation → Our range → cart → checkout up to Review. It never places the order. Needs GitHub secrets `PORTAL_TEST_EMAIL` / `PORTAL_TEST_PASSWORD` (skips without them) and the permanent test organisation "SC Prints Portal Test" (on account, one saved address, one range design): never delete it.
+- **Portal errors**: the nightly site check ([scripts/site-check/errors.mjs](scripts/site-check/errors.mjs)) fails, and so emails, when PostHog records an error, rage click or stalled page on `/account`, `/checkout` or `/allowance`.
 
 Tests written for the four-phase work:
 - [storefront/src/modules/customizer/lib/dpi.spec.ts](storefront/src/modules/customizer/lib/dpi.spec.ts) — DPI math + thresholds

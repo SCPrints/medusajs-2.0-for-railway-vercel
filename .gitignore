@@ -18,3 +18,6 @@ node_modules/
 # Local-only: Next.js rewrites next-env.d.ts on every dev/build; launch.json is per-machine preview config
 storefront/next-env.d.ts
 .claude/launch.json
+
+# Portal e2e helpers copied into the backend only while scripts/portal-e2e/run.sh runs
+backend/src/scripts/zz-e2e-*.ts

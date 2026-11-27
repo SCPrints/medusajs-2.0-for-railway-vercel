@@ -1,0 +1,8 @@
+{
+  "name": "portal-e2e",
+  "private": true,
+  "dependencies": {
+    "embedded-postgres": "^16.16.0-beta.19",
+    "pg": "^8.23.1"
+  }
+}

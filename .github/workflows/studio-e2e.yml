@@ -36,6 +36,9 @@ jobs:
       STUDIO_PUBLISHABLE_KEY: ${{ vars.STUDIO_PUBLISHABLE_KEY }}
       # Admin secret key for quote / POS / proof journeys (never printed).
       STUDIO_ADMIN_API_KEY: ${{ secrets.STUDIO_ADMIN_API_KEY }}
+      # Robot login for the organisation-portal journey (portal.spec.ts); it skips when unset.
+      PORTAL_TEST_EMAIL: ${{ secrets.PORTAL_TEST_EMAIL }}
+      PORTAL_TEST_PASSWORD: ${{ secrets.PORTAL_TEST_PASSWORD }}
       CI: "true"
     steps:
       - uses: actions/checkout@v7
