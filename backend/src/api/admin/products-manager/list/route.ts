@@ -11,10 +11,8 @@ import { z } from "zod"
  *
  * The list joins through every signal the data-quality dots render:
  * thumbnail, description, type, tags, brand link, sales channels,
- * categories. "Missing X" filters are applied as a post-filter in JS
- * because the underlying relation-null queries don't compose cleanly
- * with query.graph's filter syntax; the flags for the candidates come
- * from one SQL read (`qualityByProduct`).
+ * categories. query.graph's filter syntax can't ask for a missing
+ * relation, so the "Missing X" filters run in SQL (`missingProductsQuery`).
  */
 
 const QualityFlag = z.enum([
@@ -143,43 +141,60 @@ function computeQuality(p: RawProduct) {
   }
 }
 
-type Quality = ReturnType<typeof computeQuality>
+/**
+ * Each data-quality flag as a SQL condition on `product p`: the same answers
+ * as computeQuality. Soft-deleted relations and link rows don't count, as
+ * with query.graph. "broken_image" and "below_cost" keep products the audits
+ * flagged; the rest keep products missing that signal.
+ */
+const MISSING_SQL: Record<z.infer<typeof QualityFlag>, string> = {
+  image: `not coalesce(p.thumbnail ~ '\\S', false)`,
+  broken_image: `coalesce(p.metadata->'image_audit'->>'status' = 'broken', false)`,
+  below_cost: `coalesce(p.metadata->'pricing_audit'->>'status' = 'below_cost', false)`,
+  description: `not coalesce(p.description ~ '\\S', false)`,
+  type: `not exists (select 1 from product_type t where t.id = p.type_id and t.deleted_at is null)`,
+  tags: `not exists (select 1 from product_tags x
+           join product_tag t on t.id = x.product_tag_id and t.deleted_at is null
+          where x.product_id = p.id)`,
+  brand: `not exists (select 1 from product_product_brand_brand l
+            join brand b on b.id = l.brand_id and b.deleted_at is null
+           where l.product_id = p.id and l.deleted_at is null)`,
+  sales_channel: `not exists (select 1 from product_sales_channel l
+                    join sales_channel s on s.id = l.sales_channel_id and s.deleted_at is null
+                   where l.product_id = p.id and l.deleted_at is null)`,
+  shop_category: `not exists (select 1 from product_category_product x
+                    join product_category c on c.id = x.product_category_id and c.deleted_at is null
+                   where x.product_id = p.id)`,
+}
 
 /**
- * computeQuality's answers for many products in one SQL read. Hydrating
- * hundreds of products with metadata and four relations through
- * query.graph blocks the event loop for seconds to minutes (27 Nov 2026).
- * Soft-deleted relations and link rows don't count, as with query.graph.
+ * The products the body's filters match (`ids`: the brand / sales channel /
+ * search lookups already resolved) that have every ticked flag, as a knex
+ * query on `product p`. The same filters the query.graph path applies.
  */
-async function qualityByProduct(req: MedusaRequest, ids: string[]): Promise<Map<string, Quality>> {
-  const out = new Map<string, Quality>()
-  if (!ids.length) return out
-  const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
-  const { rows } = (await pg.raw(
-    `select p.id,
-            coalesce(p.thumbnail ~ '\\S', false) as has_image,
-            coalesce(p.metadata->'image_audit'->>'status' = 'broken', false) as broken_image,
-            coalesce(p.metadata->'pricing_audit'->>'status' = 'below_cost', false) as below_cost,
-            coalesce(p.description ~ '\\S', false) as has_description,
-            exists (select 1 from product_type t where t.id = p.type_id and t.deleted_at is null) as has_type,
-            exists (select 1 from product_tags x
-                      join product_tag t on t.id = x.product_tag_id and t.deleted_at is null
-                     where x.product_id = p.id) as has_tags,
-            exists (select 1 from product_product_brand_brand l
-                      join brand b on b.id = l.brand_id and b.deleted_at is null
-                     where l.product_id = p.id and l.deleted_at is null) as has_brand,
-            exists (select 1 from product_sales_channel l
-                      join sales_channel s on s.id = l.sales_channel_id and s.deleted_at is null
-                     where l.product_id = p.id and l.deleted_at is null) as has_sales_channel,
-            exists (select 1 from product_category_product x
-                      join product_category c on c.id = x.product_category_id and c.deleted_at is null
-                     where x.product_id = p.id) as has_shop_category
-       from product p
-      where p.id = any(?::text[])`,
-    [ids]
-  )) as { rows: Array<Quality & { id: string }> }
-  for (const { id, ...q } of rows) out.set(id, q)
-  return out
+function missingProductsQuery(pg: any, body: z.infer<typeof bodySchema>, ids?: string[]) {
+  const q = pg("product as p").whereNull("p.deleted_at")
+  if (body.status?.length) q.whereIn("p.status", body.status)
+  if (body.type_ids?.length) q.whereIn("p.type_id", body.type_ids)
+  if (body.collection_ids?.length) q.whereIn("p.collection_id", body.collection_ids)
+  if (body.tag_ids?.length) {
+    q.whereRaw(
+      `exists (select 1 from product_tags x where x.product_id = p.id and x.product_tag_id = any(?::text[]))`,
+      [body.tag_ids]
+    )
+  }
+  if (body.category_ids?.length) {
+    q.whereRaw(
+      `exists (select 1 from product_category_product x
+                where x.product_id = p.id and x.product_category_id = any(?::text[]))`,
+      [body.category_ids]
+    )
+  }
+  if (ids) q.whereRaw(`p.id = any(?::text[])`, [ids])
+  if (body.created_from) q.where("p.created_at", ">=", body.created_from)
+  if (body.created_to) q.where("p.created_at", "<=", body.created_to)
+  for (const flag of body.missing ?? []) q.whereRaw(MISSING_SQL[flag])
+  return q
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -374,39 +389,34 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const limit = body.limit ?? 50
   const offset = body.offset ?? 0
 
-  // ── Two-pass strategy when a data-quality filter ("Missing X") is set ──
+  // ── Data-quality filters ("Missing X") ──
   //
-  // The flag asks for products with a NULL/empty relation (no tags, no
-  // brand, no sales-channel, etc.) — query.graph can't express that as
-  // a SQL-level filter, so we post-filter in JS. Hydrating the candidates
-  // through query.graph (even a light field set, up to 600 rows) blocked
-  // the event loop, so:
+  // query.graph can't filter on a missing relation, so these run in SQL over
+  // every product the other filters match: an exact count and no cap. Until
+  // 27 Nov 2026 they post-filtered only the newest 600 products, so once the
+  // 830 Legend Life drafts filled those slots every filter showed 0.
   //
-  //   Pass 1 — ids only, in sort order, for up to 600 rows (no relations
-  //            to hydrate); their quality flags in one SQL read. Enough to
-  //            filter, and slice to the visible page.
-  //   Pass 2 — full FIELDS limited to the visible page's IDs (≤ pageSize,
-  //            i.e. 25-200). Tiny join cost compared to a 600-row fetch.
-  //
-  // The other two paths (no quality filter, ids_only) keep their existing
-  // single-pass behaviour because they don't need the over-fetch.
+  //   Pass 1 — the page's ids (or up to `ids_limit` for "Select all
+  //            matching") and the total, in SQL.
+  //   Pass 2 — full FIELDS for the page's ids only.
   if (hasQualityFilter) {
-    const lightTake = idsOnly ? Math.min(idsLimit, 1000) : 600
-    let candidateIds: string[] = []
-    let quality = new Map<string, Quality>()
+    let pageIds: string[] = []
+    let total = 0
     try {
-      const { data } = (await query.graph({
-        entity: "product",
-        fields: ["id"],
-        filters,
-        pagination: {
-          take: lightTake,
-          skip: 0,
-          order: { [field]: direction },
-        },
-      })) as { data?: any[] }
-      candidateIds = ((data as RawProduct[]) ?? []).map((p) => p.id)
-      quality = await qualityByProduct(req, candidateIds)
+      const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
+      const matching = missingProductsQuery(pg, body, filters.id as string[] | undefined)
+      const [rows, countRow] = await Promise.all([
+        matching
+          .clone()
+          .select("p.id")
+          .orderBy(`p.${field}`, direction.toLowerCase())
+          .orderBy("p.id")
+          .limit(idsOnly ? idsLimit : limit)
+          .offset(idsOnly ? 0 : offset),
+        matching.clone().count("* as n").first(),
+      ])
+      pageIds = (rows as Array<{ id: string }>).map((r) => r.id)
+      total = Number((countRow as { n?: string | number } | undefined)?.n ?? 0)
     } catch (err: any) {
       res.status(500).json({
         message: `products-manager list (pass 1) failed: ${err?.message ?? err}`,
@@ -414,42 +424,22 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       return
     }
 
-    const flags = new Set(body.missing!)
-    const filtered = candidateIds.filter((id) => {
-      const q = quality.get(id)
-      if (!q) return false
-      if (flags.has("image") && q.has_image) return false
-      // Inverted polarity vs the "missing X" flags: keep only products
-      // the audit marked broken (thumbnail present but the URL is dead).
-      if (flags.has("broken_image") && !q.broken_image) return false
-      if (flags.has("below_cost") && !q.below_cost) return false
-      if (flags.has("description") && q.has_description) return false
-      if (flags.has("type") && q.has_type) return false
-      if (flags.has("tags") && q.has_tags) return false
-      if (flags.has("brand") && q.has_brand) return false
-      if (flags.has("sales_channel") && q.has_sales_channel) return false
-      if (flags.has("shop_category") && q.has_shop_category) return false
-      return true
-    })
-    const truncated = candidateIds.length >= lightTake
-
     if (idsOnly) {
       res.json({
-        ids: filtered.slice(0, idsLimit),
-        count: filtered.length,
-        truncated,
+        ids: pageIds,
+        count: total,
+        truncated: total > pageIds.length,
       })
       return
     }
 
-    const pageIds = filtered.slice(offset, offset + limit)
     if (pageIds.length === 0) {
       res.json({
         products: [],
-        count: filtered.length,
+        count: total,
         limit,
         offset,
-        truncated,
+        truncated: false,
       })
       return
     }
@@ -482,10 +472,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     res.json({
       products: await withPrices(req, ordered.map(toProductResponse)),
-      count: filtered.length,
+      count: total,
       limit,
       offset,
-      truncated,
+      truncated: false,
     })
     return
   }
