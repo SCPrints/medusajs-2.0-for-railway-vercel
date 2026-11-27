@@ -1,8 +1,9 @@
 "use server"
 
 import { sdk } from "@lib/config"
+import { updateTag } from "next/cache"
 
-import { getAuthHeaders } from "./cookies"
+import { getAuthHeaders, setCartId } from "./cookies"
 
 export type GroupOrder = {
   id: string
@@ -184,6 +185,12 @@ export async function convertGroupOrderToCart(
       `/store/customers/me/group-orders/${encodeURIComponent(id)}/convert-to-cart`,
       { method: "POST", headers, body: {} }
     )) as ConvertResult
+    // The converter builds a cart of its own: make it this browser's cart, or
+    // "Open the cart" showed the old one and the group order couldn't be paid.
+    if (res?.cart_id) {
+      await setCartId(res.cart_id)
+      updateTag("cart")
+    }
     return { ok: true, result: res }
   } catch (err: any) {
     // The SDK throws on non-2xx; try to surface the skipped list.

@@ -363,6 +363,9 @@ async function createGroupCart(
     input: {
       region_id: regionId,
       sales_channel_id: salesChannelId ?? undefined,
+      // The owner's own account (checked above). Email alone made Medusa file
+      // the cart, and the order, under a new guest record instead.
+      customer_id: groupOrder.owner_customer_id ?? undefined,
       email: groupOrder.owner_email,
       currency_code: "aud",
       metadata: {

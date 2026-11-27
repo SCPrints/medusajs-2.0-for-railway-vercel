@@ -8,6 +8,7 @@
  * garment + decoration exactly like a Studio add. Names/numbers ride along on
  * each line's metadata so production still knows who gets what.
  */
+import { sortSizes } from "./garment-measurements"
 import { isScpPrintSizeId, type ScpPrintSizeId } from "./scp-dtf-print-pricing"
 import type { ScpAddLineInput } from "./scp-add-lines"
 
@@ -51,6 +52,25 @@ export function matchSizeVariant(
   if (byOption) return byOption.id
   const byTitle = pool.find((v) => String(v.title ?? "").split("/").some((t) => norm(t) === target))
   return byTitle?.id ?? null
+}
+
+/**
+ * The sizes offered on the public share page: the base design's colour only,
+ * in garment order, so every choice matches a variant at convert time.
+ * Listing every variant title and option value (cut at 30) gave a jumble of
+ * colours and combinations that often missed the design's colour entirely.
+ */
+export function sizesForBaseColour(variants: RosterVariant[], baseVariantId?: string | null): string[] {
+  const base = variants.find((v) => v.id === baseVariantId)
+  const baseColour = base ? colourOf(base) : null
+  const pool = baseColour ? variants.filter((v) => colourOf(v) === baseColour) : variants
+  const sizes = new Set<string>()
+  for (const v of pool) {
+    const size = (v.options ?? []).find((o) => !COLOR_RE.test(o.option?.title ?? ""))?.value
+    if (size) sizes.add(size)
+  }
+  if (!sizes.size) for (const v of pool) if (v.title) sizes.add(v.title)
+  return sortSizes(Array.from(sizes))
 }
 
 /** The Studio's own line print size: scpPrintSizeId, else the largest print. */

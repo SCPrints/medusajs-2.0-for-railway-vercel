@@ -6,6 +6,7 @@ import type OrganisationModuleService from "../../../../../modules/organisation/
 import { writeAudit } from "../../../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../lib/audit-entities"
 import { applyOrganisationTier, dropOrganisationTier } from "../../../../../services/organisation-tier"
+import { preferAccountCustomerId } from "../../../../../services/organisation-guest-claim"
 
 const addSchema = z.object({
   customer_id: z.string().min(1),
@@ -20,6 +21,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   } catch (err: any) {
     return res.status(400).json({ error: err?.message ?? "invalid" })
   }
+  body.customer_id = await preferAccountCustomerId(req.scope as any, body.customer_id)
   const service = req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
   const existing = await service.listOrganisationMembers({
     organisation_id: orgId,

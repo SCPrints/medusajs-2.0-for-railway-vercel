@@ -1,4 +1,4 @@
-import { matchSizeVariant, printSizeIdForDesign, rosterToDesignLines } from "../group-order-lines"
+import { matchSizeVariant, printSizeIdForDesign, rosterToDesignLines, sizesForBaseColour } from "../group-order-lines"
 import { computeDecorationTotals } from "../scp-decoration-pricing"
 
 const v = (id: string, colour: string, size: string) => ({
@@ -29,6 +29,15 @@ describe("group-order-lines", () => {
   it("keeps to the organiser's colour", () => {
     expect(matchSizeVariant(variants, "L", "navy_xl")).toBe("navy_l")
     expect(matchSizeVariant(variants, "S", "navy_xl")).toBeNull()
+  })
+
+  it("offers only the base colour's sizes, in garment order", () => {
+    const many = [v("w_xl", "White", "XL"), ...variants, v("w_s", "White", "S"), v("w_m", "White", "M")]
+    expect(sizesForBaseColour(many, "w_m")).toEqual(["S", "M", "XL"])
+    expect(sizesForBaseColour(many, "navy_xl")).toEqual(["L", "XL"])
+    // No base colour: every size, still no colour names or "Colour / Size" titles.
+    expect(sizesForBaseColour(many)).toEqual(["S", "M", "L", "XL"])
+    expect(sizesForBaseColour([{ id: "one", title: "One Size" }])).toEqual(["One Size"])
   })
 
   it("aggregates per variant, keeps names, and prices decoration", () => {

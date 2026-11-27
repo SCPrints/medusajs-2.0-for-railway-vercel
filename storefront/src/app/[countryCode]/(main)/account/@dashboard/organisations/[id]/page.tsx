@@ -110,7 +110,9 @@ export default async function OrgDetailPage({ params }: PageProps) {
           { key: "range", label: "Our range", badge: range.items.length },
           { key: "people", label: "People", badge: roster.members.length },
           { key: "allowance", label: "Uniform allowance", gated: role === "viewer" },
-          { key: "designs", label: "Designs", badge: designs.length },
+          // Staff-added artwork for the stock order form. Most organisations
+          // never have any (their designs live in Our range), so hide it empty.
+          { key: "designs", label: "Approved artwork", badge: designs.length, gated: designs.length === 0 },
           { key: "inventory", label: "Inventory", badge: inventory.length },
           {
             key: "destinations",
@@ -134,6 +136,7 @@ export default async function OrgDetailPage({ params }: PageProps) {
           overview: (
             <OverviewTab
               orgId={id}
+              rangeCount={range.items.length}
               designs={designs}
               destinations={destinations}
               inventory={inventory}

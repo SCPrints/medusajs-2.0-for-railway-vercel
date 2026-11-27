@@ -11,6 +11,7 @@ import type {
 
 type Props = {
   orgId: string
+  rangeCount: number
   designs: OrganisationDesign[]
   destinations: OrganisationDestination[]
   inventory: InventoryRow[]
@@ -42,6 +43,7 @@ function formatCurrency(amount: number | null | undefined, currency = "AUD") {
 
 export default function OverviewTab({
   orgId,
+  rangeCount,
   designs,
   destinations,
   inventory,
@@ -52,6 +54,16 @@ export default function OverviewTab({
   const designCount = designs.filter((d) => d.is_active).length
   const destCount = destinations.filter((d) => d.is_active).length
   const canPlace = role === "owner" || role === "purchaser"
+  // The stock order form only works for organisations we hold stock for;
+  // everyone else orders from Our range.
+  const restock = skuCount > 0
+  const stats = [
+    { n: rangeCount, label: "In our range" },
+    ...(designCount > 0 ? [{ n: designCount, label: "Approved artwork" }] : []),
+    { n: destCount, label: destCount === 1 ? "Destination" : "Destinations" },
+    ...(skuCount > 0 ? [{ n: skuCount, label: "Stock items" }] : []),
+  ]
+  const statCols = stats.length >= 4 ? "phone:grid-cols-4" : stats.length === 3 ? "phone:grid-cols-3" : "phone:grid-cols-2"
 
   return (
     <div className="flex flex-col gap-8">
@@ -60,27 +72,13 @@ export default function OverviewTab({
         <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
           Quick stats
         </h2>
-        <div className="mt-3 grid grid-cols-1 gap-3 phone:grid-cols-3">
-          <div className="rounded-2xl border border-ui-border-base bg-white p-5">
-            <p className="text-3xl font-semibold text-ui-fg-base">
-              {designCount}
-            </p>
-            <p className="mt-1 text-xs uppercase tracking-widest text-ui-fg-muted">
-              {designCount === 1 ? "Design" : "Designs"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-ui-border-base bg-white p-5">
-            <p className="text-3xl font-semibold text-ui-fg-base">{destCount}</p>
-            <p className="mt-1 text-xs uppercase tracking-widest text-ui-fg-muted">
-              {destCount === 1 ? "Destination" : "Destinations"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-ui-border-base bg-white p-5">
-            <p className="text-3xl font-semibold text-ui-fg-base">{skuCount}</p>
-            <p className="mt-1 text-xs uppercase tracking-widest text-ui-fg-muted">
-              Stock items
-            </p>
-          </div>
+        <div className={`mt-3 grid grid-cols-1 gap-3 ${statCols}`}>
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-2xl border border-ui-border-base bg-white p-5">
+              <p className="text-3xl font-semibold text-ui-fg-base">{s.n}</p>
+              <p className="mt-1 text-xs uppercase tracking-widest text-ui-fg-muted">{s.label}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -151,13 +149,13 @@ export default function OverviewTab({
         )}
       </section>
 
-      {/* Need to restock? CTA */}
+      {/* Ordering prompt */}
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-[0.12em]">
-          Need to restock?
+          {restock ? "Need to restock?" : "Ready to order?"}
         </h2>
         <div className="mt-3 rounded-2xl border border-ui-border-base bg-white p-5">
-          {canPlace ? (
+          {canPlace && restock ? (
             <LocalizedClientLink
               href={`/account/organisations/${orgId}/orders/new`}
               className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition min-h-11"
@@ -165,6 +163,14 @@ export default function OverviewTab({
               <span aria-hidden>+</span>
               Place new order
             </LocalizedClientLink>
+          ) : canPlace ? (
+            // A plain link, like "View all": OrgTabs follows the #hash change.
+            <a
+              href="#range"
+              className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition min-h-11"
+            >
+              Order from our range
+            </a>
           ) : (
             <div className="flex items-center gap-2">
               <button
@@ -174,8 +180,14 @@ export default function OverviewTab({
                 aria-disabled="true"
                 title="Viewer role can't place orders"
               >
-                <span aria-hidden>+</span>
-                Place new order
+                {restock ? (
+                  <>
+                    <span aria-hidden>+</span>
+                    Place new order
+                  </>
+                ) : (
+                  "Order from our range"
+                )}
               </button>
               <p className="text-xs text-ui-fg-muted">
                 Your role is read-only. Ask an owner to invite you as a
