@@ -2,7 +2,7 @@ import { Modules } from "@medusajs/framework/utils"
 import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework"
 
 import { SUPPORT_REPLY_TO_EMAIL } from "../lib/constants"
-import { PASSWORD_RESET_SUBJECT, passwordResetBody, passwordResetUrl } from "../lib/password-reset"
+import { PASSWORD_RESET_SUBJECT, passwordResetMessage, passwordResetUrl } from "../lib/password-reset"
 import { EmailTemplates } from "../modules/email-notifications/templates"
 
 /**
@@ -30,7 +30,7 @@ export default async function passwordResetHandler({
       template: EmailTemplates.CUSTOMER_MESSAGE,
       data: {
         emailOptions: { subject: PASSWORD_RESET_SUBJECT, ...(SUPPORT_REPLY_TO_EMAIL ? { replyTo: SUPPORT_REPLY_TO_EMAIL } : {}) },
-        message: { body: passwordResetBody(url), signature: "SC Prints" },
+        message: passwordResetMessage(url),
       },
     })
   } catch (err: any) {

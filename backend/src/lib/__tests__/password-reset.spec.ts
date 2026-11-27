@@ -1,4 +1,4 @@
-import { passwordResetBody, passwordResetUrl } from "../password-reset"
+import { passwordResetMessage, passwordResetUrl } from "../password-reset"
 
 jest.mock("../constants", () => ({ SUPPORT_REPLY_TO_EMAIL: "help@shop.test" }))
 jest.mock("../../modules/email-notifications/templates", () => ({ EmailTemplates: { CUSTOMER_MESSAGE: "customer-message" } }))
@@ -58,9 +58,11 @@ describe("auth.password_reset subscriber", () => {
     const sent = send.mock.calls[0][0]
     expect(sent.to).toBe("pat@club.test")
     expect(sent.data.emailOptions.subject).toBe("Reset your SC Prints password")
-    expect(sent.data.message.body).toBe(
-      passwordResetBody("https://shop.test/au/reset-password?token=SECRET-TOKEN&email=pat%40club.test")
-    )
+    const url = "https://shop.test/au/reset-password?token=SECRET-TOKEN&email=pat%40club.test"
+    expect(sent.data.message).toEqual(passwordResetMessage(url))
+    // The link lives on the button only: no raw URL in the words.
+    expect(sent.data.message.button).toEqual({ label: "Choose a new password", url })
+    expect(sent.data.message.body + sent.data.message.footnote).not.toContain("http")
   })
 
   it("survives a mail failure and never writes the token to the log", async () => {
