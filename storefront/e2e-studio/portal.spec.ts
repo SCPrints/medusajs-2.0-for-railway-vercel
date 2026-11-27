@@ -77,7 +77,7 @@ test("organisation buyer: sign in, open the organisation, order from the range, 
     // it appears cuts off the form's last request, which logs a (harmless) page error.
     await expect(page.getByText(/Added \d+ garments? to your cart/)).toBeVisible()
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
-    await page.getByRole("link", { name: "View cart" }).click()
+    await page.locator('[role="tabpanel"]:not([hidden])').getByRole("link", { name: "View cart", exact: true }).click()
     await expect(page).toHaveURL(/\/cart/)
     await expect(removeButtons(page).locator("visible=true").first()).toBeVisible()
   })
