@@ -41,8 +41,11 @@ export default function RangeTab({ orgId, orgName, range, roster }: Props) {
       <div className="rounded-2xl border border-dashed border-ui-border-base bg-white p-8 text-center">
         <p className="text-base font-semibold text-ui-fg-base">Nothing in your range yet</p>
         <p className="mx-auto mt-2 max-w-md text-sm text-ui-fg-subtle">
-          Save a design in the Studio, then share it with {orgName} from My designs. It shows up here, ready to order
-          in any size.
+          When we approve the artwork on one of your jobs, we add the design here for you.
+        </p>
+        <p className="mx-auto mt-2 max-w-md text-sm text-ui-fg-subtle">
+          You can also save a design in the Studio and share it with {orgName} from My designs. Either way, it&apos;s
+          ready to order here in any size.
         </p>
         <LocalizedClientLink
           href="/account/designs"

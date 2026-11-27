@@ -65,6 +65,8 @@ export default async function GroupOrderJoinPage({
 
   const { group_order, participants, design_preview, product_preview, bundle_preview } = data
   const preferredSizes = product_preview?.available_sizes ?? []
+  // Names and sizes come only for the signed-in organiser; everyone else sees the count.
+  const joined = data.participant_count ?? participants.length
 
   return (
     <div className="content-container max-w-3xl py-12">
@@ -216,6 +218,10 @@ export default async function GroupOrderJoinPage({
             ))}
           </ul>
         </section>
+      ) : joined > 0 ? (
+        <p className="mt-6 text-center text-sm text-ui-fg-subtle">
+          {joined} {joined === 1 ? "person has" : "people have"} added their size so far.
+        </p>
       ) : null}
     </div>
   )

@@ -65,6 +65,9 @@ export type GroupOrderBundlePreview = {
 
 export type GroupOrderPublicPayload = {
   group_order: GroupOrder
+  /** How many have joined; everyone sees this. */
+  participant_count?: number
+  /** Names and sizes: only the signed-in organiser gets these, others get []. */
   participants: GroupOrderParticipant[]
   design_preview: GroupOrderDesignPreview | null
   product_preview: GroupOrderProductPreview | null
@@ -75,9 +78,11 @@ export async function getGroupOrderByToken(
   token: string
 ): Promise<GroupOrderPublicPayload | null> {
   try {
-    return (await sdk.client.fetch(
-      `/store/group-orders/${encodeURIComponent(token)}`
-    )) as GroupOrderPublicPayload
+    // The organiser's login unlocks the names; never cache what one viewer got.
+    return (await sdk.client.fetch(`/store/group-orders/${encodeURIComponent(token)}`, {
+      headers: await getAuthHeaders(),
+      cache: "no-store",
+    })) as GroupOrderPublicPayload
   } catch {
     return null
   }

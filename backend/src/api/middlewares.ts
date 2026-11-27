@@ -241,6 +241,17 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: "4mb" },
     },
     {
+      // Group order share page: names and sizes go only to the signed-in
+      // organiser, so their token must reach the route (guests pass through).
+      matcher: "/store/group-orders/:token",
+      methods: ["GET"],
+      middlewares: [
+        authenticate("customer", ["session", "bearer"], {
+          allowUnauthenticated: true,
+        }),
+      ],
+    },
+    {
       // Admin quote update — "Save line items" can re-send several lines each
       // carrying a customizerDesign payload, which blows the ~100kb default.
       matcher: "/admin/quotes/:id",

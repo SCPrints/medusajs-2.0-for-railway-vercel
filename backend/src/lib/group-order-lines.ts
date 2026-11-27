@@ -11,6 +11,7 @@
 import { sortSizes } from "./garment-measurements"
 import { isScpPrintSizeId, type ScpPrintSizeId } from "./scp-dtf-print-pricing"
 import type { ScpAddLineInput } from "./scp-add-lines"
+import { colourFrontImage } from "./sizing-kit"
 
 export type RosterVariant = {
   id: string
@@ -86,6 +87,9 @@ export function printSizeIdForDesign(design: Record<string, unknown>): ScpPrintS
 /**
  * Aggregate the roster per variant into priced-line inputs. `design` null =
  * blank garments (plain lines). Unmatched sizes come back in `skipped`.
+ * `images` (the product's photo URLs): each line's picture is its colour's
+ * front photo, as on range orders; the cart showed the product's main photo
+ * otherwise (a blue tee for a White order).
  */
 export function rosterToDesignLines(input: {
   variants: RosterVariant[]
@@ -93,6 +97,7 @@ export function rosterToDesignLines(input: {
   participants: RosterParticipant[]
   design: Record<string, unknown> | null
   groupOrderId: string
+  images?: string[]
 }): {
   lines: ScpAddLineInput[]
   skipped: Array<RosterParticipant & { reason: string }>
@@ -120,22 +125,28 @@ export function rosterToDesignLines(input: {
     : null
   const printSizeId = design ? printSizeIdForDesign(design) : null
 
-  const lines: ScpAddLineInput[] = [...byVariant].map(([variantId, people]) => ({
-    variant_id: variantId,
-    quantity: people.reduce((sum, p) => sum + Math.max(1, Number(p.quantity) || 1), 0),
-    print_size_id: printSizeId,
-    metadata: {
-      group_order_id: input.groupOrderId,
-      // Who gets what — names/numbers print per garment.
-      group_order_participants: people.map((p) => ({
-        id: p.id,
-        name: p.name,
-        quantity: Math.max(1, Number(p.quantity) || 1),
-        player_number: p.player_number ?? null,
-        notes: p.custom_notes ?? null,
-      })),
-      ...(design ? { customizerDesign: design } : {}),
-    },
-  }))
+  const lines: ScpAddLineInput[] = [...byVariant].map(([variantId, people]) => {
+    const variant = input.variants.find((v) => v.id === variantId)
+    const thumbnail = variant ? colourFrontImage(input.images ?? [], colourOf(variant)) : null
+    return {
+      variant_id: variantId,
+      quantity: people.reduce((sum, p) => sum + Math.max(1, Number(p.quantity) || 1), 0),
+      print_size_id: printSizeId,
+      ...(thumbnail ? { thumbnail } : {}),
+      metadata: {
+        ...(thumbnail ? { colour_thumbnail: true } : {}),
+        group_order_id: input.groupOrderId,
+        // Who gets what — names/numbers print per garment.
+        group_order_participants: people.map((p) => ({
+          id: p.id,
+          name: p.name,
+          quantity: Math.max(1, Number(p.quantity) || 1),
+          player_number: p.player_number ?? null,
+          notes: p.custom_notes ?? null,
+        })),
+        ...(design ? { customizerDesign: design } : {}),
+      },
+    }
+  })
   return { lines, skipped }
 }

@@ -1,4 +1,8 @@
-import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import type {
+  AuthenticatedMedusaRequest,
+  MedusaRequest,
+  MedusaResponse,
+} from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { GROUP_ORDER_MODULE } from "../../../../modules/group-order"
@@ -10,12 +14,12 @@ import { sizesForBaseColour } from "../../../../lib/group-order-lines"
 
 /**
  * GET /store/group-orders/:token
- *   → { group_order: {...}, participants: [...] }
+ *   → { group_order: {...}, participant_count, participants: [...] }
  *
- * Public — no auth — so anyone with the share link can see the
- * group order details and the current participant roster. Only
- * fields safe to expose are included; never the owner_customer_id
- * or internal notes.
+ * Public — no auth needed — so anyone with the share link sees the group
+ * order details and how many people have joined. Names, sizes and notes
+ * (`participants`) go only to the signed-in organiser; everyone else gets
+ * an empty list. Never the owner_customer_id or internal notes.
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const token = req.params.token
@@ -24,6 +28,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const service = req.scope.resolve<GroupOrderModuleService>(GROUP_ORDER_MODULE)
   const [groupOrder] = await service.listGroupOrders({ public_token: token })
   if (!groupOrder) return res.status(404).json({ error: "not_found" })
+
+  // Optional customer auth runs on this route (middlewares.ts).
+  const viewerId = (req as AuthenticatedMedusaRequest).auth_context?.actor_id
+  const isOrganiser = !!viewerId && viewerId === groupOrder.owner_customer_id
 
   const participants = await service.listGroupOrderParticipants(
     { group_order_id: groupOrder.id },
@@ -141,7 +149,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     design_preview: designPreview,
     product_preview: productPreview,
     bundle_preview: bundlePreview,
-    participants: (participants as any[]).map((p) => ({
+    participant_count: participants.length,
+    participants: (isOrganiser ? (participants as any[]) : []).map((p) => ({
       id: p.id,
       name: p.name,
       size_label: p.size_label,

@@ -40,6 +40,42 @@ describe("group-order-lines", () => {
     expect(sizesForBaseColour([{ id: "one", title: "One Size" }])).toEqual(["One Size"])
   })
 
+  it("pictures each line in its own colour, not the product's main photo", () => {
+    const images = [
+      "https://cdn/5001_STAPLE_TEE_NAVY_BACK__1.jpg",
+      "https://cdn/5001_STAPLE_TEE_BLUE__2.jpg",
+      "https://cdn/5001_STAPLE_TEE_NAVY__3.jpg",
+    ]
+    const roster = [
+      { id: "p1", name: "Ann", size_label: "L", quantity: 1 },
+      { id: "p2", name: "Bo", size_label: "XL", quantity: 1 },
+    ]
+    const { lines } = rosterToDesignLines({
+      variants,
+      baseVariantId: "navy_l",
+      participants: roster,
+      design,
+      groupOrderId: "go_1",
+      images,
+    })
+    expect(lines.map((l) => l.thumbnail)).toEqual([
+      "https://cdn/5001_STAPLE_TEE_NAVY__3.jpg",
+      "https://cdn/5001_STAPLE_TEE_NAVY__3.jpg",
+    ])
+    expect(lines.every((l) => (l.metadata as any).colour_thumbnail === true)).toBe(true)
+    // No photo of that colour: no picture and no flag, so the cart falls back as before.
+    const black = rosterToDesignLines({
+      variants,
+      baseVariantId: "black_s",
+      participants: [roster[0]],
+      design,
+      groupOrderId: "go_1",
+      images,
+    }).lines[0]
+    expect(black.thumbnail).toBeUndefined()
+    expect((black.metadata as any).colour_thumbnail).toBeUndefined()
+  })
+
   it("aggregates per variant, keeps names, and prices decoration", () => {
     const { lines, skipped } = rosterToDesignLines({
       variants,

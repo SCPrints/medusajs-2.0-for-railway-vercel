@@ -219,6 +219,7 @@ export async function POST(
       "variants.title",
       "variants.options.value",
       "variants.options.option.title",
+      "images.url",
     ],
     filters: { id: groupOrder.base_product_id },
   })
@@ -263,6 +264,7 @@ export async function POST(
     participants: participants as any[],
     design: designMetadata,
     groupOrderId,
+    images: ((product.images ?? []) as any[]).map((i) => i?.url).filter(Boolean),
   })
   if (cartLines.length === 0) {
     await service.updateGroupOrders([{ id: groupOrderId, status: "closed" }])

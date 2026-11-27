@@ -4361,6 +4361,20 @@ export default function CustomizerTemplate({
     return { key, canvasDims: { width: w, height: h }, mockupGarmentUrl, sideObjects }
   }
 
+  /** One side's garment-with-design mockup URL: the background render's, else a fresh render. null if it fails. */
+  const mockupForSide = async (side: GarmentSide): Promise<string | null> => {
+    const built = buildSideRenderKey(side)
+    if (!built) return null
+    const cached = prerenderedArtifactsRef.current.get(side)
+    if (cached && cached.key === built.key) return cached.mockupUrl
+    const inflight = inflightRendersRef.current.get(side)
+    const render =
+      inflight && inflight.key === built.key
+        ? inflight.promise
+        : renderSideArtifacts(side, built.sideObjects, built.mockupGarmentUrl, built.canvasDims)
+    return (await render.catch(() => null))?.mockupUrl ?? null
+  }
+
   useEffect(() => {
     if (typeof window === "undefined") return
     const handle = window.setTimeout(() => {
@@ -4613,14 +4627,20 @@ export default function CustomizerTemplate({
       await hostUnmappedDataUrls(rawSnapshot, hostedForSave)
       const partialMetadata = sanitizeCustomizerDesignForCart(rawSnapshot, hostedForSave)
 
+      // The picture is the garment with the design on it (the mockup the cart
+      // and staff-added range designs use), front first, so designs on the
+      // same shirt can be told apart. The flat picture on grey is the fallback.
+      const thumbSide = decoratedSidesNow.includes("front") ? "front" : decoratedSidesNow[0]
+      const thumbnail = (await mockupForSide(thumbSide)) ?? thumbnailDataUrl ?? null
+
       const result = isUpdatingExisting && existingDesignId
         ? await updateMyDesign(existingDesignId, {
-            thumbnail_url: thumbnailDataUrl ?? null,
+            thumbnail_url: thumbnail,
             customizer_metadata: partialMetadata,
           })
         : await createMyDesign({
             name: resolvedName ?? `${selectedProduct.title ?? "Design"}`,
-            thumbnail_url: thumbnailDataUrl ?? null,
+            thumbnail_url: thumbnail,
             base_product_id: selectedProduct.id,
             base_variant_id: selectedVariant.id,
             customizer_metadata: partialMetadata,
