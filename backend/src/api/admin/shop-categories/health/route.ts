@@ -16,11 +16,11 @@ import { TREE } from "../../../../lib/shop-categories"
  * surfaces *products* with gaps, but never tells staff which *categories*
  * have zero products (i.e. which mega-menu links go to empty pages).
  *
- * Implementation: one graph sweep over published products, then bucket
- * by category handle. Cheaper than N queries (one per category) and
- * mirrors the existing taxonomy-audit pattern. Capped at 10k products
- * which is plenty for current catalog (~2-3k) and matches the audit
- * endpoint's ceiling.
+ * Implementation: one SQL read of published products and their category
+ * handles, then bucket by handle. It used to sweep every product through
+ * query.graph, which blocked the event loop for over a minute (27 Nov 2026:
+ * 64 s, failed health check, every request queued), the same cause as the
+ * 25 Nov shop-menu freeze.
  */
 
 type ProductRow = {
@@ -74,18 +74,43 @@ type HealthResponse = {
 
 const SAMPLE_LIMIT = 3
 const ORPHAN_SAMPLE_LIMIT = 25
-const MAX_PRODUCTS = 10000
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as any
+  const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
 
-  const { data, metadata } = await query.graph({
-    entity: "product",
-    fields: ["id", "title", "handle", "status", "categories.handle"],
-    pagination: { take: MAX_PRODUCTS, skip: 0 },
-  })
+  const linkRows = (await pg("product")
+    .leftJoin("product_category_product", "product_category_product.product_id", "product.id")
+    .leftJoin("product_category", "product_category.id", "product_category_product.product_category_id")
+    .where("product.status", "published")
+    .whereNull("product.deleted_at")
+    .orderBy("product.id")
+    .select(
+      "product.id as id",
+      "product.title as title",
+      "product.handle as handle",
+      "product_category.handle as category_handle",
+      "product_category.deleted_at as category_deleted_at"
+    )) as Array<{
+    id: string
+    title: string | null
+    handle: string | null
+    category_handle: string | null
+    category_deleted_at: string | null
+  }>
+  const totalRow = (await pg("product").whereNull("deleted_at").count("id as count").first()) as
+    | { count?: string | number }
+    | undefined
 
-  const rows = (data ?? []) as ProductRow[]
+  const byId = new Map<string, ProductRow>()
+  for (const r of linkRows) {
+    let p = byId.get(r.id)
+    if (!p) {
+      p = { id: r.id, title: r.title, handle: r.handle, status: "published", categories: [] }
+      byId.set(r.id, p)
+    }
+    if (r.category_handle && !r.category_deleted_at) p.categories!.push({ handle: r.category_handle })
+  }
+  const rows = Array.from(byId.values())
 
   // Pre-build empty buckets matching TREE so categories with zero
   // products still appear in the response (that's the whole point).
@@ -178,8 +203,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       total_categories: totalCategories,
       populated_categories: totalCategories - emptyCategories,
       empty_categories: emptyCategories,
-      capped: rows.length >= MAX_PRODUCTS,
-      total_count_in_db: metadata?.count ?? null,
+      capped: false,
+      total_count_in_db: totalRow?.count != null ? Number(totalRow.count) : null,
     },
   }
 
