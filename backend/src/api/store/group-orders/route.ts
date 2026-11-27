@@ -8,6 +8,8 @@ import { z } from "zod"
 
 import { GROUP_ORDER_MODULE } from "../../../modules/group-order"
 import type GroupOrderModuleService from "../../../modules/group-order/service"
+import { ORGANISATION_MODULE } from "../../../modules/organisation"
+import type OrganisationModuleService from "../../../modules/organisation/service"
 import { getPostHog } from "../../../lib/posthog"
 import { loadOwnedDesign } from "../../../lib/owned-design"
 import { validateBundleGroupConfig, type BundleGroupConfig } from "../../../lib/bundle-group-order"
@@ -15,6 +17,7 @@ import { validateBundleGroupConfig, type BundleGroupConfig } from "../../../lib/
 const createSchema = z.object({
   title: z.string().min(1).max(200),
   organisation_name: z.string().max(200).optional(),
+  organisation_id: z.string().min(1).max(80).optional(),
   // Becomes the cart's + order's email at convert time, so validate the
   // format here (was min(3), which let "abc" through into order records).
   owner_email: z.string().email().max(200),
@@ -100,12 +103,32 @@ export async function POST(
     await loadOwnedDesign(req.scope, body.base_design_id, ownerCustomerId)
   }
 
+  // For an organisation: the organiser must buy for it (owner / purchaser),
+  // and its name comes from the organisation, not the free-text box.
+  let organisation: { id: string; name: string } | null = null
+  if (body.organisation_id) {
+    if (!ownerCustomerId) {
+      throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Sign in to start a group order for an organisation.")
+    }
+    const orgs = req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
+    const [member] = (await orgs.listOrganisationMembers(
+      { organisation_id: body.organisation_id, customer_id: ownerCustomerId } as any,
+      { take: 1 }
+    )) as any[]
+    if (!member || (member.role !== "owner" && member.role !== "purchaser")) {
+      throw new MedusaError(MedusaError.Types.NOT_FOUND, "Organisation not found.")
+    }
+    const org = (await orgs.retrieveOrganisation(body.organisation_id)) as any
+    organisation = { id: org.id, name: org.name }
+  }
+
   const [created] = await service.createGroupOrders([
     {
       public_token: makePublicToken(),
       status: "open",
       title: body.title,
-      organisation_name: body.organisation_name ?? null,
+      organisation_id: organisation?.id ?? null,
+      organisation_name: organisation?.name ?? body.organisation_name ?? null,
       owner_customer_id: ownerCustomerId,
       owner_email: body.owner_email.trim().toLowerCase(),
       owner_name: body.owner_name ?? null,

@@ -34,7 +34,18 @@ describe("allowance", () => {
       ],
       (d, s) => (s === "M" ? `v_${d}_M` : null)
     )
-    expect(res.items).toEqual([{ design_id: "d1", variant_id: "v_d1_M", quantity: 3 }])
+    // Names stay with the line, so they reach the order (fleece names).
+    expect(res.items).toEqual([
+      {
+        design_id: "d1",
+        variant_id: "v_d1_M",
+        quantity: 3,
+        people: [
+          { name: "A", quantity: 1 },
+          { name: "B", quantity: 2 },
+        ],
+      },
+    ])
     expect(res.unmatched).toEqual(["B"])
   })
 })

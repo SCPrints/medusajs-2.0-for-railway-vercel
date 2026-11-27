@@ -137,6 +137,7 @@ import {
 import {
   canvasPxPerInch,
   canvasPxToApproxCm,
+  effectivePrintSize,
   maxArtworkPx,
   mockupViewportTransform,
   mockupVisibleRect,
@@ -1710,21 +1711,22 @@ export default function CustomizerTemplate({
         const renderedW = Math.max(0, baseW * (Number.isFinite(scaleX) ? scaleX : 1))
         const renderedH = Math.max(0, baseH * (Number.isFinite(scaleY) ? scaleY : 1))
         const approxCm = canvasPxToApproxCm(renderedW, renderedH, canvasW, canvasH)
-        const manual = manualSizeOverridesRef.current.get(objectId)
-        const sizeId =
-          manual ??
-          snapSizeForBoundingCm(side, approxCm, {
-            isLongSleeve: longSleeve,
-            isHat: hat,
-          })
+        const needed = snapSizeForBoundingCm(side, approxCm, {
+          isLongSleeve: longSleeve,
+          isHat: hat,
+        })
+        // A picked size can make the print bigger, never smaller than the artwork.
+        const sizeId = effectivePrintSize(manualSizeOverridesRef.current.get(objectId), needed)
         // Hats clamp every side to A6 even when a stale manual override
         // says otherwise — same shape as the printed_tag clamp below.
-        const clampedSize = hat || SCP_A6_ONLY_SIDES.has(side) ? "up_to_a6" : sizeId
+        const clamp = (s: ScpPrintSizeId): ScpPrintSizeId =>
+          hat || SCP_A6_ONLY_SIDES.has(side) ? "up_to_a6" : s
         out.push({
           objectId,
           side,
-          sizeId: clampedSize,
-          manualSize: !!manual,
+          sizeId: clamp(sizeId),
+          minSizeId: clamp(needed),
+          manualSize: sizeId !== needed,
           approxCm: {
             width: Math.round(approxCm.width * 10) / 10,
             height: Math.round(approxCm.height * 10) / 10,

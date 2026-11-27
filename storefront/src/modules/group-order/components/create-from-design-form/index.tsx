@@ -15,6 +15,8 @@ type Props = {
     base_variant_id: string | null
     customizer_metadata: Record<string, unknown>
   }
+  /** Organisations the organiser can order for (owner / purchaser). */
+  organisations?: Array<{ id: string; name: string }>
   defaultEmail: string
   defaultName: string
 }
@@ -22,12 +24,14 @@ type Props = {
 const CreateFromDesignForm = ({
   countryCode,
   design,
+  organisations = [],
   defaultEmail,
   defaultName,
 }: Props) => {
   const router = useRouter()
   const [title, setTitle] = useState(design.name)
   const [organisation, setOrganisation] = useState("")
+  const [organisationId, setOrganisationId] = useState("")
   const [email, setEmail] = useState(defaultEmail)
   const [name, setName] = useState(defaultName)
   const [deadline, setDeadline] = useState("")
@@ -51,7 +55,9 @@ const CreateFromDesignForm = ({
     startTransition(async () => {
       const res = await createGroupOrder({
         title: title.trim(),
-        organisation_name: organisation.trim() || undefined,
+        ...(organisationId
+          ? { organisation_id: organisationId }
+          : { organisation_name: organisation.trim() || undefined }),
         owner_email: email.trim(),
         owner_name: name.trim() || undefined,
         base_product_id: design.base_product_id ?? undefined,
@@ -156,17 +162,45 @@ const CreateFromDesignForm = ({
             />
           </label>
 
-          <label className="text-sm">
-            <span className="font-semibold text-ink">
-              Organisation
-            </span>
-            <input
-              value={organisation}
-              onChange={(e) => setOrganisation(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand"
-              placeholder="School / club / business name (optional)"
-            />
-          </label>
+          {organisations.length > 0 ? (
+            <label className="text-sm">
+              <span className="font-semibold text-ink">
+                Is this for one of your organisations?
+              </span>
+              <select
+                value={organisationId}
+                onChange={(e) => setOrganisationId(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand min-h-11"
+                data-testid="group-order-organisation-select"
+              >
+                <option value="">No</option>
+                {organisations.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+              {organisationId ? (
+                <span className="mt-1 block text-xs text-ui-fg-subtle">
+                  The order goes to checkout for this organisation, and shows in its Orders and Invoices.
+                </span>
+              ) : null}
+            </label>
+          ) : null}
+
+          {!organisationId ? (
+            <label className="text-sm">
+              <span className="font-semibold text-ink">
+                Organisation
+              </span>
+              <input
+                value={organisation}
+                onChange={(e) => setOrganisation(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand"
+                placeholder="School / club / business name (optional)"
+              />
+            </label>
+          ) : null}
 
           <div className="grid grid-cols-1 small:grid-cols-2 gap-3">
             <label className="text-sm">

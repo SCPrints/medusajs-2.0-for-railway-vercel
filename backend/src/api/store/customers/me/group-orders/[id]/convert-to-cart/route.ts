@@ -374,6 +374,9 @@ async function createGroupCart(
         source: "group_order_convert",
         group_order_id: groupOrderId,
         group_order_token: groupOrder.public_token,
+        // Ordered for the organisation: checkout picks it, and the order
+        // shows in its Orders and Invoices (checkOrgCheckout re-checks).
+        ...(groupOrder.organisation_id ? { organisation_id: groupOrder.organisation_id } : {}),
       },
     },
   })

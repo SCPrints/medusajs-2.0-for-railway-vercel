@@ -1,5 +1,6 @@
 import {
   ORDER_ROSTER_MAX_PEOPLE,
+  lineNamesFromMetadata,
   cleanRosterMember,
   compactOrderRoster,
   garmentGroupFor,
@@ -73,5 +74,17 @@ describe("packingLabelRows", () => {
   it("sorts by size for by_size and keeps entry order for bulk", () => {
     expect(packingLabelRows(roster, "by_size").map((r) => r[0])).toEqual(["Zed", "Bob", "Amy"])
     expect(packingLabelRows(roster, "bulk")[2]).toEqual(["Bob", "A", "9", "M", "", "OSFA"])
+  })
+})
+
+describe("lineNamesFromMetadata", () => {
+  it("lists who an allowance or group order line is for", () => {
+    expect(lineNamesFromMetadata({ allowance_people: [{ name: "Amir", quantity: 1 }, { name: "Bo", quantity: 2 }] })).toEqual([
+      "Amir",
+      "Bo ×2",
+    ])
+    expect(lineNamesFromMetadata({ group_order_participants: [{ name: "Cy", quantity: 1, player_number: "7" }] })).toEqual(["Cy (#7)"])
+    expect(lineNamesFromMetadata({ customizerDesign: {} })).toEqual([])
+    expect(lineNamesFromMetadata(null)).toEqual([])
   })
 })

@@ -144,6 +144,20 @@ export const snapSizeForBoundingCm = (
 }
 
 /**
+ * The size a print is priced at: the size its artwork needs, or a bigger one
+ * the customer picked. Never smaller. The server floors it the same way
+ * (`requestedScpPrintSizeForLocation`), so a smaller pick only lowered the
+ * price shown in the Studio, then the cart charged the needed size.
+ */
+export const effectivePrintSize = (
+  picked: ScpPrintSizeId | null | undefined,
+  needed: ScpPrintSizeId
+): ScpPrintSizeId =>
+  picked && SCP_PRINT_SIZE_ORDER.indexOf(picked) > SCP_PRINT_SIZE_ORDER.indexOf(needed)
+    ? picked
+    : needed
+
+/**
  * Reduce a list of PrintSpec down to the pricing-only shape. Side-restricted
  * sizes are forced even if a stale manual override on the spec disagrees —
  * pricing always trusts the side restrictions to keep cart totals in sync

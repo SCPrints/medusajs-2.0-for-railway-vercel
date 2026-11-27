@@ -12,7 +12,7 @@ import { CustomerRequests } from "./customer-requests"
 import { DspPackPanel } from "./dsp-pack"
 import { ProofPins } from "./proof-pins"
 import { EnterSizes } from "./enter-sizes"
-import { SizingKitNote, TeamOrder } from "./team-order"
+import { LineNames, SizingKitNote, TeamOrder } from "./team-order"
 import { OrgRangePanel } from "./org-range"
 import { BrandKitLine, HomeDeliveryNote, SplitDeliveryNote } from "./org-order-notes"
 import { QuoteTools } from "../quote/quote-detail"
@@ -544,6 +544,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
               <>
                 <DeliveryAddress job={job} onChanged={onChanged} />
                 {order ? <TeamOrder order={order} /> : null}
+                {order ? <LineNames order={order as any} /> : null}
                 {order ? <SizingKitNote order={order as any} /> : null}
                 {order ? <SplitDeliveryNote order={order} /> : null}
                 {order ? <HomeDeliveryNote order={order} /> : null}

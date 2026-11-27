@@ -117,6 +117,8 @@ export async function joinGroupOrder(
 export async function createGroupOrder(input: {
   title: string
   organisation_name?: string
+  /** An organisation the organiser buys for: the order shows in its Orders. */
+  organisation_id?: string
   owner_email: string
   owner_name?: string
   base_product_id?: string

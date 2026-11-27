@@ -10,7 +10,8 @@ import { applyTeamDetailsToCart, buildRangeOrderLines, loadOwnCart, rangeSetupFe
 
 export type RangeAddInput = {
   cart_id: string
-  items: Array<{ design_id: string; variant_id: string; quantity: number }>
+  /** `people`: who the line is for (uniform allowance only; server-built). */
+  items: Array<{ design_id: string; variant_id: string; quantity: number; people?: Array<{ name: string; quantity: number }> }>
   roster?: "all" | string[] | null
   packing?: string | null
   personalisation_requested?: boolean
@@ -49,12 +50,20 @@ export async function addRangeToCart(
     ...(body.names_numbers !== undefined ? { names_numbers: namesNumbers } : {}),
   })
 
+  // Names on each line, so the job window shows who it's for.
+  const peopleOf = new Map(
+    body.items.filter((i) => i.people?.length).map((i) => [`${i.design_id}:${i.variant_id}`, i.people])
+  )
+
   let result: Awaited<ReturnType<typeof addScpLinesToCart>>
   try {
     result = await addScpLinesToCart(
       scope,
       cart.id,
-      lines.map(({ design_id: _d, group_id: _g, ...line }) => line),
+      lines.map(({ design_id, group_id: _g, ...line }) => {
+        const people = peopleOf.get(`${design_id}:${line.variant_id}`)
+        return people ? { ...line, metadata: { ...line.metadata, allowance_people: people } } : line
+      }),
       { digitizingWaivers: true, extraMetadata }
     )
   } catch (error) {

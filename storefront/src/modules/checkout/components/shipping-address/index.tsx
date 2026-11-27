@@ -5,7 +5,11 @@ import Input from "@modules/common/components/input"
 import NativeSelect from "@modules/common/components/native-select"
 import { mapKeys } from "lodash"
 import React, { useEffect, useMemo, useState } from "react"
-import { AUSTRALIAN_STATES_AND_TERRITORIES } from "@modules/checkout/lib/australian-states"
+import {
+  AUSTRALIAN_STATES_AND_TERRITORIES,
+  checkoutStateName,
+} from "@modules/checkout/lib/australian-states"
+import type { CheckoutOrgDestination } from "@lib/data/organisations"
 import AddressSelect from "../address-select"
 import CountrySelect from "../country-select"
 
@@ -14,11 +18,13 @@ const ShippingAddress = ({
   cart,
   checked,
   onChange,
+  orgDestinations,
 }: {
   customer: HttpTypes.StoreCustomer | null
   cart: HttpTypes.StoreCart | null
   checked: boolean
   onChange: () => void
+  orgDestinations?: CheckoutOrgDestination[]
 }) => {
   const [formData, setFormData] = useState<Record<string, any>>({})
 
@@ -34,6 +40,31 @@ const ShippingAddress = ({
         (a) => a.country_code && countriesInRegion?.includes(a.country_code)
       ),
     [customer?.addresses, countriesInRegion]
+  )
+
+  // The buyer's organisations' saved delivery addresses, under the buyer's
+  // own name and phone (same as team store bulk delivery).
+  const orgAddresses = useMemo(
+    () =>
+      (orgDestinations ?? [])
+        .filter((d) => countriesInRegion?.includes(d.country_code.toLowerCase()))
+        .map(
+          (d) =>
+            ({
+              id: d.id,
+              first_name: customer?.first_name ?? "",
+              last_name: customer?.last_name ?? "",
+              company: [d.organisation_name, d.name].filter(Boolean).join(", "),
+              address_1: d.address_1,
+              address_2: d.address_2 ?? "",
+              city: d.city,
+              province: checkoutStateName(d.province),
+              postal_code: d.postal_code,
+              country_code: d.country_code.toLowerCase(),
+              phone: customer?.phone || d.contact_phone || "",
+            }) as unknown as HttpTypes.StoreCustomerAddress
+        ),
+    [orgDestinations, countriesInRegion, customer]
   )
 
   const setFormAddress = (
@@ -86,8 +117,24 @@ const ShippingAddress = ({
     })
   }
 
+  const formAddress = mapKeys(formData, (_, key) =>
+    key.replace("shipping_address.", "")
+  ) as HttpTypes.StoreCartAddress
+
   return (
     <>
+      {customer && orgAddresses.length > 0 && (
+        <Container className="mb-6 flex flex-col gap-y-4 p-5" data-testid="org-address-picker">
+          <p className="text-small-regular">
+            Delivering to your organisation? Choose one of its saved addresses.
+          </p>
+          <AddressSelect
+            addresses={orgAddresses}
+            addressInput={formAddress}
+            onSelect={setFormAddress}
+          />
+        </Container>
+      )}
       {customer && (addressesInRegion?.length || 0) > 0 && (
         <Container className="mb-6 flex flex-col gap-y-4 p-5">
           <p className="text-small-regular">
@@ -95,11 +142,7 @@ const ShippingAddress = ({
           </p>
           <AddressSelect
             addresses={customer.addresses}
-            addressInput={
-              mapKeys(formData, (_, key) =>
-                key.replace("shipping_address.", "")
-              ) as HttpTypes.StoreCartAddress
-            }
+            addressInput={formAddress}
             onSelect={setFormAddress}
           />
         </Container>

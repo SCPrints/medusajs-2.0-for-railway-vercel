@@ -78,6 +78,8 @@ export const CLIENT_LINE_METADATA_KEYS = [
   // Group orders — lib/group-order-lines.ts
   "group_order_id",
   "group_order_participants",
+  // Uniform allowance — who each line is for (lib/allowance.ts picksToRangeItems)
+  "allowance_people",
   // Order again — { order_id, display_id, line_item_id } of the source line
   "reorder_of",
   // "Order one sample first" — cleaned by cleanSampleMetadata (lib/sample-line.ts)

@@ -184,6 +184,27 @@ export const PACKING_LABEL_HEADERS = ["Name", "Unit / team", "Number", ...ROSTER
  * works: by unit then name (by_unit / individual), by top size then name
  * (by_size), or as entered (bulk).
  */
+/**
+ * Who a cart / order line is for, as "Name", "Name (#7)" or "Name ×2":
+ * uniform allowance picks and group order sizes. [] for an ordinary line.
+ */
+export function lineNamesFromMetadata(meta: unknown): string[] {
+  const m = meta && typeof meta === "object" ? (meta as Record<string, unknown>) : {}
+  const list = Array.isArray(m.allowance_people)
+    ? m.allowance_people
+    : Array.isArray(m.group_order_participants)
+    ? m.group_order_participants
+    : []
+  return list.flatMap((p) => {
+    const r = p && typeof p === "object" ? (p as Record<string, unknown>) : {}
+    const name = text(r.name, 120)
+    if (!name) return []
+    const qty = Math.max(1, Math.floor(Number(r.quantity) || 1))
+    const no = text(r.player_number, 12)
+    return [`${name}${no ? ` (#${no})` : ""}${qty > 1 ? ` ×${qty}` : ""}`]
+  })
+}
+
 export function packingLabelRows(roster: OrderRoster | null, packing: PackingChoice | null): string[][] {
   const people = [...(roster?.people ?? [])]
   const byName = (a: OrderRosterPerson, b: OrderRosterPerson) => a.name.localeCompare(b.name)

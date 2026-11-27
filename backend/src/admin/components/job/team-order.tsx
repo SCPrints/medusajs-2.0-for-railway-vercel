@@ -4,6 +4,7 @@ import { useState } from "react"
 import {
   PACKING_LABEL_HEADERS,
   ROSTER_GARMENT_GROUPS,
+  lineNamesFromMetadata,
   packingLabel,
   packingLabelRows,
   teamOrderFromMetadata,
@@ -82,6 +83,33 @@ export function TeamOrder({ order }: { order: { display_id?: number | null; meta
           </Text>
         </>
       ) : null}
+    </div>
+  )
+}
+
+/**
+ * Who each line is for: uniform allowance picks and group order sizes, so
+ * printed or embroidered names reach production. Renders nothing otherwise.
+ */
+export function LineNames({
+  order,
+}: {
+  order: { items?: Array<{ id: string; title?: string | null; product_title?: string | null; variant_title?: string | null; metadata?: Record<string, unknown> | null }> | null }
+}) {
+  const rows = (order.items ?? []).flatMap((i) => {
+    const names = lineNamesFromMetadata(i.metadata)
+    const label = [i.product_title || i.title, i.variant_title].filter(Boolean).join(" · ")
+    return names.length ? [{ id: i.id, label, names }] : []
+  })
+  if (!rows.length) return null
+  return (
+    <div className="flex flex-col gap-y-1 border-t border-ui-border-base px-6 py-4">
+      <Text size="small" weight="plus">Who each line is for</Text>
+      {rows.map((r) => (
+        <Text key={r.id} size="small" className="text-ui-fg-subtle">
+          <span className="text-ui-fg-base">{r.label}:</span> {r.names.join(", ")}
+        </Text>
+      ))}
     </div>
   )
 }

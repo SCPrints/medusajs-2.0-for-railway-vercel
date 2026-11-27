@@ -69,6 +69,9 @@ export type OrganisationDestination = {
   is_active: boolean
 }
 
+/** A destination offered at checkout, labelled with its organisation. */
+export type CheckoutOrgDestination = OrganisationDestination & { organisation_name: string }
+
 export type InventoryRow = {
   id: string
   organisation_id: string

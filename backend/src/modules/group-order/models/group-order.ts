@@ -19,6 +19,9 @@ const GroupOrder = model
     status: model.enum(["open", "closed", "converted", "expired"]).default("open"),
     title: model.text(),
     organisation_name: model.text().nullable(),
+    /** The organisation it's for, when the organiser buys for one: its order
+     *  then shows in that organisation's Orders and Invoices. */
+    organisation_id: model.text().nullable(),
     owner_customer_id: model.text().nullable(),
     owner_email: model.text(),
     owner_name: model.text().nullable(),

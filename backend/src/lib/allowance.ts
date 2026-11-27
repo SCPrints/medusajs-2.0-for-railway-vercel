@@ -10,6 +10,13 @@ export const ALLOWANCE_MAX_PER_PERSON = 20
 
 export type AllowanceItem = { design_id: string; per_person: number }
 export type AllowancePick = { design_id: string; size: string; quantity: number }
+/** One cart line's worth of picks, with who chose it. */
+export type AllowanceRangeItem = {
+  design_id: string
+  variant_id: string
+  quantity: number
+  people: Array<{ name: string; quantity: number }>
+}
 
 /** Drop junk, merge a design listed twice, cap sizes. */
 export function cleanAllowanceItems(raw: unknown): AllowanceItem[] {
@@ -80,8 +87,8 @@ export function validatePicks(
 export function picksToRangeItems(
   people: Array<{ name: string; picks: AllowancePick[] }>,
   variantFor: (designId: string, size: string) => string | null
-): { items: Array<{ design_id: string; variant_id: string; quantity: number }>; unmatched: string[] } {
-  const totals = new Map<string, { design_id: string; variant_id: string; quantity: number }>()
+): { items: AllowanceRangeItem[]; unmatched: string[] } {
+  const totals = new Map<string, AllowanceRangeItem>()
   const unmatched: string[] = []
   for (const person of people) {
     for (const p of person.picks) {
@@ -91,9 +98,15 @@ export function picksToRangeItems(
         continue
       }
       const key = `${p.design_id}:${variant_id}`
-      const prev = totals.get(key)
-      totals.set(key, { design_id: p.design_id, variant_id, quantity: (prev?.quantity ?? 0) + p.quantity })
+      const row = totals.get(key) ?? { design_id: p.design_id, variant_id, quantity: 0, people: [] }
+      row.quantity += p.quantity
+      // Who the line is for: names (e.g. on fleeces) must reach production.
+      const same = row.people.find((x) => x.name === person.name)
+      if (same) same.quantity += p.quantity
+      else row.people.push({ name: person.name, quantity: p.quantity })
+      totals.set(key, row)
     }
   }
+  for (const row of totals.values()) row.people.sort((a, b) => a.name.localeCompare(b.name))
   return { items: Array.from(totals.values()), unmatched: Array.from(new Set(unmatched)) }
 }

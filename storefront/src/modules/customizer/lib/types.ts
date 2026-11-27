@@ -334,6 +334,8 @@ export type PrintSpec = {
   objectId: string
   side: GarmentSide
   sizeId: ScpPrintSizeId
+  /** Size the artwork needs: the smallest the size menu offers. */
+  minSizeId?: ScpPrintSizeId
   /** True when the customer has explicitly chosen a size for this print. */
   manualSize: boolean
   /** Approximate physical print size on the garment (cm). */

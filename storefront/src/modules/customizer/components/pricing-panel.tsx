@@ -19,6 +19,7 @@ import {
   scpPrintUnitMajorForTier,
   type ScpPrintSizeId,
 } from "@modules/customizer/lib/scp-dtf-print-pricing"
+import { SCP_PRINT_SIZE_ORDER } from "@modules/customizer/lib/print-spec"
 import {
   GarmentSide,
   PricingBreakdown,
@@ -578,9 +579,15 @@ function PricingPanel({
                   const allowedSet = new Set(allowed)
                   // The current sizeId may be outside `allowed` (e.g. a
                   // sleeve forced to A6). Surface it as the chosen value
-                  // anyway so the dropdown reflects reality.
+                  // anyway so the dropdown reflects reality. Sizes smaller
+                  // than the artwork aren't offered: the cart charges the
+                  // size the artwork needs regardless.
+                  const minRank = SCP_PRINT_SIZE_ORDER.indexOf(print.minSizeId ?? "up_to_a6")
                   const optionsForRow = SCP_PRINT_SIZE_OPTIONS.filter(
-                    (opt) => allowedSet.has(opt.id) || opt.id === sizeId
+                    (opt) =>
+                      (allowedSet.has(opt.id) &&
+                        SCP_PRINT_SIZE_ORDER.indexOf(opt.id) >= minRank) ||
+                      opt.id === sizeId
                   )
                   const editable = !!onChangePrintSize && optionsForRow.length > 1
                   return (
@@ -610,8 +617,8 @@ function PricingPanel({
                             className="rounded-sm border border-ui-border-base bg-ui-bg-base px-1 py-0.5 text-[11px]"
                             title={
                               print.manualSize
-                                ? "Manually chosen — click 'Auto' to restore auto-snap"
-                                : "Auto-snapped from bounding box"
+                                ? "Bigger than your artwork needs. Click Auto to go back."
+                                : "Set by your artwork's size. To print smaller, make the artwork smaller on the garment."
                             }
                           >
                             {optionsForRow.map((opt) => (

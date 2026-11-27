@@ -1,5 +1,6 @@
 import {
   canvasPxToApproxCm,
+  effectivePrintSize,
   maxArtworkPx,
   mockupViewportTransform,
   mockupVisibleRect,
@@ -186,5 +187,16 @@ describe("garment_fit (stamped from size charts)", () => {
     const meta = { garment_fit: { mockup_scale: null, reference_size: "M" } }
     expect(resolveMockupArtworkScale(meta, "front")).toBe(1)
     expect(resolveMockupReferenceSize(meta)).toBeNull()
+  })
+})
+
+describe("effectivePrintSize", () => {
+  it("never prices a print below the size its artwork needs", () => {
+    // A 34 cm design needs A3: picking A6 used to show the A6 price.
+    expect(effectivePrintSize("up_to_a6", "up_to_a3")).toBe("up_to_a3")
+    expect(effectivePrintSize("up_to_a3", "up_to_a3")).toBe("up_to_a3")
+    // A bigger pick is kept (the customer pays for it, as the server does).
+    expect(effectivePrintSize("oversize", "up_to_a4")).toBe("oversize")
+    expect(effectivePrintSize(undefined, "up_to_a4")).toBe("up_to_a4")
   })
 })

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import CreateFromDesignForm from "@modules/group-order/components/create-from-design-form"
 import { getCustomer } from "@lib/data/customer"
 import { getMyDesign } from "@lib/data/designs"
+import { listMyOrganisations } from "@lib/data/organisations"
 
 export const metadata: Metadata = {
   title: "Start a group order",
@@ -17,10 +18,17 @@ type Props = {
 
 export default async function StartGroupOrderPage({ params }: Props){const { id, countryCode } = await params
 
-  const [design, customer] = await Promise.all([
+  const [design, customer, memberships] = await Promise.all([
     getMyDesign(id),
     getCustomer(),
+    listMyOrganisations(),
   ])
+  // Organisations they can order for: the group order can be for one.
+  const organisations = memberships.flatMap((m) =>
+    m.organisation && (m.role === "owner" || m.role === "purchaser")
+      ? [{ id: m.organisation.id, name: m.organisation.name }]
+      : []
+  )
 
   if (!design) {
     notFound()
@@ -52,6 +60,7 @@ export default async function StartGroupOrderPage({ params }: Props){const { id,
           base_variant_id: design.base_variant_id,
           customizer_metadata: design.customizer_metadata as Record<string, unknown>,
         }}
+        organisations={organisations}
         defaultEmail={customer?.email ?? ""}
         defaultName={
           customer

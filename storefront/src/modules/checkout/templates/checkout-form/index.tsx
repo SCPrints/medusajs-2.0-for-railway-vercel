@@ -1,6 +1,7 @@
 import { listCartShippingOptions } from "@lib/data/fulfillment"
 import { listCartPaymentMethods } from "@lib/data/payment"
 import { getOrgCheckoutOptions } from "@lib/data/org-account"
+import { getOrganisationDestinations } from "@lib/data/organisations"
 import { HttpTypes } from "@medusajs/types"
 import Addresses from "@modules/checkout/components/addresses"
 import Payment from "@modules/checkout/components/payment"
@@ -22,6 +23,17 @@ export default async function CheckoutForm({
   const paymentMethods = await listCartPaymentMethods(cart.region?.id ?? "")
   // Only customers who buy for an organisation get the "who is this for?" block.
   const orgOptions = customer ? await getOrgCheckoutOptions(cart.id) : []
+  // Their saved delivery addresses, offered at the address step.
+  const orgDestinations = (
+    await Promise.all(
+      orgOptions.map(async (o) =>
+        (await getOrganisationDestinations(o.organisation.id, { activeOnly: true })).map((d) => ({
+          ...d,
+          organisation_name: o.organisation.name,
+        }))
+      )
+    )
+  ).flat()
 
   if (!paymentMethods) {
     return null
@@ -31,7 +43,7 @@ export default async function CheckoutForm({
     <div>
       <div className="grid w-full grid-cols-1 gap-y-0 divide-y divide-ink/10">
         <div className="pb-10 pt-0 first:pt-0">
-          <Addresses cart={cart} customer={customer} />
+          <Addresses cart={cart} customer={customer} orgDestinations={orgDestinations} />
         </div>
 
         <div className="py-10">

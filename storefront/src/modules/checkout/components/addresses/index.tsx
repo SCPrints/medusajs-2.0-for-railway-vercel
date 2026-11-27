@@ -8,6 +8,7 @@ import Spinner from "@modules/common/icons/spinner"
 
 import { setAddresses } from "@lib/data/cart"
 import compareAddresses from "@lib/util/compare-addresses"
+import type { CheckoutOrgDestination } from "@lib/data/organisations"
 import { HttpTypes } from "@medusajs/types"
 import { useFormState } from "react-dom"
 import BillingAddress from "../billing_address"
@@ -18,9 +19,11 @@ import { SubmitButton } from "../submit-button"
 const Addresses = ({
   cart,
   customer,
+  orgDestinations,
 }: {
   cart: HttpTypes.StoreCart | null
   customer: HttpTypes.StoreCustomer | null
+  orgDestinations?: CheckoutOrgDestination[]
 }) => {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -78,6 +81,7 @@ const Addresses = ({
               checked={sameAsBilling}
               onChange={toggleSameAsBilling}
               cart={cart}
+              orgDestinations={orgDestinations}
             />
 
             {!sameAsBilling && (
