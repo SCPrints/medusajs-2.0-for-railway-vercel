@@ -5,14 +5,12 @@ import Wrapper from "@modules/checkout/components/payment-wrapper"
 import CheckoutForm from "@modules/checkout/templates/checkout-form"
 import CheckoutSummary from "@modules/checkout/templates/checkout-summary"
 import { BeginCheckoutTracker } from "@modules/checkout/components/begin-checkout-tracker"
-import PerksBanner from "@modules/checkout/components/perks-banner"
 import { enrichLineItems, retrieveCart } from "@lib/data/cart"
 import { stripHeavyCartMetadataForRender } from "@lib/util/strip-cart-metadata"
 import { applyDisplayPriceCorrectionToCart } from "@lib/util/apply-display-price-correction"
 import { supacolourDesignShortfalls } from "@modules/customizer/lib/scp-supacolour-pricing"
 import { HttpTypes } from "@medusajs/types"
 import { getCustomer } from "@lib/data/customer"
-import { getCustomerPerks } from "@lib/data/perks"
 
 export const metadata: Metadata = {
   title: "Checkout",
@@ -51,7 +49,6 @@ export default async function Checkout({
   const { countryCode } = await params
   const cart = await fetchCart(countryCode)
   const customer = await getCustomer()
-  const perks = await getCustomerPerks()
 
   return (
     <div className="content-container py-8 small:py-10 pb-14">
@@ -68,8 +65,6 @@ export default async function Checkout({
           confirmation as soon as your order is placed.
         </p>
       </header>
-
-      <PerksBanner perks={perks.perks} />
 
       <div className="mt-6 grid grid-cols-1 gap-8 small:grid-cols-[1fr_min(100%,400px)] small:items-start small:gap-x-10">
         <div className="rounded-2xl border border-ui-border-base bg-white p-5 shadow-xs small:p-8">

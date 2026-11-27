@@ -10,7 +10,7 @@ import type { MedusaContainer } from "@medusajs/framework/types"
  * read-modify-write via `orderModuleService.updateOrders()` therefore loses
  * updates: each handler reads the same metadata snapshot and the last
  * writer clobbers the others' keys (silently dropping production_stage /
- * shipping_decision / tax_exempt / applied_perks / fulfillment_subscriber_ran).
+ * shipping_decision / tax_exempt / fulfillment_subscriber_ran).
  *
  * Postgres re-reads the row under its row lock on every UPDATE, so
  * `metadata || patch` from concurrent writers all survive provided their

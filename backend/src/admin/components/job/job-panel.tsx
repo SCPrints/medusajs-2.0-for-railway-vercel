@@ -550,7 +550,6 @@ export function JobPanel({ job, order, onChanged }: Props) {
                 {order ? (
                   <Flat>
                     <Mount W={W.OrderShippingDecision} order={order} />
-                    <Mount W={W.OrderAppliedPerks} order={order} />
                     <Mount W={W.OrderFulfillmentContext} order={order} />
                     <Mount W={W.OrderAscolourDropship} order={order} />
                     <Mount W={W.OrderAussiePacificDropship} order={order} />

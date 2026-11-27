@@ -49,7 +49,7 @@ flowchart TB
     subgraph SUBS["Subscribers"]
         SUB_EMAIL[Email sender]
         SUB_AUTO[Automation rule engine]
-        SUB_PERKS[Snapshot perks + tax_exempt]
+        SUB_PERKS[Snapshot tax_exempt]
         SUB_STAGE_STAMP[Stamp initial stage]
         SUB_PHOTO[Attach latest photo]
     end
@@ -391,7 +391,6 @@ flowchart LR
         M_BLANKS[blanks_stage_*]
         M_PHOTOS[production_photos]
         M_NPS[nps_score / nps_comment]
-        M_PERKS[applied_perks]
         M_TAX[tax_exempt + reason]
         M_WATCHERS[watcher_emails]
         M_DEPOSIT[deposit_*]
@@ -416,7 +415,6 @@ flowchart LR
     T_ORDER --> M_BLANKS
     T_ORDER --> M_PHOTOS
     T_ORDER --> M_NPS
-    T_ORDER --> M_PERKS
     T_ORDER --> M_TAX
     T_ORDER --> M_WATCHERS
     T_ORDER --> M_DEPOSIT

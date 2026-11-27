@@ -52,7 +52,7 @@ Medusa's own order page (`/app/orders/<id>`) now carries one line at the top —
 | **Customizer downloads / print details / DTF gang sheet / screen colour check** | Proof (action bar), also under Artwork | Print files, mockups, revised proofs, sizes and positions in mm, DPI flags. |
 | **AS Colour / Aussie Pacific dropship** | Blanks (action bar), also under Delivery | Sending the supplier order marks blanks as ordered. |
 | **Print recipes, production photos, rejects, packing check** | Production | Operator settings and records. The latest photo auto-appears in the customer's next stage email. |
-| **Shipping decision, customer perks, fulfilment context, bottle-shop dropship, AusPost parcels, Drive folder** | Delivery | What shipping was quoted, free-shipping perks, where the blanks come from and where the job ships. |
+| **Shipping decision, fulfilment context, bottle-shop dropship, AusPost parcels, Drive folder** | Delivery | What shipping was quoted, where the blanks come from and where the job ships. |
 | **Owner, watchers, NPS** | Owner & CC | Who owns it, extra people to CC on stage emails, the post-delivery score. |
 | **Activity thread, comments** | The diary (right column) | Every email, call, note, stage change and task. |
 

@@ -765,7 +765,6 @@ const SECTIONS: Section[] = [
         M_BLANKS[blanks_stage_*]
         M_PHOTOS[production_photos]
         M_NPS[nps_score / nps_comment]
-        M_PERKS[applied_perks]
         M_TAX[tax_exempt + reason]
         M_WATCHERS[watcher_emails]
         M_DEPOSIT[deposit_*]
@@ -792,7 +791,6 @@ const SECTIONS: Section[] = [
     T_ORDER --> M_BLANKS
     T_ORDER --> M_PHOTOS
     T_ORDER --> M_NPS
-    T_ORDER --> M_PERKS
     T_ORDER --> M_TAX
     T_ORDER --> M_WATCHERS
     T_ORDER --> M_DEPOSIT

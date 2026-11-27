@@ -438,8 +438,8 @@ Medusa's admin has no cart view, so a customer who designs in the Studio and the
 ### Lead-form spam protection (relay-only + honeypot + BotID flag)
 The backend lead routes that email staff — `POST /contact`, `POST /store/quotes`, `/store/quotes/poa-request`, `/store/cart-quote-requests` — 403 anything not relayed by the storefront: the Vercel relays send `x-scp-relay: <REVALIDATE_SECRET>` (already shared by both apps; checked by [backend/src/lib/lead-relay.ts](backend/src/lib/lead-relay.ts), open when unset for local dev). The relays ([storefront/src/lib/util/lead-relay.ts](storefront/src/lib/util/lead-relay.ts)) also forward the visitor's real IP / user agent (the backend used to log Vercel's `node` + AWS IP for every submission) and Vercel **BotID**'s verdict as `x-scp-bot: 1`, which **flags** (`[⚠ Possible bot]` subject prefix) rather than blocks — AI shopping agents acting for real customers still reach staff. Contact / BYO / hats forms carry a hidden honeypot ([honeypot-field](storefront/src/modules/common/components/honeypot-field/index.tsx)); filled = relay returns fake success and forwards nothing. **Any new path that calls `leadRelayHeaders()` with the bot check must be listed in [storefront/src/instrumentation-client.ts](storefront/src/instrumentation-client.ts)**, else every visitor reads as a bot. If `REVALIDATE_SECRET` is ever rotated, rotate it on Fly AND Vercel together or every form 403s. Contact-form attachment uploads (`/store/contact/attachments`) are NOT gated (browser posts direct for size; they don't email staff).
 
-### Customer tiers, tax-exempt, applied perks (B2B pricing & invoicing)
-Tier system overrides the quantity-ladder with a flat rate via Medusa price-list rules. Tax-exempt + free-shipping perks are snapshotted onto the order at `order.placed` so historical invoices stay correct even if customer state changes later.
+### Customer tiers, tax-exempt (B2B pricing & invoicing)
+Tier system overrides the quantity-ladder with a flat rate via Medusa price-list rules. Tax-exempt status is snapshotted onto the order at `order.placed` so historical invoices stay correct even if customer state changes later.
 
 | Component | Path |
 | --- | --- |
@@ -447,16 +447,14 @@ Tier system overrides the quantity-ladder with a flat rate via Medusa price-list
 | Tier constants (storefront mirror) | [storefront/src/lib/customer-tiers.ts](storefront/src/lib/customer-tiers.ts) |
 | Bootstrap script | [backend/src/scripts/seed-customer-tiers.ts](backend/src/scripts/seed-customer-tiers.ts) |
 | Tax-exempt snapshot | [backend/src/subscribers/stamp-order-tax-exempt.ts](backend/src/subscribers/stamp-order-tax-exempt.ts) |
-| Perks snapshot | [backend/src/subscribers/stamp-order-perks.ts](backend/src/subscribers/stamp-order-perks.ts) |
 | Customer-tier widget | [backend/src/admin/widgets/customer-tier.tsx](backend/src/admin/widgets/customer-tier.tsx) |
 | Customer tax-exempt widget | [backend/src/admin/widgets/customer-tax-exempt.tsx](backend/src/admin/widgets/customer-tax-exempt.tsx) |
 | Customer tags & notes widget | [backend/src/admin/widgets/customer-tags-notes.tsx](backend/src/admin/widgets/customer-tags-notes.tsx) |
-| Order applied-perks widget | [backend/src/admin/widgets/order-applied-perks.tsx](backend/src/admin/widgets/order-applied-perks.tsx) |
 | Tier regen job (`0 6 * * *`) | [backend/src/jobs/regenerate-tier-prices.ts](backend/src/jobs/regenerate-tier-prices.ts) |
 
 **Tier ladder**: 8 ranks from platinum (1.30×) to member (1.65×), applied to ex-GST supplier cost to give a GST-inclusive flat price (rebased 2026-08 from 1.10–1.45 after the inc-GST cutover left Platinum at 0% margin — [customer-tiers.ts](backend/src/lib/customer-tiers.ts) is authoritative). Customers are assigned by adding them to the matching "Tier: X" customer group.
 
-**Free-shipping perks**: `FREE_SHIPPING_TAGS` env var (comma-separated, default `"VIP,Wholesale"`). At `order.placed` the subscriber checks customer tags and stamps `order.metadata.applied_perks.free_shipping = true` if any match — staff manually waive shipping at fulfilment.
+**No free shipping, for anyone**: SC Prints doesn't offer free delivery. The tag-based free-shipping perk (`FREE_SHIPPING_TAGS`, the "Free shipping on this order" checkout banner, `order.metadata.applied_perks`) was removed on 28 Nov 2026. Don't bring it back, and don't offer free delivery in quotes. Older orders may still carry an empty `applied_perks`; nothing reads it.
 
 **Sync risk**: backend and storefront tier constants must agree. Consider a sync-check script following the production-stage pattern.
 
@@ -876,7 +874,6 @@ Every reminder/digest job is gated behind an `*_ENABLED` flag so accidental boot
 | `POSTHOG_COHORT_SYNC_ENABLED` | Gate the daily PostHog → tags sync. | `false` |
 | `POSTHOG_COHORT_SYNC_LIST` | `cohort_id:tag_label:color` comma-separated config. | unset |
 | `LTV_VIP_THRESHOLD_AUD` | LTV threshold for VIP-tag suggestion in admin. | `1500` |
-| `FREE_SHIPPING_TAGS` | Comma-separated customer-tag labels that grant `applied_perks.free_shipping` at order placement. | `"VIP,Wholesale"` |
 | `CROSS_SELL_MAX_PER_PRODUCT` / `CROSS_SELL_MIN_CO_OCCURRENCE` | Tuning for the nightly cross-sell job. | see constants.ts |
 
 #### AI features
@@ -1449,7 +1446,6 @@ Cron jobs that depend on optional integrations (AS Colour, FashionBiz, AP, AusPo
 | [order-placed-stamp-production-stage.ts](backend/src/subscribers/order-placed-stamp-production-stage.ts) | `order.placed` | Stamp initial `production_stage = "received"` so the Phase 1 tracker renders |
 | [order-placed-stamp-shipping-decision.ts](backend/src/subscribers/order-placed-stamp-shipping-decision.ts) | `order.placed` | Mirror `cart.metadata.shipping_decision` → `order.metadata` |
 | [stamp-order-tax-exempt.ts](backend/src/subscribers/stamp-order-tax-exempt.ts) | `order.placed` | Snapshot customer's tax-exempt state onto the order so invoices stay correct |
-| [stamp-order-perks.ts](backend/src/subscribers/stamp-order-perks.ts) | `order.placed` | Snapshot `applied_perks` (free shipping, etc.) from customer tags |
 | [order-shipment-created.ts](backend/src/subscribers/order-shipment-created.ts) | `order.shipment_created` | Dispatch ORDER_SHIPPED email with tracking parcels |
 | [order-production-stage-changed.ts](backend/src/subscribers/order-production-stage-changed.ts) | `production_stage_changed` | Dispatch milestone email (Phase 1) |
 | [order-stage-audit.ts](backend/src/subscribers/order-stage-audit.ts) | `production_stage_changed` | Append stage change to audit log + production_stage_history metadata |

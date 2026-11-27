@@ -23,7 +23,6 @@ export { default as OrderShippingDecision } from "./order-shipping-decision"
 export { default as OrderTasks } from "./order-tasks"
 export { default as OrderVectorizationFlag } from "./order-vectorization-flag"
 export { default as OrderWatchers } from "./order-watchers"
-export { default as OrderAppliedPerks } from "./order-applied-perks"
 
 export const ORIGINAL_ZONES: Record<string, string> = {
   OrderAuspostParcels: "order.details.after",
@@ -49,5 +48,4 @@ export const ORIGINAL_ZONES: Record<string, string> = {
   OrderTasks: "order.details.side.after",
   OrderVectorizationFlag: "order.details.side.after",
   OrderWatchers: "order.details.side.after",
-  OrderAppliedPerks: "order.details.side.before",
 }

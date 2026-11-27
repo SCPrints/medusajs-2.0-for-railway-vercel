@@ -327,19 +327,6 @@ export const LTV_VIP_THRESHOLD_AUD = parseIntEnv(
 )
 
 /**
- * Comma-separated list of customer-tag labels (case-insensitive) that
- * grant the "free shipping" perk. The storefront displays a banner in
- * checkout when the logged-in customer has any of these tags; the
- * admin order page surfaces the perk so staff can waive shipping at
- * fulfillment. The perk is recorded on `order.metadata.applied_perks`
- * at order placement for audit. Example: `VIP,Wholesale`.
- */
-export const FREE_SHIPPING_TAGS = (process.env.FREE_SHIPPING_TAGS ?? "VIP,Wholesale")
-  .split(",")
-  .map((t) => t.trim().toLowerCase())
-  .filter((t) => t.length > 0)
-
-/**
  * NPS feedback request cron. Opt-in. Fires once per delivered order
  * after `NPS_REQUEST_DAYS_AFTER_DELIVERED` days, and never more than
  * once every `NPS_MIN_GAP_DAYS_PER_CUSTOMER` per customer. Idempotency
