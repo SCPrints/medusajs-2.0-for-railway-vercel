@@ -82,15 +82,15 @@ test("organisation buyer: sign in, open the organisation, order from the range, 
     await page.goto("/au/checkout?step=address")
     // The organisation's saved address is offered, and choosing it fills the form.
     await expect(page.getByTestId("org-address-picker")).toBeVisible()
-    // A signed-in buyer's email is already filled in (first run 28 Nov: it was empty at submit).
+    // No waiting here on purpose: on 28 Nov, choosing the address and typing the phone
+    // before the form had filled the buyer's email left the Email box empty at submit.
     const email = page.getByTestId("shipping-email-input")
-    await expect(email, "checkout should fill in a signed-in buyer's email").not.toHaveValue("", { timeout: 20_000 })
     await page.getByTestId("org-address-picker").getByTestId("shipping-address-select").click()
     await page.getByTestId("shipping-address-option").first().click()
     await expect(page.getByTestId("shipping-company-input")).toHaveValue(ORG)
     const phone = page.locator('input[name="shipping_address.phone"]')
     if (!(await phone.inputValue())) await phone.fill("0400000000")
-    await expect(email, "choosing a saved address must not clear the email").not.toHaveValue("")
+    await expect(email, "a signed-in buyer's email is filled in, however fast they type").not.toHaveValue("", { timeout: 20_000 })
     await page.getByTestId("submit-address-button").click()
 
     // The only delivery option is picked for the customer, with a price.

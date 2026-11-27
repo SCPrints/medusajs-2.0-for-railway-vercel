@@ -115,10 +115,10 @@ const ShippingAddress = ({
       HTMLInputElement | HTMLInputElement | HTMLSelectElement
     >
   ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+    // From the latest fields, not the last render's: a keystroke that landed before a
+    // pending fill (the email, a chosen saved address) used to wipe that fill.
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const formAddress = mapKeys(formData, (_, key) =>

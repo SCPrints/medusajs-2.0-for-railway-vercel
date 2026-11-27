@@ -28,10 +28,8 @@ const BillingAddress = ({ cart }: { cart: HttpTypes.StoreCart | null }) => {
       HTMLInputElement | HTMLInputElement | HTMLSelectElement
     >
   ) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+    const { name, value } = e.target
+    setFormData((prev: Record<string, any>) => ({ ...prev, [name]: value }))
   }
 
   return (
