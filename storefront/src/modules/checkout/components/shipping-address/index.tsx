@@ -54,7 +54,11 @@ const ShippingAddress = ({
               id: d.id,
               first_name: customer?.first_name ?? "",
               last_name: customer?.last_name ?? "",
-              company: [d.organisation_name, d.name].filter(Boolean).join(", "),
+              // Often named after the organisation itself: don't print it twice.
+              company:
+                d.name && d.name.trim().toLowerCase() !== d.organisation_name.trim().toLowerCase()
+                  ? `${d.organisation_name}, ${d.name}`
+                  : d.organisation_name,
               address_1: d.address_1,
               address_2: d.address_2 ?? "",
               city: d.city,
