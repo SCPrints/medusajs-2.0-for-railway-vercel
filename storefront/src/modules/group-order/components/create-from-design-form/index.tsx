@@ -80,8 +80,9 @@ const CreateFromDesignForm = ({
           Your group order is live
         </h2>
         <p className="mt-2 text-sm text-emerald-800">
-          Share this link with your team — the public page shows the design,
-          who&apos;s already submitted, and a form for new participants.
+          Share this link with your team. The page shows the design, how many
+          have joined, and a form to add their size. Only you see the names
+          and sizes, when you&apos;re signed in.
         </p>
         <div className="mt-4 rounded-md border border-emerald-200 bg-white p-3 flex items-center gap-x-2">
           <code className="text-xs text-ink flex-1 break-all">

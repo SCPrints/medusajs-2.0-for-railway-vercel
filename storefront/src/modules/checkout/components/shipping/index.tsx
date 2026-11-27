@@ -7,7 +7,7 @@ import { Button, Heading, Text, clx } from "@medusajs/ui"
 import Radio from "@modules/common/components/radio"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import { setShippingMethod } from "@lib/data/cart"
 import {
   formatStoreCartShippingOptionPrice,
@@ -82,6 +82,23 @@ const Shipping: React.FC<ShippingProps> = ({
   useEffect(() => {
     setError(null)
   }, [isOpen])
+
+  // One priced option and nothing chosen yet: choose it, so "Continue to
+  // payment" isn't greyed out until the customer clicks the only choice.
+  // Once only, so a failed save shows its error instead of retrying.
+  const autoPickedRef = useRef(false)
+  useEffect(() => {
+    if (!isOpen || autoPickedRef.current || effectiveSelectedId) return
+    const only =
+      availableShippingMethods?.length === 1 ? availableShippingMethods[0] : null
+    if (
+      !only ||
+      getStoreCartShippingOptionMinorAmount(only, cart?.currency_code) === null
+    )
+      return
+    autoPickedRef.current = true
+    void set(only.id)
+  }) // every render: the guards above make it cheap and the ref makes it once
 
   return (
     <div className="bg-transparent">

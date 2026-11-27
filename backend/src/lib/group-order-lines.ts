@@ -74,6 +74,20 @@ export function sizesForBaseColour(variants: RosterVariant[], baseVariantId?: st
   return sortSizes(Array.from(sizes))
 }
 
+/**
+ * The organiser's colour's front photo, for the share page (null = no photo
+ * of that colour). The product's main photo can be another colour: a model
+ * in Bone for a White order.
+ */
+export function baseColourPhoto(
+  variants: RosterVariant[],
+  baseVariantId: string | null | undefined,
+  images: string[]
+): string | null {
+  const base = variants.find((v) => v.id === baseVariantId)
+  return base ? colourFrontImage(images, colourOf(base)) : null
+}
+
 /** The Studio's own line print size: scpPrintSizeId, else the largest print. */
 export function printSizeIdForDesign(design: Record<string, unknown>): ScpPrintSizeId {
   if (isScpPrintSizeId(design.scpPrintSizeId)) return design.scpPrintSizeId

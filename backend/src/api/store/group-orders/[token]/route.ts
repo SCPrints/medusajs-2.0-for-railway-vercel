@@ -10,7 +10,7 @@ import type GroupOrderModuleService from "../../../../modules/group-order/servic
 import { BUNDLES_MODULE } from "../../../../modules/bundles"
 import type BundlesModuleService from "../../../../modules/bundles/service"
 import { loadBundleGroupItems, type BundleGroupConfig } from "../../../../lib/bundle-group-order"
-import { sizesForBaseColour } from "../../../../lib/group-order-lines"
+import { baseColourPhoto, sizesForBaseColour } from "../../../../lib/group-order-lines"
 
 /**
  * GET /store/group-orders/:token
@@ -83,16 +83,19 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
           "variants.title",
           "variants.options.value",
           "variants.options.option.title",
+          "images.url",
         ],
         filters: { id: groupOrder.base_product_id },
       })
       const product = (products as any[])?.[0]
       if (product) {
+        const images = ((product.images ?? []) as any[]).map((i) => i?.url).filter(Boolean)
         productPreview = {
           title: typeof product.title === "string" ? product.title : null,
           handle: typeof product.handle === "string" ? product.handle : null,
           thumbnail:
-            typeof product.thumbnail === "string" ? product.thumbnail : null,
+            baseColourPhoto(product.variants ?? [], groupOrder.base_variant_id, images) ??
+            (typeof product.thumbnail === "string" ? product.thumbnail : null),
           available_sizes: sizesForBaseColour(product.variants ?? [], groupOrder.base_variant_id),
         }
       }

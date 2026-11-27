@@ -113,7 +113,8 @@ export default async function OrgDetailPage({ params }: PageProps) {
           // Staff-added artwork for the stock order form. Most organisations
           // never have any (their designs live in Our range), so hide it empty.
           { key: "designs", label: "Approved artwork", badge: designs.length, gated: designs.length === 0 },
-          { key: "inventory", label: "Inventory", badge: inventory.length },
+          // Stock we hold for the organisation: hidden when there's none.
+          { key: "inventory", label: "Inventory", badge: inventory.length, gated: inventory.length === 0 },
           {
             key: "destinations",
             label: "Destinations",

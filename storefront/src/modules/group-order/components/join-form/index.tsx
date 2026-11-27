@@ -99,7 +99,7 @@ const JoinForm = ({
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
-          placeholder="Player or recipient name"
+          placeholder="Your full name"
         />
       </div>
       {sizedItems.length ? (
@@ -173,7 +173,7 @@ const JoinForm = ({
             value={playerNumber}
             onChange={(e) => setPlayerNumber(e.target.value)}
             className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
-            placeholder="Player or jersey #"
+            placeholder="e.g. 7"
           />
         </div>
       </div>
@@ -200,7 +200,7 @@ const JoinForm = ({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-xs focus:border-brand focus:outline-hidden focus:ring-1 focus:ring-brand tablet:text-sm"
-          placeholder="So the coach can chase if needed"
+          placeholder="So the organiser can reach you"
         />
       </div>
       {error ? <p className="text-sm text-rose-700">{error}</p> : null}

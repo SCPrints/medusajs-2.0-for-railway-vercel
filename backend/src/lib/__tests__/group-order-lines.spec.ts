@@ -1,4 +1,10 @@
-import { matchSizeVariant, printSizeIdForDesign, rosterToDesignLines, sizesForBaseColour } from "../group-order-lines"
+import {
+  baseColourPhoto,
+  matchSizeVariant,
+  printSizeIdForDesign,
+  rosterToDesignLines,
+  sizesForBaseColour,
+} from "../group-order-lines"
 import { computeDecorationTotals } from "../scp-decoration-pricing"
 
 const v = (id: string, colour: string, size: string) => ({
@@ -74,6 +80,13 @@ describe("group-order-lines", () => {
     }).lines[0]
     expect(black.thumbnail).toBeUndefined()
     expect((black.metadata as any).colour_thumbnail).toBeUndefined()
+  })
+
+  it("shows the organiser's colour on the share page", () => {
+    const images = ["https://cdn/5001_STAPLE_TEE_BLUE__2.jpg", "https://cdn/5001_STAPLE_TEE_NAVY__3.jpg"]
+    expect(baseColourPhoto(variants, "navy_xl", images)).toBe("https://cdn/5001_STAPLE_TEE_NAVY__3.jpg")
+    expect(baseColourPhoto(variants, "black_s", images)).toBeNull()
+    expect(baseColourPhoto(variants, null, images)).toBeNull()
   })
 
   it("aggregates per variant, keeps names, and prices decoration", () => {

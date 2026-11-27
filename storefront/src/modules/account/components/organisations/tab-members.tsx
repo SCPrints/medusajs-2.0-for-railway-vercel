@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import {
   cancelOrgInvite,
   inviteColleague,
@@ -34,6 +34,7 @@ const ROLE_LABEL: Record<OrgRole, string> = {
 
 export default function MembersTab({ orgId, members, meCustomerId }: Props) {
   const router = useRouter()
+  const { countryCode } = useParams() as { countryCode: string }
   const [busy, startTransition] = useTransition()
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteRole, setInviteRole] = useState<OrgRole>("purchaser")
@@ -83,11 +84,14 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
     }
   }
 
-  async function handleRemove(memberId: string, label: string) {
+  async function handleRemove(memberId: string, label: string, isMe: boolean) {
     if (!(await confirmDialog(`Remove ${label} from this organisation?`, "Remove"))) return
     setFeedback(null)
     const res = await removeOrganisationMember(orgId, memberId)
-    if (res.ok) {
+    if (res.ok && isMe) {
+      // This page is members-only now: refreshing it showed "Page not found".
+      router.push(`/${countryCode}/account/organisations`)
+    } else if (res.ok) {
       setFeedback({ kind: "ok", text: "Member removed." })
       refresh()
     } else {
@@ -260,7 +264,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
                   </label>
                   <button
                     type="button"
-                    onClick={() => handleRemove(m.id, label)}
+                    onClick={() => handleRemove(m.id, label, isMe)}
                     disabled={busy || isLastOwner}
                     className="rounded-full border border-ui-border-base px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
                     title={
