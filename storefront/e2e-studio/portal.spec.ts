@@ -73,6 +73,10 @@ test("organisation buyer: sign in, open the organisation, order from the range, 
     await page.getByRole("tab", { name: /Our range/ }).click()
     await page.locator('input[aria-label*=", size "]').first().fill("2")
     await page.getByRole("button", { name: "Add all to cart" }).click()
+    // Let the add finish before leaving, as a person would. Clicking "View cart" the instant
+    // it appears cuts off the form's last request, which logs a (harmless) page error.
+    await expect(page.getByText(/Added \d+ garments? to your cart/)).toBeVisible()
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined)
     await page.getByRole("link", { name: "View cart" }).click()
     await expect(page).toHaveURL(/\/cart/)
     await expect(removeButtons(page).locator("visible=true").first()).toBeVisible()
