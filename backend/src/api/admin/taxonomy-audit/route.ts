@@ -16,22 +16,27 @@ import { TREE } from "../../../lib/shop-categories"
  *
  * For each dimension we return the count + a small sample so staff can
  * click through to the product detail page and fix it manually.
+ *
+ * One SQL read: Postgres works out the three signals per published product.
+ * It used to sweep every product through query.graph with its type, tags and
+ * categories, which blocks the event loop for about a minute on the live
+ * catalogue (27 Nov 2026, the same cause as the Shop categories health freeze).
  */
 
-const DEMOGRAPHIC_TAGS = new Set(["Men", "Women", "Kids", "Unisex"])
+const DEMOGRAPHIC_TAGS = ["Men", "Women", "Kids", "Unisex"]
 
 // Shop-category handles follow the pattern `<audience>-<sub>` (e.g.
-// `mens-t-shirts`). Build the set of audience prefixes once.
-const SHOP_AUDIENCE_PREFIXES = TREE.map((t) => `${t.handle}-`)
+// `mens-t-shirts`). Audience handles are plain words, so `mens-%` is a safe
+// LIKE prefix.
+const SHOP_AUDIENCE_PATTERNS = TREE.map((t) => `${t.handle}-%`)
 
-type ProductRow = {
+type Row = {
   id: string
   title: string | null
   handle: string | null
-  status: string | null
-  type: { value: string | null } | null
-  tags: Array<{ value: string }> | null
-  categories: Array<{ handle: string }> | null
+  has_type: boolean
+  has_demographic: boolean
+  has_shop_category: boolean
 }
 
 type SampleEntry = {
@@ -41,29 +46,29 @@ type SampleEntry = {
 }
 
 const SAMPLE_LIMIT = 25
-// Cap the walk at a sensible ceiling — same convention as other admin
-// audit / report endpoints. With ~20 suppliers down the line this may
-// need to grow, but anything > 10k should be paged client-side.
-const MAX_PRODUCTS = 10000
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as any
+  const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
 
-  const { data, metadata } = await query.graph({
-    entity: "product",
-    fields: [
-      "id",
-      "title",
-      "handle",
-      "status",
-      "type.value",
-      "tags.value",
-      "categories.handle",
-    ],
-    pagination: { take: MAX_PRODUCTS, skip: 0 },
-  })
-
-  const rows = (data ?? []) as ProductRow[]
+  // Soft-deleted types, tags and categories don't count, as with query.graph.
+  const { rows } = (await pg.raw(
+    `select p.id, p.title, p.handle,
+            coalesce(pt.value, '') <> '' as has_type,
+            exists (select 1 from product_tags x
+                      join product_tag t on t.id = x.product_tag_id and t.deleted_at is null
+                     where x.product_id = p.id and t.value = any(?::text[])) as has_demographic,
+            exists (select 1 from product_category_product x
+                      join product_category c on c.id = x.product_category_id and c.deleted_at is null
+                     where x.product_id = p.id and c.handle like any(?::text[])) as has_shop_category
+       from product p
+       left join product_type pt on pt.id = p.type_id and pt.deleted_at is null
+      where p.status = 'published' and p.deleted_at is null
+      order by p.id`,
+    [DEMOGRAPHIC_TAGS, SHOP_AUDIENCE_PATTERNS]
+  )) as { rows: Row[] }
+  const totalRow = (await pg("product").whereNull("deleted_at").count("id as count").first()) as
+    | { count?: string | number }
+    | undefined
 
   const missingType: SampleEntry[] = []
   const missingDemographic: SampleEntry[] = []
@@ -71,48 +76,32 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   let missingTypeCount = 0
   let missingDemographicCount = 0
   let missingShopCategoryCount = 0
-  let publishedCount = 0
 
   for (const product of rows) {
-    if ((product.status ?? "") !== "published") continue
-    publishedCount++
-
     const sample: SampleEntry = {
       id: product.id,
       title: product.title ?? "(no title)",
       handle: product.handle ?? "",
     }
 
-    if (!product.type?.value) {
+    if (!product.has_type) {
       missingTypeCount++
       if (missingType.length < SAMPLE_LIMIT) missingType.push(sample)
     }
-
-    const tagValues = (product.tags ?? []).map((t) => t.value)
-    const hasDemographicTag = tagValues.some((v) => DEMOGRAPHIC_TAGS.has(v))
-    if (!hasDemographicTag) {
+    if (!product.has_demographic) {
       missingDemographicCount++
-      if (missingDemographic.length < SAMPLE_LIMIT) {
-        missingDemographic.push(sample)
-      }
+      if (missingDemographic.length < SAMPLE_LIMIT) missingDemographic.push(sample)
     }
-
-    const categoryHandles = (product.categories ?? []).map((c) => c.handle)
-    const hasShopCategory = categoryHandles.some((h) =>
-      SHOP_AUDIENCE_PREFIXES.some((prefix) => h.startsWith(prefix))
-    )
-    if (!hasShopCategory) {
+    if (!product.has_shop_category) {
       missingShopCategoryCount++
-      if (missingShopCategory.length < SAMPLE_LIMIT) {
-        missingShopCategory.push(sample)
-      }
+      if (missingShopCategory.length < SAMPLE_LIMIT) missingShopCategory.push(sample)
     }
   }
 
   res.json({
-    total_products: publishedCount,
-    capped: rows.length >= MAX_PRODUCTS,
-    total_count_in_db: metadata?.count ?? null,
+    total_products: rows.length,
+    capped: false,
+    total_count_in_db: totalRow?.count != null ? Number(totalRow.count) : null,
     missing_type: {
       count: missingTypeCount,
       sample: missingType,

@@ -1703,6 +1703,9 @@ Links between our admin pages go through Medusa's router, never a page load: use
 - `order.details.before`: the **job panel** (`order-job-panel.tsx`) plus the stale badge, presence heartbeat and recently-viewed tracker. Everything else that used to stack in `order.details.after` / `side.after` is a component under `admin/components/job/widgets/` rendered inside the panel's tabs — add new order-page UI there (as a tab section), not as a new zone widget.
 - Multiple widgets in the same zone stack vertically.
 
+### Never load the whole catalogue through query.graph in a request
+Hydrating thousands of products with relations blocks the Node event loop, and the whole site stops answering: 33 s (shop menu, 25 Nov 2026) and 64 s (Shop categories health, 27 Nov). In a route, count or check in SQL through `PG_CONNECTION` (pattern: [shop-categories/health](backend/src/api/admin/shop-categories/health/route.ts), [taxonomy-audit](backend/src/api/admin/taxonomy-audit/route.ts)); query.graph is fine for one page of products.
+
 ### Auth on store routes
 Store routes under `/store/customers/me/*` are auto-protected by Medusa's core `authenticate("customer", ["session", "bearer"])` middleware. Inside the route, read the customer ID via `req.auth_context.actor_id`. Treat cross-customer lookups as 404 (not 403) so customer IDs aren't enumerable.
 

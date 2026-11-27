@@ -123,11 +123,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     { id: string; handle: string; title: string }
   >()
   try {
-    const { data } = await query.graph({
-      entity: "product",
-      fields: ["id", "handle", "title"],
-      pagination: { take: 5000, skip: 0 },
-    })
+    // Plain SQL: query.graph hydrated the whole catalogue, and stopped at 5,000.
+    const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
+    const data = await pg("product").whereNull("deleted_at").select("id", "handle", "title")
     for (const p of (data as any[]) ?? []) {
       if (typeof p?.handle === "string") {
         productInfo.set(p.id, {

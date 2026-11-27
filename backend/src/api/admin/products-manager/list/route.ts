@@ -13,9 +13,8 @@ import { z } from "zod"
  * thumbnail, description, type, tags, brand link, sales channels,
  * categories. "Missing X" filters are applied as a post-filter in JS
  * because the underlying relation-null queries don't compose cleanly
- * with query.graph's filter syntax. Catalog size (~few thousand) keeps
- * that cheap; if it grows past tens of thousands, promote to explicit
- * SQL.
+ * with query.graph's filter syntax; the flags for the candidates come
+ * from one SQL read (`qualityByProduct`).
  */
 
 const QualityFlag = z.enum([
@@ -110,28 +109,6 @@ const FIELDS = [
   "brand.handle",
 ] as const
 
-// Minimal field set for the quality-detection pass and ids_only requests.
-// Drops `.name` / `.value` / `.handle` on relations — the post-filter only
-// needs to know whether each relation has at least one row, and ids_only
-// callers throw the rows away after collecting `id`. Pulling just the
-// relation `.id` columns lets the Mikro-ORM joiner skip the wider hydration
-// path on M2M relations (tags / categories / sales_channels) and on the
-// Brand module link.
-const LIGHT_FIELDS = [
-  "id",
-  "title",
-  "status",
-  "thumbnail",
-  "description",
-  "created_at",
-  "metadata",
-  "type.id",
-  "tags.id",
-  "categories.id",
-  "sales_channels.id",
-  "brand.id",
-] as const
-
 function readBrand(p: RawProduct): { id: string; name: string | null; handle: string | null } | null {
   if (!p.brand) return null
   const raw = Array.isArray(p.brand) ? p.brand[0] : p.brand
@@ -164,6 +141,45 @@ function computeQuality(p: RawProduct) {
     has_shop_category:
       Array.isArray(p.categories) && p.categories.length > 0,
   }
+}
+
+type Quality = ReturnType<typeof computeQuality>
+
+/**
+ * computeQuality's answers for many products in one SQL read. Hydrating
+ * hundreds of products with metadata and four relations through
+ * query.graph blocks the event loop for seconds to minutes (27 Nov 2026).
+ * Soft-deleted relations and link rows don't count, as with query.graph.
+ */
+async function qualityByProduct(req: MedusaRequest, ids: string[]): Promise<Map<string, Quality>> {
+  const out = new Map<string, Quality>()
+  if (!ids.length) return out
+  const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
+  const { rows } = (await pg.raw(
+    `select p.id,
+            coalesce(p.thumbnail ~ '\\S', false) as has_image,
+            coalesce(p.metadata->'image_audit'->>'status' = 'broken', false) as broken_image,
+            coalesce(p.metadata->'pricing_audit'->>'status' = 'below_cost', false) as below_cost,
+            coalesce(p.description ~ '\\S', false) as has_description,
+            exists (select 1 from product_type t where t.id = p.type_id and t.deleted_at is null) as has_type,
+            exists (select 1 from product_tags x
+                      join product_tag t on t.id = x.product_tag_id and t.deleted_at is null
+                     where x.product_id = p.id) as has_tags,
+            exists (select 1 from product_product_brand_brand l
+                      join brand b on b.id = l.brand_id and b.deleted_at is null
+                     where l.product_id = p.id and l.deleted_at is null) as has_brand,
+            exists (select 1 from product_sales_channel l
+                      join sales_channel s on s.id = l.sales_channel_id and s.deleted_at is null
+                     where l.product_id = p.id and l.deleted_at is null) as has_sales_channel,
+            exists (select 1 from product_category_product x
+                      join product_category c on c.id = x.product_category_id and c.deleted_at is null
+                     where x.product_id = p.id) as has_shop_category
+       from product p
+      where p.id = any(?::text[])`,
+    [ids]
+  )) as { rows: Array<Quality & { id: string }> }
+  for (const { id, ...q } of rows) out.set(id, q)
+  return out
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -362,14 +378,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   //
   // The flag asks for products with a NULL/empty relation (no tags, no
   // brand, no sales-channel, etc.) — query.graph can't express that as
-  // a SQL-level filter, so we have to fetch and post-filter in JS. The
-  // single-pass version pulled the full FIELDS set (7 fat relations
-  // including .name / .value) for up to 600 rows on every filter change,
-  // which was what dragged the page out to minutes for big brands.
+  // a SQL-level filter, so we post-filter in JS. Hydrating the candidates
+  // through query.graph (even a light field set, up to 600 rows) blocked
+  // the event loop, so:
   //
-  //   Pass 1 — LIGHT_FIELDS (id + minimal relation IDs) on up to 600
-  //            rows. Enough to compute missing-X, sort, and slice to the
-  //            visible page.
+  //   Pass 1 — ids only, in sort order, for up to 600 rows (no relations
+  //            to hydrate); their quality flags in one SQL read. Enough to
+  //            filter, and slice to the visible page.
   //   Pass 2 — full FIELDS limited to the visible page's IDs (≤ pageSize,
   //            i.e. 25-200). Tiny join cost compared to a 600-row fetch.
   //
@@ -377,11 +392,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // single-pass behaviour because they don't need the over-fetch.
   if (hasQualityFilter) {
     const lightTake = idsOnly ? Math.min(idsLimit, 1000) : 600
-    let lightRows: RawProduct[] = []
+    let candidateIds: string[] = []
+    let quality = new Map<string, Quality>()
     try {
       const { data } = (await query.graph({
         entity: "product",
-        fields: LIGHT_FIELDS as unknown as string[],
+        fields: ["id"],
         filters,
         pagination: {
           take: lightTake,
@@ -389,7 +405,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           order: { [field]: direction },
         },
       })) as { data?: any[] }
-      lightRows = (data as RawProduct[]) ?? []
+      candidateIds = ((data as RawProduct[]) ?? []).map((p) => p.id)
+      quality = await qualityByProduct(req, candidateIds)
     } catch (err: any) {
       res.status(500).json({
         message: `products-manager list (pass 1) failed: ${err?.message ?? err}`,
@@ -398,8 +415,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     const flags = new Set(body.missing!)
-    const filtered = lightRows.filter((p) => {
-      const q = computeQuality(p)
+    const filtered = candidateIds.filter((id) => {
+      const q = quality.get(id)
+      if (!q) return false
       if (flags.has("image") && q.has_image) return false
       // Inverted polarity vs the "missing X" flags: keep only products
       // the audit marked broken (thumbnail present but the URL is dead).
@@ -413,18 +431,18 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       if (flags.has("shop_category") && q.has_shop_category) return false
       return true
     })
-    const truncated = lightRows.length >= lightTake
+    const truncated = candidateIds.length >= lightTake
 
     if (idsOnly) {
       res.json({
-        ids: filtered.slice(0, idsLimit).map((p) => p.id),
+        ids: filtered.slice(0, idsLimit),
         count: filtered.length,
         truncated,
       })
       return
     }
 
-    const pageIds = filtered.slice(offset, offset + limit).map((p) => p.id)
+    const pageIds = filtered.slice(offset, offset + limit)
     if (pageIds.length === 0) {
       res.json({
         products: [],
@@ -481,9 +499,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   try {
     const { data, metadata } = (await query.graph({
       entity: "product",
-      fields: idsOnly
-        ? (LIGHT_FIELDS as unknown as string[])
-        : (FIELDS as unknown as string[]),
+      // ids_only keeps only the ids, so don't hydrate relations for them.
+      fields: idsOnly ? ["id"] : (FIELDS as unknown as string[]),
       filters,
       pagination: {
         take: underlyingTake,
