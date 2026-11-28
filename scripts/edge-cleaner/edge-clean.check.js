@@ -504,3 +504,37 @@ console.log("ok: faint pixels take the colour of the art round them");
   assert.strictEqual(band(none, 0, 50).empty, band(none, 0, 50).all, "Dot strength 0% prints nothing");
   console.log("ok: whole-picture halftone (white, black and pink all dots at one strength)", (plain.white / plain.all).toFixed(2), (ring.black / ring.all).toFixed(2));
 }
+
+{ // Print size: where the art is, and the size stamped into the saved PNG
+  const { artBox, withPrintSize, process } = require("./edge-clean.js");
+  const w = 20, h = 12, px = new Uint8ClampedArray(w * h * 4), pic = { width: w, height: h, data: px };
+  const put = (x, y, v) => { const p = (y * w + x) * 4; px[p] = px[p + 1] = px[p + 2] = v; px[p + 3] = 255; };
+  assert.strictEqual(artBox(pic), null, "an empty picture has no art");
+  put(4, 3, 200); put(15, 9, 200); put(18, 1, 10); // two bright pixels and one nearly black
+  assert.deepStrictEqual(artBox(pic), [4, 1, 18, 9], "the box goes round every pixel that isn't empty");
+  assert.deepStrictEqual(artBox(pic, 18), [4, 3, 15, 9], "on black, only pixels brighter than the level count");
+  const disc = process({ width: W, height: W, data }, { scale: 4 }).box; // the red disc: radius 12 round 20, at 4x, speck dropped
+  assert(disc && Math.abs(disc[0] - 32) <= 3 && Math.abs(disc[2] - 127) <= 3 && Math.abs(disc[1] - 32) <= 3, "process says where the art ended up, got " + disc);
+
+  const zlib = require("zlib");
+  const chunk = (type, body) => { const b = Buffer.alloc(12 + body.length); b.writeUInt32BE(body.length, 0); b.write(type, 4, "ascii"); body.copy(b, 8); b.writeUInt32BE(zlib.crc32(b.subarray(4, 8 + body.length)), 8 + body.length); return b; };
+  const read = (png) => { // every chunk, with its checksum verified
+    const list = [];
+    for (let o = 8; o < png.length;) {
+      const len = png.readUInt32BE(o), type = png.toString("ascii", o + 4, o + 8);
+      assert.strictEqual(png.readUInt32BE(o + 8 + len), zlib.crc32(png.subarray(o + 4, o + 8 + len)), type + " checksum");
+      list.push({ type, body: png.subarray(o + 8, o + 8 + len) }); o += 12 + len;
+    }
+    return list;
+  };
+  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), ihdr = chunk("IHDR", Buffer.alloc(13)), idat = chunk("IDAT", Buffer.from([1, 2, 3])), iend = chunk("IEND", Buffer.alloc(0));
+  const a = read(Buffer.from(withPrintSize(new Uint8Array(Buffer.concat([sig, ihdr, idat, iend])), 300)));
+  assert.deepStrictEqual(a.map((c) => c.type), ["IHDR", "pHYs", "IDAT", "IEND"], "the size goes straight after the header");
+  assert.deepStrictEqual([a[1].body.readUInt32BE(0), a[1].body.readUInt32BE(4), a[1].body[8]], [11811, 11811, 1], "300 px per inch = 11811 px per metre, both ways");
+  assert(a[2].body.equals(Buffer.from([1, 2, 3])), "the pixels are untouched");
+  const had = Buffer.concat([sig, ihdr, chunk("sRGB", Buffer.from([0])), chunk("pHYs", Buffer.from([0, 0, 11, 19, 0, 0, 11, 19, 1])), idat, iend]);
+  const b = read(Buffer.from(withPrintSize(new Uint8Array(had), 500)));
+  assert.deepStrictEqual(b.map((c) => c.type), ["IHDR", "pHYs", "sRGB", "IDAT", "IEND"], "a size already in the file is replaced, not doubled");
+  assert.strictEqual(b[1].body.readUInt32BE(0), 19685);
+  console.log("ok: print size (art box", disc.join(","), "· PNG stamped and re-stamped)");
+}

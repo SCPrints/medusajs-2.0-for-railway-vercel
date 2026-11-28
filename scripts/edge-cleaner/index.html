@@ -110,8 +110,8 @@
 
   <h2>Print size <button class="qm" data-help="print" title="What is this for?">?</button></h2>
   <label class="row"><span>Print width <button class="qm" data-help="print" title="What is this for?">?</button></span>
-    <input id="printW" type="number" min="3" max="120" step="0.5" value="28"> cm
-    <small>How wide the whole image will be printed. Sets the dot size and the checks below.</small></label>
+    <input id="printW" type="number" min="3" max="120" step="0.5" value="28"> cm <i id="printH" style="font-style:normal;color:var(--muted);font-size:12px"></i>
+    <small>How wide the artwork will print. The file is saved at exactly this size, with the empty space round it trimmed off. Sets the dot size and the checks below.</small></label>
   <div id="checks"></div>
 
   <div id="flat1">
@@ -218,6 +218,7 @@
  <div class="save">
   <div class="saverow"><button class="primary" id="download" disabled>Download clean PNG</button><button class="qm" data-help="save" title="What do I get?">?</button></div>
   <small id="saveInfo">Load artwork to start.</small>
+  <small id="saveNote" hidden>Saved at print size. Print it at 100%: don't resize it in the print software, or the dots and edges blur. For another size, change Print width and download again.</small>
  </div>
 </aside>
 <main>
@@ -239,7 +240,7 @@
   <div class="bd"><div id="helpText"></div><div id="helpEx"></div></div>
 </dialog>
 
-<script src="edge-clean.js?v=19"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
+<script src="edge-clean.js?v=20"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
 <script>
 "use strict";
 if (!window.EdgeClean) { // opened from inside a zip, or copied without its partner file
@@ -634,9 +635,21 @@ function flatOpts(v, scale) {
 }
 // Print size turns dots-per-inch into output pixels, and feeds the checks.
 const printIn = () => Math.min(120, Math.max(3, +$("printW").value || 28)) / 2.54;
-const outPpi = () => source.width * +$("scale").value / printIn();
+// Print width is the width of the ART, not of the file: the empty space round it is trimmed off on
+// download, and the PNG is stamped with its print size so nobody resizes it afterwards (shrinking a file
+// once the dots are made blurs them away). The art's width in source px is guessed here from the picture
+// going in, and run() corrects it from the result when the guess was out.
+let span = null;
+function artSpan() {
+  if (!span || span.src !== source || span.kind !== kind) {
+    const b = EdgeClean.artBox(source, kind === "flat" ? null : +$(kind === "backing" ? "artLevel" : "black").value);
+    span = { src: source, kind, px: b ? b[2] - b[0] + 1 : source.width };
+  }
+  return span.px;
+}
+const outPpi = () => artSpan() * +$("scale").value / printIn();
 const dotPx = (lpi) => Math.max(2, outPpi() / lpi);
-const filePpi = () => source.width / printIn();
+const filePpi = () => artSpan() / printIn();
 const pxMode = () => $("dotUnit").value === "px";
 const darkDot = () => (pxMode() ? Math.max(2, +$("dotpx").value * +$("scale").value) : dotPx(+$("lpi").value)); // output px
 const darkSettings = () => ({ dark: true, method: kind, scale: +$("scale").value, black: +$("black").value, fade: +$("fade").value,
@@ -671,7 +684,7 @@ function renderChecks() {
   const box = $("checks"); box.innerHTML = "";
   if (!original) return;
   const add = (lvl, text) => { const d = document.createElement("div"); d.className = "chk " + lvl; d.append(Object.assign(document.createElement("span"), { textContent: text })); box.append(d); return d; };
-  const ppi = Math.round(original.width / printIn()); // same bands as the Studio's DPI warning
+  const ppi = Math.round(filePpi()); // same bands as the Studio's DPI warning
   add(ppi >= 250 ? "ok" : ppi >= 150 ? "warn" : "bad", ppi >= 250 ? `Sharp at this size (${ppi} px per inch).`
     : ppi >= 150 ? `A little soft at this size (${ppi} px per inch). Fine for most art.`
     : `Low resolution at this size (${ppi} px per inch). Detail will look soft. Print it smaller or ask for a bigger file.`);
@@ -717,12 +730,19 @@ onmessage = (e) => { const out = EdgeClean.process(e.data.img, e.data.opts); pos
   } catch { return null; }
 }
 worker = newWorker();
-function run() {
+function run(again) {
   if (!source) return;
-  const id = ++jobId, o = settings();
+  const id = ++jobId, o = settings(), inches = printIn();
   if (busy && worker) { worker.terminate(); worker = newWorker(); }
   setBusy(true);
-  const done = (out) => { if (id === jobId) { show(out); setBusy(false); } };
+  const done = (out) => {
+    if (id !== jobId) return;
+    // The art came out a different width than guessed (specks dropped, a backing margin added): the dots
+    // and checks were sized for the wrong print width, so do it once more with the real one.
+    const real = out.box ? (out.box[2] - out.box[0] + 1) / o.scale : span.px;
+    if (again !== true && Math.abs(real - span.px) > real * 0.01) { span.px = real; busy = false; return run(true); }
+    show(out, inches); setBusy(false);
+  };
   if (worker) {
     worker.onmessage = (e) => done(e.data.out);
     worker.postMessage({ id, img: { width: source.width, height: source.height, data: source.data }, opts: o });
@@ -736,10 +756,19 @@ function setBusy(b) {
 function syncSave() { // never save a result that's about to change, or before the gap check is applied
   $("download").disabled = busy || !result || !!review;
   if (review) $("saveInfo").textContent = "Apply the gap check before saving.";
-  else if (result) $("saveInfo").textContent = `${fileName}-clean.png · ${result.width} × ${result.height} px`;
+  else if (result) $("saveInfo").textContent = `${fileName}-clean.png · ${saved.cm[0]} × ${saved.cm[1]} cm · ${saved.w} × ${saved.h} px`;
+  $("saveNote").hidden = !result || !!review;
+  $("printH").textContent = result ? `wide × ${saved.cm[1]} cm tall` : "";
 }
-function show(out) {
-  result = out.image; thin = out.thin || null; renderChecks();
+// What the download will be: the result trimmed to the art and exactly Print width wide. The dots were
+// sized from the guessed art width, which run() keeps within 1% of this, so they stay the size asked for.
+let saved = null;
+function show(out, inches) {
+  result = out.image; thin = out.thin || null;
+  const [x0, y0, x1, y1] = out.box || [0, 0, result.width - 1, result.height - 1], w = x1 - x0 + 1, h = y1 - y0 + 1;
+  const ppi = w / inches;
+  saved = { x0, y0, w, h, ppi, cm: [w, h].map((px) => (px / ppi * 2.54).toFixed(1)) };
+  renderChecks();
   const c = $("after");
   c.width = result.width; c.height = result.height;
   c.getContext("2d").putImageData(new ImageData(result.data, result.width, result.height), 0, 0);
@@ -861,13 +890,18 @@ $("paintUndo").onclick = () => { if (!paintHist.length) return; writePaint(paint
 $("paintClear").onclick = () => { paintHist.push(paintMask); writePaint(null); syncPaint(); drawBefore(); run(); };
 document.addEventListener("keyup", (e) => { if (e.key === " ") spaceDown = false; });
 
-$("download").onclick = () => $("after").toBlob((blob) => {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = fileName + "-clean.png";
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}, "image/png");
+$("download").onclick = () => {
+  const s = saved, c = document.createElement("canvas"); // trimmed to the art
+  c.width = s.w; c.height = s.h;
+  c.getContext("2d").putImageData(new ImageData(result.data, result.width, result.height), -s.x0, -s.y0);
+  c.toBlob(async (blob) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([EdgeClean.withPrintSize(new Uint8Array(await blob.arrayBuffer()), s.ppi)], { type: "image/png" }));
+    a.download = fileName + "-clean.png";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, "image/png");
+};
 
 // Help pop-ups: a "?" by EVERY control and section, in every artwork type, so staff never have to guess which
 // ones have help. Each has words, most have test pictures made by the real code, and the settings also show
@@ -913,7 +947,8 @@ const HELP = {
     "Hold <b>Space</b> and drag to move around while a brush is on. Pick <b>Off</b> to go back to dragging normally.",
   ] },
   print: { title: "Print width", text: [
-    "How wide the <b>whole image</b> will be printed on the garment, in centimetres. Include any empty space round the design, because it's the width of the file, not just the art.",
+    "How wide the <b>artwork</b> will be printed on the garment, in centimetres, measured across the design itself. Empty space round the design doesn't count: it is trimmed off when you download. The height that goes with it shows next to the box.",
+    "The downloaded file is <b>saved at exactly this size</b>, so the print software opens it at the right size. <b>Don't resize it there.</b> The dots are made for this size, and shrinking the file afterwards blurs them into a pale patch. For another size, change this number and download again.",
     "It does two things. It sets the <b>dot size</b>, so dots come out the same real size whether the print is a pocket logo or a full back. And it runs the <b>checks</b> under it: whether the file has enough pixels to look sharp at that size, whether the dots are a safe size, and whether any lines are too thin to print.",
     "Common sizes: pocket or left chest about 10 cm, A4 about 20 cm, A3 about 28 cm, oversize back about 35 cm.",
   ] },
@@ -938,7 +973,7 @@ Object.assign(HELP, {
   start: { title: "How to use Edge Cleaner", text: [
     "Turns customer artwork into a print-ready PNG for DTF: background gone, clean edges, and no see-through pixels.",
     "<b>1. Load the artwork.</b> Drop a PNG or JPG on the box, or click it to choose a file. The tool picks the <b>Artwork type</b> for you: art on a plain black background goes to <i>On black: keep dark detail</i>, everything else to <i>Flat background</i>. Change it if it picked wrong.",
-    "<b>2. Set the Print width</b> to the size it will be printed. The checks under it warn about a file that's too small and lines too thin to print.",
+    "<b>2. Set the Print width</b> to the size the artwork will be printed. The file is saved at that size, and the dots are made for it, so set it before you download. The checks under it warn about a file that's too small and lines too thin to print.",
     "<b>3. Check the result.</b> Before is on the left, After on the right. Use <b>Preview on</b> to see it on different shirt colours, and zoom in on the edges.",
     "<b>4. Fix what's wrong.</b> For a flat background, click the picture to erase leftovers or bring art back. For art on black, use Paint fixes. The settings under <b>Advanced</b> rarely need touching.",
     "<b>5. Download clean PNG.</b>",
@@ -1041,7 +1076,8 @@ Object.assign(HELP, {
     "Check on a dark colour and a light one before downloading. A pale ring only shows on dark; a dark ring only shows on light.",
   ] },
   save: { title: "Download clean PNG", text: [
-    "Saves the After picture as a PNG with a transparent background. The file is named after the original with <i>-clean</i> on the end, and the line under the button shows its size in pixels.",
+    "Saves the After picture as a PNG with a transparent background, trimmed to the artwork. The file is named after the original with <i>-clean</i> on the end, and the line under the button shows its size in centimetres and pixels.",
+    "The print size is stored in the file, so it opens at the <b>Print width</b> you set. Print it at 100%. Resizing it in the print software blurs the dots and the edges: change Print width here and download again instead. If your print software ignores the stored size, type in the centimetres shown under the button.",
     "Every pixel in it is either solid or empty. There are no see-through pixels, which DTF can't print cleanly.",
     "Before downloading, read the checks under <b>Print width</b> and look at the After picture on the shirt colour it will be printed on.",
     "While the gap check is open the button waits: press Apply first.",

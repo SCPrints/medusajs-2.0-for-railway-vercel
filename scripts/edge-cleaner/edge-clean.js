@@ -1019,9 +1019,50 @@
   function process(img, opts) {
     var out = (opts.dark ? darkArt : opts.halftone ? flatHalftone : clean)(img, opts);
     if (opts.minLinePx && !out.thin) out.thin = thinLines(out.image, opts.minLinePx);
+    out.box = artBox(out.image);
     return out;
   }
 
-  var api = { process: process, flatHalftone: flatHalftone, thinLines: thinLines, clean: clean, removeOutside: removeOutside, removeAt: removeAt, removeGaps: removeGaps, findGaps: findGaps, removeRegions: removeRegions, fillScraps: fillScraps, darkArt: darkArt, darkSizes: darkSizes, borderColour: borderColour, DARK_DEFAULTS: DARK_DEFAULTS, removeBackground: removeBackground, restoreAt: restoreAt, selectAt: selectAt, selectSimilar: selectSimilar, eraseMask: eraseMask, estimateMatte: estimateMatte, upscale: upscale, DEFAULTS: DEFAULTS };
+  // Where the art is: [x0, y0, x1, y1] round every pixel that isn't empty and, when `level` is given (art
+  // on black), is brighter than it. null when there is none. Print width is measured across this box, and
+  // the download is trimmed to it. Scans each row in from both ends, so it only reads the margins.
+  function artBox(img, level) {
+    var w = img.width, h = img.height, d = img.data, x0 = w, y0 = -1, x1 = -1, y1 = -1;
+    var art = function (p) { return d[p + 3] && (level == null || Math.max(d[p], d[p + 1], d[p + 2]) > level); };
+    for (var y = 0; y < h; y++) {
+      var row = y * w * 4, x = 0, r = w - 1;
+      while (x < w && !art(row + x * 4)) x++;
+      if (x === w) continue;
+      while (!art(row + r * 4)) r--;
+      if (x < x0) x0 = x;
+      if (r > x1) x1 = r;
+      if (y0 < 0) y0 = y;
+      y1 = y;
+    }
+    return x1 < 0 ? null : [x0, y0, x1, y1];
+  }
+
+  // PNG bytes with the print resolution stored in them (a pHYs chunk straight after the header), so print
+  // software opens the file at its real size and nobody resizes it by hand. Shrinking a file after the
+  // dots are made blurs them away. ppi = pixels per inch. Replaces a pHYs chunk that is already there.
+  function withPrintSize(png, ppi) {
+    var ppm = Math.round(ppi / 0.0254), c = new Uint8Array(21), v = new DataView(c.buffer), crc = 0xffffffff, i, k;
+    v.setUint32(0, 9); c.set([112, 72, 89, 115], 4); v.setUint32(8, ppm); v.setUint32(12, ppm); c[16] = 1; // "pHYs", per metre
+    for (i = 4; i < 17; i++) { crc ^= c[i]; for (k = 0; k < 8; k++) crc = crc & 1 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1; }
+    v.setUint32(17, (crc ^ 0xffffffff) >>> 0);
+    var src = new DataView(png.buffer, png.byteOffset, png.byteLength), cut = null;
+    for (var o = 33; o + 12 <= png.length; o += 12 + src.getUint32(o)) { // chunks between the header and the pixels
+      var type = String.fromCharCode(png[o + 4], png[o + 5], png[o + 6], png[o + 7]);
+      if (type === "pHYs") cut = [o, o + 12 + src.getUint32(o)];
+      if (type === "IDAT" || cut) break;
+    }
+    var rest = cut ? png.length - (cut[1] - cut[0]) : png.length, out = new Uint8Array(rest + 21);
+    out.set(png.subarray(0, 33)); out.set(c, 33); // 33 = signature (8) + IHDR chunk (25)
+    if (cut) { out.set(png.subarray(33, cut[0]), 54); out.set(png.subarray(cut[1]), 54 + cut[0] - 33); }
+    else out.set(png.subarray(33), 54);
+    return out;
+  }
+
+  var api = { process: process, artBox: artBox, withPrintSize: withPrintSize,flatHalftone: flatHalftone, thinLines: thinLines, clean: clean, removeOutside: removeOutside, removeAt: removeAt, removeGaps: removeGaps, findGaps: findGaps, removeRegions: removeRegions, fillScraps: fillScraps, darkArt: darkArt, darkSizes: darkSizes, borderColour: borderColour, DARK_DEFAULTS: DARK_DEFAULTS, removeBackground: removeBackground, restoreAt: restoreAt, selectAt: selectAt, selectSimilar: selectSimilar, eraseMask: eraseMask, estimateMatte: estimateMatte, upscale: upscale, DEFAULTS: DEFAULTS };
   return api;
 });
