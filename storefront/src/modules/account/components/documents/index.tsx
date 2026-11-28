@@ -83,10 +83,6 @@ const DocumentsList = ({ documents }: { documents: SupplierDocument[] }) => {
           <LocalizedClientLink href="/account/spend" className={link}>Spend</LocalizedClientLink>
         </li>
         <li className={row}>
-          <span className="text-sm text-ui-fg-base">Your price list</span>
-          <LocalizedClientLink href="/account/prices" className={link}>Prices</LocalizedClientLink>
-        </li>
-        <li className={row}>
           <span className="text-sm text-ui-fg-base">Quotes</span>
           <LocalizedClientLink href="/account/quotes" className={link}>Quotes</LocalizedClientLink>
         </li>

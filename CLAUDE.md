@@ -415,6 +415,8 @@ Top-level grouping of customers. Members have a role (owner / purchaser / viewer
 
 **Feature freeze (from 28 Nov 2026):** no new portal features until the first organisation's first order has been delivered. Bug fixes only, each with a check (see Tests). "Ready" means `pnpm test:portal` and the portal browser journey pass after the last deploy, not another open-ended review round.
 
+**Prices page hidden (28 Nov 2026):** `/account/prices` (the downloadable price list from the portal extras) is no longer linked from the account menu or the Documents page; for tier customers it repeated one flat price across every quantity column. The page and `/api/account/prices` still exist. Garments show the signed-in customer's own price.
+
 **Optional tabs:** Uniform allowance and Brand kit are hidden on the customer's organisation page until staff switch them on for that organisation (admin → Organisations; stored in `organisation.metadata.portal_extras`). Drafts & approvals stays visible: checkout's "Save as a draft" / "Send for approval" and member spend limits lead to it.
 
 **Members added before they have a login** are guest records, and sign-up makes a separate account (Medusa never merges). Confirming the email moves the guest record's memberships onto the account (`claimGuestMemberships`, called from `/store/customers/verify-email`), and staff adding a guest record when a confirmed login exists get the login instead (`preferAccountCustomerId`): [organisation-guest-claim.ts](backend/src/services/organisation-guest-claim.ts).

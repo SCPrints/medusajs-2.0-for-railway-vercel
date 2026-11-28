@@ -48,7 +48,8 @@ const NAV_GROUPS: Array<{ title: string; links: NavLink[] }> = [
     title: "Business",
     links: [
       { href: "/account/organisations", label: "Organisations", testId: "organisations-link" },
-      { href: "/account/prices", label: "Prices", testId: "prices-link" },
+      // No Prices link (hidden 28 Nov 2026): for tier customers the page repeated one flat
+      // price across every quantity column. Garments show the customer's price themselves.
       { href: "/account/spend", label: "Spend", testId: "spend-link" },
       { href: "/account/documents", label: "Documents", testId: "documents-link" },
     ],
