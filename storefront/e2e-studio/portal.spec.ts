@@ -71,6 +71,8 @@ test("organisation buyer: sign in, open the organisation, order from the range, 
     await page.goto("/au/account/organisations")
     await page.getByRole("link", { name: ORG }).first().click()
     await page.getByRole("tab", { name: /Our range/ }).click()
+    // Each garment shows the buyer's price before any quantity is typed.
+    await expect(page.getByTestId("range-item-price").first()).toContainText(/\$\d+\.\d\d each/, { timeout: 20_000 })
     await page.locator('input[aria-label*=", size "]').first().fill("2")
     await page.getByRole("button", { name: "Add all to cart" }).click()
     // Let the add finish before leaving, as a person would. Clicking "View cart" the instant
