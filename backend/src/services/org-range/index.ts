@@ -20,6 +20,7 @@ import {
 import { recomputeScpCartPricingPure } from "../../lib/recompute-scp-cart-pricing"
 import { setupFeesByGroup } from "../../lib/reorder-lines"
 import { compactOrderRoster, garmentGroupFor, isPackingChoice, mergeOrderRoster, type RosterGarmentGroup } from "../../lib/roster"
+import { SCP_BLANK_ALIGNED_QUANTITY_TIERS } from "../../lib/scp-dtf-print-pricing"
 import { computeScpLineDescriptor, type ScpLineDescriptor } from "../../lib/scp-line-descriptor"
 import {
   resolveGarmentUnitAmountMajor,
@@ -310,6 +311,34 @@ export async function priceRangeLines(
   lines: RangeLine[]
 ): Promise<RangePrice> {
   const query = scope.resolve(ContainerRegistrationKeys.QUERY) as unknown as RemoteJoinerGraphLike
+  const { priced, descriptors } = await priceLinesInCart(scope, cart, lines)
+
+  const fees = await rangeSetupFees(scope, lines, descriptors)
+  const feeUnit = new Map<string, number>()
+  for (const id of Array.from(new Set(fees.map((f) => f.variant_id).filter((v): v is string => !!v)))) {
+    try {
+      feeUnit.set(id, await resolveGarmentUnitAmountMajor({ query, variantId: id, quantity: 1, cart }))
+    } catch {
+      // Unknown fee price: shown as "to be confirmed", never as $0.
+    }
+  }
+  const setup_fees = fees.map((f) => {
+    const unit = f.variant_id ? feeUnit.get(f.variant_id) ?? null : null
+    return { title: f.title, quantity: f.quantity, unit_price: unit, total: unit === null ? null : round2(unit * f.quantity) }
+  })
+
+  return {
+    currency_code: (cart.currency_code ?? cart.region?.currency_code ?? "aud").toLowerCase(),
+    lines: priced,
+    setup_fees,
+    total_quantity: priced.reduce((n, l) => n + l.quantity, 0),
+    total: round2(priced.reduce((n, l) => n + l.total, 0) + setup_fees.reduce((n, f) => n + (f.total ?? 0), 0)),
+  }
+}
+
+/** The lines priced as this cart would price them: a descriptor each, then the cart-wide re-price. */
+async function priceLinesInCart(scope: MedusaContainer, cart: CartRow, lines: RangeLine[]) {
+  const query = scope.resolve(ContainerRegistrationKeys.QUERY) as unknown as RemoteJoinerGraphLike
   const tier = await resolveTierForCartCustomer(query, cart.customer_id ?? null)
   const descriptors = await Promise.all(
     lines.map((l) =>
@@ -358,28 +387,55 @@ export async function priceRangeLines(
     const unit = prices.get(`new_${i}`) ?? descriptors[i].unitPriceMajor
     return { design_id: l.design_id, variant_id: l.variant_id, quantity: l.quantity, unit_price: unit, total: round2(unit * l.quantity) }
   })
+  return { priced, descriptors }
+}
 
-  const fees = await rangeSetupFees(scope, lines, descriptors)
-  const feeUnit = new Map<string, number>()
-  for (const id of Array.from(new Set(fees.map((f) => f.variant_id).filter((v): v is string => !!v)))) {
+export type RangePriceBreak = { min_quantity: number; unit_price: number }
+
+// shortcut: per-backend-machine memory, 5 minutes; a price or tier change shows after that. Move to the cache module if a second machine is added.
+const priceBreakCache = new Map<string, { at: number; breaks: Record<string, RangePriceBreak[]> }>()
+const PRICE_BREAK_TTL_MS = 5 * 60_000
+
+/**
+ * What one garment of each ready range item costs THIS customer at the first
+ * quantity of every band (their tier, decoration from the stored design, GST
+ * included): the price the order form shows before anything is typed.
+ * Each is priced alone in an empty cart with the same code the cart uses; the
+ * running price (priceRangeLines) still counts everything in the real cart.
+ * Smallest size of the saved colour. An item that can't be priced is left
+ * out, never guessed. One design at a time: their payloads can be megabytes.
+ */
+export async function rangeItemPriceBreaks(
+  scope: MedusaContainer,
+  organisationId: string,
+  customerId: string
+): Promise<Record<string, RangePriceBreak[]>> {
+  const key = `${organisationId}:${customerId}`
+  const hit = priceBreakCache.get(key)
+  if (hit && Date.now() - hit.at < PRICE_BREAK_TTL_MS) return hit.breaks
+
+  const items = (await listRangeItems(scope, organisationId)).filter((i) => i.ready && i.variants.length > 0)
+  // shortcut: AUD only, like the whole catalogue; read the region's currency if a second one is ever sold.
+  const cart: CartRow = { id: "price-preview", customer_id: customerId, currency_code: "aud", items: [] }
+  const breaks: Record<string, RangePriceBreak[]> = {}
+  for (const item of items) {
+    const variant = item.variants.find((v) => v.colour === item.base_colour) ?? item.variants[0]
     try {
-      feeUnit.set(id, await resolveGarmentUnitAmountMajor({ query, variantId: id, quantity: 1, cart }))
+      const [line] = await buildRangeOrderLines(scope, organisationId, [
+        { design_id: item.design_id, variant_id: variant.id, quantity: 1 },
+      ])
+      const rows: RangePriceBreak[] = []
+      for (const band of SCP_BLANK_ALIGNED_QUANTITY_TIERS) {
+        const { priced } = await priceLinesInCart(scope, cart, [{ ...line, quantity: band.minQuantity }])
+        rows.push({ min_quantity: band.minQuantity, unit_price: priced[0].unit_price })
+      }
+      breaks[item.design_id] = rows
     } catch {
-      // Unknown fee price: shown as "to be confirmed", never as $0.
+      // Not priceable here (e.g. a quoted decoration): the row simply shows no price.
     }
   }
-  const setup_fees = fees.map((f) => {
-    const unit = f.variant_id ? feeUnit.get(f.variant_id) ?? null : null
-    return { title: f.title, quantity: f.quantity, unit_price: unit, total: unit === null ? null : round2(unit * f.quantity) }
-  })
-
-  return {
-    currency_code: (cart.currency_code ?? cart.region?.currency_code ?? "aud").toLowerCase(),
-    lines: priced,
-    setup_fees,
-    total_quantity: priced.reduce((n, l) => n + l.quantity, 0),
-    total: round2(priced.reduce((n, l) => n + l.total, 0) + setup_fees.reduce((n, f) => n + (f.total ?? 0), 0)),
-  }
+  priceBreakCache.set(key, { at: Date.now(), breaks })
+  return breaks
 }
 
 export type TeamDetailsInput = {

@@ -70,6 +70,20 @@ r = await S("POST", `/store/customers/me/organisations/${noTierOrg.id}/range/pri
 check("Silver unit price is lower than no-tier price", unitSilver < r.body.lines?.[0]?.unit_price, { silver: unitSilver, none: r.body.lines?.[0]?.unit_price })
 check("price includes no setup fee for a print (DTF) design", (silverPrice.setup_fees ?? []).length === 0, silverPrice.setup_fees)
 
+
+describe("Price shown before any quantity is typed")
+r = await S("GET", `/store/customers/me/organisations/${org.id}/range/price-breaks`, buyer)
+const poloBreaks = r.body?.breaks?.[poloDesign.id]
+check("each ready design has a price at all five quantity bands", r.status === 200 && poloBreaks?.length === 5 && r.body.breaks[hoodieDesign.id]?.length === 5, r.body)
+check("bands start at 1, 10, 20, 50 and 100 garments", JSON.stringify(poloBreaks?.map((b) => b.min_quantity)) === "[1,10,20,50,100]", poloBreaks)
+check("the price never goes up with quantity", !!poloBreaks?.every((b, n) => b.unit_price > 0 && (n === 0 || b.unit_price <= poloBreaks[n - 1].unit_price)), poloBreaks)
+// It must be the same number the cart would charge: 10 of that garment alone in an empty cart.
+const previewCart = await newCart(buyer.token)
+r = await S("POST", `/store/customers/me/organisations/${org.id}/range/price`, buyer, { cart_id: previewCart.id, items: [{ design_id: poloDesign.id, variant_id: V("test-polo", "Navy / S").id, quantity: 10 }] })
+check("matches what the cart charges for 10 of that garment", r.status === 200 && r.body.lines?.[0]?.unit_price === poloBreaks?.find((b) => b.min_quantity === 10)?.unit_price, { cart: r.body.lines?.[0]?.unit_price, shown: poloBreaks })
+r = await S("GET", `/store/customers/me/organisations/${org.id}/range/price-breaks`, outsider)
+check("outsider: 404 on the prices", r.status === 404, r.status)
+
 describe("Add to cart from the range")
 r = await S("POST", `/store/customers/me/organisations/${org.id}/range/add-to-cart`, viewer, { cart_id: buyerCart.id, items })
 check("viewer cannot add to cart", r.status >= 400, r.status)

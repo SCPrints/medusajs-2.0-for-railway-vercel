@@ -132,6 +132,26 @@ export async function getOrganisationRange(orgId: string): Promise<OrgRange> {
   }
 }
 
+export type RangePriceBreaks = Record<string, Array<{ min_quantity: number; unit_price: number }>>
+
+/**
+ * Each range item's price for one garment at 1, 10, 20, 50 and 100 garments
+ * (this customer's tier, inc GST), so the order form shows a price before
+ * anything is typed. Empty when it can't be read: the form still works.
+ */
+export async function getOrganisationRangePriceBreaks(orgId: string): Promise<RangePriceBreaks> {
+  const headers = await getAuthHeaders()
+  if (!("authorization" in headers)) return {}
+  try {
+    const res = (await sdk.client.fetch(`${base(orgId)}/range/price-breaks`, { headers, cache: "no-store" })) as {
+      breaks?: RangePriceBreaks
+    }
+    return res.breaks ?? {}
+  } catch {
+    return {}
+  }
+}
+
 /** This customer's price for the quantities typed so far (server-priced, inc GST). */
 export async function priceOrganisationRange(
   orgId: string,

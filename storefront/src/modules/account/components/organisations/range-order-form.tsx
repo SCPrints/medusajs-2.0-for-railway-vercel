@@ -6,12 +6,14 @@ import { useParams, useRouter } from "next/navigation"
 import {
   addOrganisationRangeToCart,
   addRosterMembers,
+  getOrganisationRangePriceBreaks,
   priceOrganisationRange,
   type GarmentGroup,
   type PackingOption,
   type RangeItem,
   type RangeOrderLine,
   type RangePrice,
+  type RangePriceBreaks,
   type RosterMember,
 } from "@lib/data/org-team"
 import { convertToLocale } from "@lib/util/money"
@@ -81,6 +83,17 @@ export default function RangeOrderForm({
   const [price, setPrice] = useState<RangePrice | null>(null)
   const [pricing, setPricing] = useState(false)
   const [priceError, setPriceError] = useState<string | null>(null)
+  // What one garment costs at each quantity band, shown on the row before anything is typed.
+  const [breaks, setBreaks] = useState<RangePriceBreaks>({})
+  useEffect(() => {
+    let live = true
+    void getOrganisationRangePriceBreaks(orgId).then((b) => {
+      if (live) setBreaks(b)
+    })
+    return () => {
+      live = false
+    }
+  }, [orgId])
   const [notes, setNotes] = useState<string[]>([])
   const [adding, setAdding] = useState(false)
   const [result, setResult] = useState<{ kind: "ok" | "err"; text: string } | null>(null)
@@ -170,6 +183,12 @@ export default function RangeOrderForm({
   }, [audience, packing])
 
   const money = (amount: number) => convertToLocale({ amount, currency_code: price?.currency_code ?? "aud" })
+  /** "$20.43 each · 10+ $19.43 · 50+ $17.93": the first band, then each band where the price drops. */
+  const priceLine = (rows: RangePriceBreaks[string]) =>
+    rows
+      .filter((b, i) => i === 0 || b.unit_price !== rows[i - 1].unit_price)
+      .map((b, i) => (i === 0 ? `${money(b.unit_price)} each` : `${b.min_quantity}+ ${money(b.unit_price)}`))
+      .join(" · ")
   const rowTotal = (item: RangeItem) => {
     const mine = (price?.lines ?? []).filter((l) => l.design_id === item.design_id)
     if (mine.length === 0) return null
@@ -432,6 +451,11 @@ export default function RangeOrderForm({
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold text-ui-fg-base">{item.name}</span>
                           <span className="block truncate text-xs text-ui-fg-muted">{item.product?.title}</span>
+                          {breaks[item.design_id]?.length ? (
+                            <span className="mt-0.5 block text-xs font-semibold text-ui-fg-base" data-testid="range-item-price">
+                              {priceLine(breaks[item.design_id])}
+                            </span>
+                          ) : null}
                           {item.colours.length > 1 ? (
                             <select
                               value={selected ?? ""}
@@ -510,6 +534,12 @@ export default function RangeOrderForm({
               })}
             </tbody>
           </table>
+          {Object.keys(breaks).length > 0 ? (
+            <p className="m-0 border-t border-ui-border-base px-3 py-2 text-xs text-ui-fg-muted">
+              Prices are for one garment in the smallest size, GST included. The more garments in the order, the lower
+              the price, and some larger sizes cost a little more. Your exact price shows as you type.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
